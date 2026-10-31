@@ -74,7 +74,8 @@ export async function build(THREE, P, params = {}) {
       const w = 8 + R() * 10, d = 8 + R() * 10, h = 3 + R() * (x > -200 ? 10 : 6);
       const b = P.outlined(box(w, h, d, blockM[Math.floor(R() * 3)]), Wd.ink, 0.25);
       b.position.set(x + 6 + R() * 16, h / 2, z + 6 + R() * 16); root.add(b);
-      if (R() < litP) { const wdw = box(w * 0.5, 0.3, d * 0.5, winM); wdw.position.set(b.position.x, h + 0.2, b.position.z); wdw.userData.rank = R(); root.add(wdw); lit.push(wdw); }
+      const isLit = R() < litP, rank = R();         // always draw both numbers so towns match across palettes
+      if (isLit) { const wdw = box(w * 0.5, 0.3, d * 0.5, winM); wdw.position.set(b.position.x, h + 0.2, b.position.z); wdw.userData.rank = rank; root.add(wdw); lit.push(wdw); }
     }
   }
   const XS = [], ZS = [];
@@ -184,7 +185,7 @@ export async function build(THREE, P, params = {}) {
   const anchors = () => {
     const a = { stations: stationPos, lighthouse: [new THREE.Vector3(capeX, 46, capeZ)], cape: [new THREE.Vector3(capeX, 0, capeZ)], head: [head.position.clone()] };
     if (walker) { const w = walkAt(lastT); a.walker = [new THREE.Vector3(w[0], 0.5, w[1])]; }
-    if (params.marks) { a.marks = params.marks.map(m => new THREE.Vector3(m[0], 0.5, m[1])); a.marksN = params.marks.map(m => new THREE.Vector3(m[0], 0.5, m[1] + 12)); }
+    if (params.marks) { a.marks = params.marks.map(m => new THREE.Vector3(m[0], m[2] ?? 0.5, m[1])); a.marksN = params.marks.map(m => new THREE.Vector3(m[0], m[2] ?? 0.5, m[1] + 12)); }
     if (labelPts.length) a.labels = labelPts;
     return a;
   };

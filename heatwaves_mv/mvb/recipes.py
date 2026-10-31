@@ -2415,3 +2415,111 @@ def outro_04(s, t, local, fi):
 
 
 R['B-outro-04'] = outro_04
+
+
+# ---- B-outro-02: flight over the waking town -- the night plate peels off like paper; every LED sings one word -------
+O02_WORDS = [('LATE', 165.25, '#F08A3C', 'vend'), ('NIGHTS', 165.87, '#F08A3C', 'station'), ('IN THE', 166.61, '#F5C842', 'pool'),
+             ('MIDDLE', 167.00, '#7FC8B8', 'clock'), ('OF JUNE', 167.35, '#F5C842', 'bus')]
+
+
+def _o02_common():
+    s = tl.BY_ID['B-outro-02']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [-110.0, 40.0, 92.0], 'look': [80.0, 0.0, 92.0], 'fov': 42, 'bank': 0.0, 'ease': 'linear'},
+            {'t': 1.20, 'pos': [-80.0, 40.0, 93.0], 'look': [110.0, 0.0, 96.0], 'fov': 42, 'bank': 0.0, 'ease': 'linear'},
+            {'t': 2.10, 'pos': [-57.5, 39.0, 97.0], 'look': [128.0, 0.0, 128.0], 'fov': 42, 'bank': -15.0, 'ease': 'inout'},
+            {'t': d, 'pos': [-36.0, 38.0, 104.0], 'look': [146.0, 0.0, 150.0], 'fov': 42, 'bank': -15.0, 'ease': 'linear'}]
+    marks = []
+    for i, (w, tw, col, kind) in enumerate(O02_WORDS):
+        tau = tw - s['start']
+        xc = -110 + 25.4 * tau
+        marks.append([round(xc + 58 + 6 * i, 1), round(92 + (22 if i % 2 else -18) + 6 * tau, 1), {'vend': 2.0, 'station': 3.5,
+                      'pool': 6.0, 'clock': 5.0, 'bus': 2.5}[kind]])
+    marks.append([2400.0, 520.0, 260.0])                                   # the sun, far out over the sea
+    walker = {'pts': [[_coast(70) - 6, 70], [_coast(150) - 6, 150]], 'times': [0.0, d]}
+    common = {'path': path, 'marks': marks, 'walker': walker, 'vend': 140, 'fogNear': 400, 'fogFar': 1500,
+              'moonPath': {'z': 100, 'len': 900, 'w': 90, 'color': '#F5C842', 'str': 0.85}}
+    return s, d, common
+
+
+def _o02_plates():
+    s, d, common = _o02_common()
+    night = dict(common, world='night', land='#141A33', sea='#1E2550', seaShade='#0E1226', road='#C9D3DC',
+                 blocks=['#1E2550', '#2C4C9A', '#232B57'], blockShade='#0E1226', window='#F08A3C', litP=0.06,
+                 vendColor='#7FC8B8', moonPath=dict(common['moonPath'], color='#C9D3DC'))
+    dawn = dict(common, world='dawnprint', land='#EDE3CF', sea='#2C4C9A', seaShade='#1E2550', road='#C9D3DC',
+                blocks=['#EDE3CF', '#F08A3C', '#C9D3DC'], blockShade='#2C4C9A', window='#F5C842', litP=0.06,
+                vendColor='#D9402B', fogColor='#F2C58A')
+    return plate('B-outro-02n', 's5_map', night, 0.0, d, fps=24), plate('B-outro-02d', 's5_map', dawn, 0.0, d, fps=24)
+
+
+def outro_02(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    from . import print_fx
+    from .print_fx import hexc as H
+    pn, pd = once('o02', _o02_plates)
+    night, dawn = pn.frame(local), pd.frame(local)
+    # 版はがし: the night plate peels from the sea edge (top of frame) inland, 165.13 -> 167.35
+    if t < 166.61:                                    # halfway on 166.61, off on 167.35: slow lift, fast finish
+        k = 0.5 * clamp((t - 165.13) / 1.48) ** 1.35
+    else:
+        k = 0.5 + 0.5 * clamp((t - 166.61) / 0.74)
+    Y = -140 + (1080 + 420) * k
+    xs, ys = kit._XS, kit._YS
+    yf = Y + np.tan(np.radians(7)) * (xs - 960) + 12 * np.sin(xs / 210.0 + t * 3.0)
+    hc = 70 + 90 * (1 - abs(2 * k - 1))
+    below = np.clip((ys - yf) / 2.0, 0, 1)
+    img = dawn * (1 - below[..., None]) + night * below[..., None]
+    # the curl: the sheet's back rolled over the fold, cream with a cylinder shade, edges inked; shadow below it
+    u = np.clip((ys - yf) / hc, 0, 1)
+    curl = ((ys >= yf) & (ys <= yf + hc)).astype(np.float32)
+    shade = 0.70 + 0.30 * np.sin(np.pi * u)
+    back = H('#EDE3CF')[None, None] * shade[..., None]
+    shadow = np.clip(1 - np.abs(ys - (yf + hc + 26)) / 34.0, 0, 1) * 0.45 * (ys > yf + hc)
+    if 0 < k < 1:
+        img = img * (1 - shadow[..., None])
+        img = img + (back - img) * curl[..., None]
+        edge = (np.abs(ys - yf) < 2.0) | (np.abs(ys - (yf + hc)) < 2.0)
+        img = img + (H('#1A1416')[None, None] - img) * (edge.astype(np.float32) * 0.85)[..., None]
+    # the paper-cut sun on the horizon (dawn side only)
+    mk = pd.anchor(local, 'marks') or []
+    if mk and 0 < mk[-1][2] < 1.001:
+        sx, sy = mk[-1][0], mk[-1][1]
+        sun = np.zeros((1080, 1920), np.float32)
+        cv2.circle(sun, (int(sx), int(sy)), 62, 1.0, -1, cv2.LINE_AA)
+        sun *= (1 - below)
+        kit.halo(img, sx, sy, 260, '#F5C842', 0.55 * float((sy < yf[int(min(1079, max(0, sy))), int(min(1919, max(0, sx)))])), period=12.0)
+        img = img + (H('#FFF2C8')[None, None] - img) * sun[..., None]
+    # LED relay across town: each display lights its word as the camera passes
+    for i, (w, tw, col, kind) in enumerate(O02_WORDS):
+        if t < tw or i >= len(mk) or not (0 < mk[i][2] < 1.001):
+            continue
+        x, y = mk[i][0], mk[i][1]
+        if not (-200 < x < 2120 and -100 < y < 1180):
+            continue
+        a = clamp((t - tw) / (2 / 24))
+        brd, _ = print_fx.led_board(w, cols=max(18, len(w) * 8 + 4), rows=10, dot=9, on=col, off='#2A2418', bg='#141018',
+                                    font='silk', glow=0.5)
+        bh, bw = brd.shape[:2]
+        x0, y0 = int(x - bw / 2), int(y - bh - 26)
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.line(m, (int(x), int(y)), (int(x), int(y - 26)), 1.0, 3, cv2.LINE_AA)
+        img = img + (H('#1A1416')[None, None] - img) * m[..., None]
+        ya, yb, xa, xb = max(0, y0), min(1080, y0 + bh), max(0, x0), min(1920, x0 + bw)
+        if ya < yb and xa < xb:
+            roi = img[ya:yb, xa:xb]
+            img[ya:yb, xa:xb] = roi + (brd[ya - y0:yb - y0, xa - x0:xb - x0] - roi) * a
+            kit.halo(img, x, y0 + bh / 2, bw * 0.75, col, 0.35 * a, period=10.0)
+    # him, running on the seawall far below
+    wk = pd.anchor(local, 'walker')
+    if wk and 0 < wk[0][2] < 1.001:
+        img = kit.dot_walker(img, wk[0][0], wk[0][1], 46, (t - s['start']) * 2.6, pitch=3.0, run=True)
+    for j, (y0_, sp, ph, span) in enumerate(((240, 330, 0.1, 64), (330, 270, 0.5, 48), (190, 380, 0.8, 40))):
+        gx = 2050 - ((t - s['start']) * sp + j * 700) % 2300
+        kit.gull(img, gx, y0_ + 16 * np.sin(t * 1.9 + j), span, t * 2.8 + ph, '#1A1416', 0.8)
+    return _zh_fixed(img, t, 56, 165.25, y=1012, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro-02'] = outro_02
+tl.OWN_TYPE.add('B-outro-02')
