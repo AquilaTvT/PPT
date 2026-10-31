@@ -2626,3 +2626,137 @@ def outro_hook_01(s, t, local, fi):
 
 R['B-outro_hook-01'] = outro_hook_01
 tl.OWN_TYPE.add('B-outro_hook-01')
+
+
+# ---- B-verse-06: 逃げ水 spreads -- the road's halftone melts into rippling LED dots that mirror the sky ----------------
+def led_dots(src, pitch=14.0, ripple=0.0, t=0.0, gap='#2A3040', glow=0.4):
+    """re-sample an image as round LED dots (screen-locked grid, dark gaps); ripple shifts the sampling like water"""
+    import cv2
+    from .print_fx import hexc as H
+    xs, ys = kit._XS, kit._YS
+    gx, gy = np.floor(xs / pitch), np.floor(ys / pitch)
+    cx, cy = (gx + 0.5) * pitch, (gy + 0.5) * pitch
+    if ripple:
+        cy = cy + ripple * np.sin(cx / 61.0 + t * 5.0) + 0.5 * ripple * np.sin(cy / 17.0 - t * 7.0)
+        cx = cx + 0.6 * ripple * np.sin(cy / 43.0 + t * 4.0)
+    col = cv2.remap(src, cx.astype(np.float32), cy.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    d = np.sqrt((xs - (gx + 0.5) * pitch) ** 2 + (ys - (gy + 0.5) * pitch) ** 2) / pitch
+    core = np.clip((0.40 - d) * pitch * 0.9, 0, 1)
+    out = H(gap)[None, None] + (col - H(gap)[None, None]) * core[..., None]
+    if glow:
+        out = out + col * cv2.GaussianBlur(core, (0, 0), pitch * 0.35)[..., None] * glow * 0.35
+    return np.clip(out, 0, 1)
+
+
+def _v06_plate():
+    s = tl.BY_ID['B-verse-06']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [0.6, 0.5, 0.0], 'look': [0.5, 0.62, 60.0], 'fov': 40},
+            {'t': d, 'pos': [0.6, 0.5, 4.0 * d], 'look': [0.5, 0.62, 4.0 * d + 60.0], 'fov': 40, 'ease': 'linear'}]
+    return plate('B-verse-06', 's2_coast', {'world': 'noon', 'day': True, 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3,
+                                           'mirrors': [38.0, 120.0], 'fogNear': 80, 'fogFar': 520}, 0.0, d, fps=24)
+
+
+def ground_led(src, hy, t, scroll=0.0, p0=6.0, p1=34.0, gap='#7A8498', glow=0.55, ripple=3.0):
+    """round LED dots on the road below horizon hy: rows whose pitch grows from p0 (horizon) to p1 (bottom edge),
+    scrolling toward the camera; each dot takes src's colour at its centre (rippling like water)."""
+    import cv2
+    from .print_fx import hexc as H
+    xs, ys = kit._XS, kit._YS
+    span = max(1.0, 1080.0 - hy)
+    a = (p1 - p0) / span
+    yy = np.maximum(ys - hy, 0.0)
+    r = np.log((p0 + a * yy) / p0) / a              # continuous row coordinate (rows per pixel = 1 / pitch)
+    rc = np.floor(r - scroll) + 0.5 + scroll
+    pc = p0 * np.exp(a * rc)
+    yc = hy + (pc - p0) / a
+    ix = np.floor((xs - 960) / pc)
+    xc = 960 + (ix + 0.5) * pc
+    sx = (xc + ripple * 0.6 * np.sin(yc / 23.0 + t * 5.0)).astype(np.float32)
+    sy = np.clip(yc + ripple * np.sin(xc / 47.0 + t * 6.0), 0, 1079).astype(np.float32)
+    col = cv2.remap(src, sx, sy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    d = np.sqrt((xs - xc) ** 2 + (ys - yc) ** 2) / pc
+    core = np.clip((0.42 - d) * pc * 0.9, 0, 1)
+    out = H(gap)[None, None] + (col - H(gap)[None, None]) * core[..., None]
+    out = out + col * cv2.GaussianBlur(core, (0, 0), 2.5)[..., None] * glow * 0.4
+    return np.clip(out, 0, 1)
+
+
+def verse_06(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from .print_fx import hexc as H
+    pl = once('v06', _v06_plate)
+    img = pl.frame(local).copy()
+    vp = pl.anchor(local, 'vp')
+    hy = float(np.clip(vp[0][1], 420, 640)) if vp else 540.0
+    # the mirage front: starts at the horizon, wavefront 1 on 71.05, wavefront 2 reaches mid-frame on 71.79
+    if t < 71.05:
+        front = hy + 40 * clamp((t - 70.31) / 0.74)
+    elif t < 71.79:
+        front = hy + 40 + (810 - hy - 40) * _ease_io((t - 71.05) / 0.74) * 0.55
+    else:
+        front = hy + 40 + (810 - hy - 40) * (0.55 + 0.45 * _ease_io(clamp((t - 71.79) / 0.74)))
+    under = clamp((t - 72.53) / 0.75)                       # the lens dips under the silver surface
+    front = front + (1180 - front) * under
+    top = hy - (hy + 40) * _ease_in(under)                  # ... and the surface rises over the frame
+    # what the mirage shows: the sky above the horizon, flipped, rippling, brightened toward silver
+    yy = np.clip(2 * hy - kit._YS + 3 * np.sin(kit._XS / 31.0 + t * 7.0), 0, 1079).astype(np.float32)
+    refl = cv2.remap(img, kit._XS, yy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    refl = np.clip(refl * 0.75 + H('#E6EEF5')[None, None] * 0.35, 0, 1)
+    dots = ground_led(refl, hy - 2, t, scroll=local * 3.2)
+    edge = front + 18 * np.sin(kit._XS / 57.0 + t * 6.0) + 9 * np.sin(kit._XS / 13.0 - t * 9.0)
+    m = np.clip((kit._YS - top) / 6.0, 0, 1) * np.clip((edge - kit._YS) / 10.0, 0, 1)
+    if under > 0:                              # above the old horizon (when the surface rises) use a flat dot field
+        flat = led_dots(refl, pitch=15.0, ripple=5.0, t=t, gap='#7A8498')
+        dots = np.where((kit._YS < hy + 4)[..., None], flat, dots)
+    img = img + (dots - img) * m[..., None]
+    # her, far away in the mirage with an inverted reflection, dissolving into LED dots on 72.53
+    from . import chars
+    cl = once('v06_char', lambda: chars.CharLayer('B-chorus1-03', rim=True, rim_w=(1.5, 3.0, 0.0)))
+    if cl.ok:
+        rgb, a = cl.frame(0.0, x=960, y=hy + 14, cx=0.5, cy=0.92, height=200)
+        k = clamp((t - 72.53) / 0.5)
+        a = a * (1 - _dots_k(k, 7.0))
+        img = chars.over(img, rgb, a)
+        rr = cv2.flip(rgb, 0)
+        ra = cv2.flip(a, 0)
+        shift = int(2 * (hy + 14) - 1080)
+        rr, ra = np.roll(rr, shift, 0), np.roll(ra, shift, 0) * 0.5
+        ra = cv2.remap(ra, (kit._XS + 3 * np.sin(kit._YS / 4.0 + t * 12)).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        img = chars.over(img, rr, ra * (kit._YS > hy + 14))
+    # L24 column above the horizon, each glyph with an inverted wobbling reflection below it
+    gt = _map_gt(24)
+    word = '路に広がる逃げ水'
+    size = 52
+    y0 = max(40.0, hy - 40 - len(word) * size * 1.06)
+    fill = np.zeros((1080, 1920), np.float32)
+    for i, ch in enumerate(word):
+        if t < gt[i]:
+            continue
+        gl = text.layout_v(ch, 1730, y0 + i * size * 1.06, size, 'mincho')
+        f, _ = text.render_glyphs(gl)
+        if f is None:
+            continue
+        if ch in '逃げ水':                                    # built from the same LED dots
+            f = f * (1 - _dots_k(0.35, 7.0)) if t < 72.6 else f
+        fill = np.maximum(fill, f)
+    if fill.max() > 0:
+        sh = np.roll(np.roll(fill, 6, 0), 6, 1)
+        line = cv2.dilate(fill, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+        img = img + (H('#2D6BE0')[None, None] - img) * sh[..., None]
+        img = img + (H('#1A1416')[None, None] - img) * line[..., None]
+        img = img + (H('#EDE3CF')[None, None] - img) * fill[..., None]
+        rf = cv2.flip(np.maximum(line, sh), 0)
+        rf = np.roll(rf, int(2 * hy - 1080), 0)
+        rf = cv2.remap(rf, (kit._XS + 6 * np.sin(kit._YS / 9.0 + t * 8)).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        img = img + (H('#C9D3DC')[None, None] - img) * (rf * 0.55 * (kit._YS > hy))[..., None]
+    # under the surface: everything goes to the grey of the TV sign-off screen
+    if under > 0:
+        img = img + (H('#8E95A6')[None, None] - img) * (clamp((under - 0.55) / 0.45) ** 1.5)
+    return _zh_fixed(img, t, 24, 70.35, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-verse-06'] = verse_06
+tl.OWN_TYPE.add('B-verse-06')

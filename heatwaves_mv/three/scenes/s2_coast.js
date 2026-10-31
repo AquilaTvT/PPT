@@ -16,7 +16,8 @@ export async function build(THREE, P, params = {}) {
 
   const camera = new THREE.PerspectiveCamera(params.fov || 38, 16 / 9, 0.1, 2000);
   scene.add(P.sky(Wd.skyTop, Wd.skyHor, { stars: Wd.stars, band: Wd.skyBand }));
-  const moon = P.disc(Wd.moon, Wd.moonShade, 26);
+  const isDay = params.day ?? (params.world === 'noon' || params.world === 'morning' || params.world === 'dawnprint');
+  const moon = P.disc(Wd.moon, isDay ? Wd.moon : Wd.moonShade, 26);      // by day it is the sun: no craters
   moon.position.set(...(params.moonPos || [260, 150, 720])); moon.lookAt(0, 0, 0);
   scene.add(moon);
   const moonGlow = P.glow(Wd.moon, 180, { strength: 0.55 }); moonGlow.position.copy(moon.position).multiplyScalar(0.98);
