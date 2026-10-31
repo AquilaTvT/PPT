@@ -9,7 +9,7 @@ export async function build(THREE, P, params = {}) {
   P.U.uFogColor.value.set(Wd.fog); P.U.uFogNear.value = 80; P.U.uFogFar.value = 600;
   P.U.uLightDir.value.set(...Wd.light).normalize(); P.U.uPeriod.value = params.period || 8;
   root.add(P.sky(Wd.skyTop, Wd.skyHor, { stars: 0, band: Wd.skyBand }));
-  const sun = P.disc('#FFF6DC', '#F5C842', 22); sun.position.set(-120, 260, -420); sun.lookAt(0, 0, 0); root.add(sun);
+  const sun = P.disc('#FFF6DC', '#F5C842', 22); sun.position.set(...(params.sunPos || [-120, 260, -420])); sun.lookAt(0, 0, 0); root.add(sun);
   const sunGlow = P.glow('#FFF6DC', 220, { strength: 0.6 }); sunGlow.position.copy(sun.position).multiplyScalar(0.97); root.add(sunGlow);
   const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
   const LW = 25, PW = 16;
@@ -23,7 +23,8 @@ export async function build(THREE, P, params = {}) {
   const wl = box(0.3, 1.4, PW, tile); wl.position.set(-LW / 2, -0.7, 0); root.add(wl);
   const wr = box(0.3, 1.4, PW, tile); wr.position.set(LW / 2, -0.7, 0); root.add(wr);
   const waterMat = new THREE.ShaderMaterial({
-    uniforms: { ...P.U, uA: { value: new THREE.Color('#2EC4D6') }, uB: { value: new THREE.Color('#E8FAFF') }, uDeep: { value: new THREE.Color('#1F8FB0') } },
+    uniforms: { ...P.U, uA: { value: new THREE.Color(params.waterA || '#2EC4D6') }, uB: { value: new THREE.Color(params.waterB || '#E8FAFF') },
+                uDeep: { value: new THREE.Color(params.waterDeep || '#1F8FB0') } },
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
     fragmentShader: `
       uniform vec3 uA, uB, uDeep; uniform float uTime, uPeriod; uniform vec2 uJitter; varying vec3 vW;
@@ -45,9 +46,20 @@ export async function build(THREE, P, params = {}) {
   const ropeTex = document.createElement('canvas'); ropeTex.width = 64; ropeTex.height = 8;
   const rg = ropeTex.getContext('2d'); for (let i = 0; i < 8; i++) { rg.fillStyle = ['#D9402B', '#EDE3CF', '#2C4C9A', '#EDE3CF'][i % 4]; rg.fillRect(i * 8, 0, 8, 8); }
   const ropeMat = P.flatTex(ropeTex); ropeMat.map.wrapS = THREE.RepeatWrapping; ropeMat.map.repeat.set(40, 1);
+  const ropes = [];
   for (let k = 1; k < 8; k++) {
     const r = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, LW, 8), ropeMat);
-    r.rotation.z = Math.PI / 2; r.position.set(0, -0.1, -PW / 2 + k * PW / 8); root.add(r);
+    r.rotation.z = Math.PI / 2; r.position.set(0, -0.1, -PW / 2 + k * PW / 8); root.add(r); ropes.push(r);
+  }
+  if (params.school) {   // the school block behind the far end, windows catching the low sun
+    const wallM = P.ink(Wd.wall, { shade: Wd.wallShade, ambient: 0.45 });
+    const bld = P.outlined(box(10, 13, 70, wallM), Wd.ink, 0.04); bld.position.set(LW / 2 + 34, 6.5, 0); root.add(bld);
+    const roofB = box(10.6, 0.6, 70.6, P.ink(Wd.roof, { ambient: 0.5 })); roofB.position.set(LW / 2 + 34, 13.3, 0); root.add(roofB);
+    const winM = P.ink(params.schoolWindow || Wd.window, { emissive: 0.85 });
+    for (let fl = 0; fl < 3; fl++) for (let i = 0; i < 22; i++) {
+      const w = box(0.1, 1.6, 2.0, winM); w.position.set(LW / 2 + 28.95, 2.6 + fl * 3.8, -32 + i * 3.05); root.add(w);
+    }
+    const clock = new THREE.Mesh(new THREE.CircleGeometry(1.3, 32), P.ink('#EDE3CF', { flat: 1 })); clock.position.set(LW / 2 + 28.9, 11.2, 0); clock.rotation.y = -Math.PI / 2; root.add(clock);
   }
   // starting blocks at the near end (x = -LW/2)
   const blk = P.ink('#EDE3CF', { shade: '#8E95A6' });
@@ -65,9 +77,11 @@ export async function build(THREE, P, params = {}) {
   const camera = new THREE.PerspectiveCamera(params.fov || 40, 16 / 9, 0.05, 3000);
   function update(t) {
     if (!(params.path && applyPath(camera, params.path, t))) { camera.position.set(-LW / 2 - 3, 2.2, 5); camera.lookAt(LW / 2, 2.5, -1); }
+    ropes.forEach((r, k) => { r.position.y = -0.1 + 0.035 * Math.sin(t * 2.1 + k * 0.9); r.rotation.x = 0.02 * Math.sin(t * 1.7 + k); });
   }
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const x0 = LW / 2 + 4.79;
-  const anchors = () => ({ scoreboard: [V(x0, 7.0, 4.4), V(x0, 7.0, -4.4), V(x0, 3.0, -4.4), V(x0, 3.0, 4.4)] });
+  const anchors = () => ({ scoreboard: [V(x0, 7.0, 4.4), V(x0, 7.0, -4.4), V(x0, 3.0, -4.4), V(x0, 3.0, 4.4)],
+                           edge: [V(-LW / 2 + 1.5, 0.0, PW / 2 + 0.3)] });
   return { scene: root, camera, update, anchors };
 }

@@ -1518,7 +1518,7 @@ def chorus4_05(s, t, local, fi):
             else:
                 top, _ = print_fx.led_board('日の出', cols=51, rows=16, dot=12, on='#F5C842', off='#3A3420', bg='#141018')
                 sc = math.floor((t - 159.94) * 24)
-                bot, _ = print_fx.led_board('SUNRISE  SUNRISE  ', cols=51, rows=8, dot=12, on='#F08A3C', off='#3A2A20',
+                bot, _ = print_fx.led_board('SUNRISE  SUNRISE  ', cols=51, rows=10, dot=12, on='#F08A3C', off='#3A2A20',
                                             bg='#141018', font='silk', scroll=sc % 120)
                 brd = np.concatenate([top, bot], 0)
             img = led_on_quad(img, quad, brd, alpha=fade if bw > 10 else 1.0)
@@ -2353,3 +2353,65 @@ def bridge1_04(s, t, local, fi):
 
 R['B-bridge1-04'] = bridge1_04
 tl.OWN_TYPE.add('B-bridge1-04')
+
+
+# ---- shared: the pool's LED scoreboard (8 lanes of 君 + amber ticker) ---------------------------------------------------
+def scoreboard_img(t, lanes_on=(1,) * 8, ticker='', t0=0.0, on='#F5C842', speed=2):
+    """flat scoreboard image: an amber 5x7 ticker row over 4x2 lane fields '1 君' ... '8 君' (dark lanes unlit)"""
+    from . import print_fx
+    key = ('sb_lanes', tuple(lanes_on), on)
+    if key not in _cache:
+        rows = []
+        for r in range(2):
+            fields = []
+            for c in range(4):
+                i = r * 4 + c
+                b, _ = print_fx.led_board(f'{i + 1} 君', cols=34, rows=16, dot=12, on=on if lanes_on[i] else '#3A3420',
+                                          off='#2A2418', bg='#141018', glow=0.45 if lanes_on[i] else 0.0)
+                fields.append(b)
+            rows.append(np.concatenate(fields, 1))
+        for k in [k for k in _cache if isinstance(k, tuple) and k[0] == 'sb_lanes']:
+            del _cache[k]
+        _cache[key] = np.concatenate(rows, 0)
+    lanes = _cache[key]
+    sc = int(max(0.0, t - t0) * 24) * speed - 136
+    top, _ = print_fx.led_board(ticker or ' ', cols=136, rows=10, dot=12, on=on, off='#2A2418', bg='#141018', font='silk',
+                                scroll=sc)
+    return np.concatenate([top, lanes], 0)
+
+
+# ---- B-outro-04: the pool at dawn -- the eight 君 go dark one per 8th; her afterimage dissolves into the caustics -----
+def _o04_plate():
+    s = tl.BY_ID['B-outro-04']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [-9.5, 5.6, 5.0], 'look': [16.0, 4.0, -0.5], 'fov': 40},
+            {'t': d, 'pos': [-9.5, 3.6, 5.0], 'look': [16.0, 3.7, -0.5], 'fov': 39.4, 'ease': 'inout'}]
+    return plate('B-outro-04', 's7_pool', {'world': 'dawnprint', 'path': path, 'school': True, 'schoolWindow': '#F5C842',
+                                          'waterA': '#3F9FA8', 'waterB': '#F5C842', 'waterDeep': '#2C4C9A',
+                                          'sunPos': [420, 70, -300]}, 0.0, d, fps=24)
+
+
+def outro_04(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    pl = once('o04', _o04_plate)
+    img = pl.frame(local).copy()
+    offs = [171.05 + k * BEAT / 2 for k in range(8)]
+    lanes = tuple(0 if t >= o else 1 for o in offs)
+    q = pl.anchor(local, 'scoreboard')
+    if q and all(0 < p[2] < 1.001 for p in q):
+        brd = scoreboard_img(t, lanes, "CAN'T MAKE YOU HAPPIER NOW", 171.10)
+        img = led_on_quad(img, _quad_sorted(q), brd)
+    # her afterimage at the pool edge (B-chorus1-05's keyframe), 50%, dissolving into the caustic dots 172.54-173.28
+    from . import chars
+    cl = once('o04_char', lambda: chars.CharLayer('B-chorus1-05', rim=False))
+    e = pl.anchor(local, 'edge')
+    if cl.ok and e:
+        rgb, a = cl.frame(0.0, x=e[0][0], y=e[0][1], cx=0.5, cy=0.95, height=420)
+        k = clamp((t - 172.54) / (173.28 - 172.54))
+        a = a * 0.5 * (1 - _dots_k(k, 9.0))
+        img = chars.over(img, rgb, a)
+    return img
+
+
+R['B-outro-04'] = outro_04
