@@ -253,3 +253,210 @@ def intro01(s, t, local, fi):
 
 R['B-intro-01'] = intro01
 tl.OWN_TYPE.add('B-intro-01')
+
+
+# ---------------------------------------------------------------- B-intro-03: LED clock-radio macro, rack focus to the card
+def intro03(s, t, local, fi):
+    from mv.core import clamp
+    from .print_fx import clock_grid, dot_matrix, led_board, hexc as H
+    from . import card as C
+    import cv2
+    beats = [8.09 + k * BEAT for k in range(4)]
+    colon = ((t - 8.09) % BEAT) < BEAT / 2
+    key = ('clk', colon)
+    if key not in _cache:
+        _cache[key] = dot_matrix(clock_grid('23:59', colon_on=colon), pitch=36, on='#7FC8B8')
+    clk = _cache[key]
+    # ticker: L2 at 1 dot/frame from 8.00; THINK blinks off/on twice from 9.57
+    fr = int((t - 8.00) * 24)
+    tick_txt = "DON'T WANT, BABY, THINK ABOUT YOU"
+    blink = 9.57 <= t < 10.31 and int((t - 9.57) / 0.18) % 2 == 0
+    shown = tick_txt.replace('THINK', '     ') if blink else tick_txt
+    tkey = ('tick', shown, fr)
+    if tkey not in _cache:
+        if len([k for k in _cache if isinstance(k, tuple) and k[0] == 'tick']) > 30:
+            for k in [k for k in _cache if isinstance(k, tuple) and k[0] == 'tick']:
+                del _cache[k]
+        _cache[tkey] = led_board(shown, cols=96, rows=16, dot=12, on='#7FC8B8', off='#123030', bg='#0B1414', font='dot',
+                                 scroll=fr * 3 - 96)[0]
+    tick = _cache[tkey]
+    face = np.empty((1080, 1920, 3), np.float32)
+    face[:] = H('#1A1416')
+    # halftone bokeh discs of the CRT behind, pulsing on beats
+    p = kit.beat_pulse(t, beats, 0.15)
+    rng = np.random.default_rng(3)
+    for i in range(6):
+        cx, cy, r = rng.uniform(100, 1820), rng.uniform(80, 1000), rng.uniform(75, 110) * (1 + 0.08 * p)
+        m = np.zeros((1080, 1920), np.uint8)
+        cv2.circle(m, (int(cx + 6 * np.sin(t + i)), int(cy)), int(r), 255, -1, cv2.LINE_AA)
+        dm = __import__('mvb.typo', fromlist=['dots_mask']).dots_mask(0.0, period=8) if 'dm8' not in _cache else _cache['dm8']
+        _cache['dm8'] = dm
+        mm = (m.astype(np.float32) / 255) * dm * 0.55
+        face = face + (H('#7FC8B8')[None, None] - face) * mm[..., None]
+    # device layout: clock centred, ticker under it
+    ch, cw = clk.shape[:2]
+    drift = int(1.5 / 100 * 1920 * clamp((t - 8.09) / (9.57 - 8.09)))
+    y0, x0 = 190, 960 - cw // 2 + drift
+    face[y0:y0 + ch, x0:x0 + cw] = clk
+    th, tw = tick.shape[:2]
+    face[y0 + ch + 60:y0 + ch + 60 + th, 960 - tw // 2 + drift:960 - tw // 2 + drift + tw] = tick
+    # rack focus 9.57-10.31: the device blurs, the card on the chabudai comes into focus, then a 6% push
+    rk = clamp((t - 9.57) / (10.31 - 9.57))
+    if rk > 0:
+        ck = once('card_static', lambda: C.render_card(stamp_k=(0, 0, 0, 0, 0)))
+        push = 1.0 + 0.06 * clamp((t - 10.31) / (11.05 - 10.31))
+        card = C.view(ck, 1900, 1000, 1.25 * push, rot=-8)
+        card = card * 0.72 + H('#7FC8B8')[None, None] * 0.12          # TV light on the card
+        # fan shadow crossing at 10.31
+        fk = (t - 10.31) / 0.6
+        if 0 <= fk <= 1:
+            band = np.exp(-((kit._XS - 1920 * fk) / 180.0) ** 2) * 0.35
+            card = card * (1 - band[..., None])
+        sharp_card = cv2.GaussianBlur(card, (0, 0), 12 * (1 - rk) + 0.01)
+        blur_face = cv2.GaussianBlur(face, (0, 0), 14 * rk + 0.01)
+        face = blur_face * (1 - rk) + sharp_card * rk
+    from mv import text, lyrics
+    a = clamp((t - 8.25) / 0.25)
+    gl = text.layout_v(lyrics.ZH[2].replace(' ', '　'), 1780, 160, 32, 'zh', tracking=0.14)
+    f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a * 0.9))
+    if f is not None:
+        face = face + (H('#EDE3CF')[None, None] - face) * f[..., None]
+    return face
+
+
+R['B-intro-03'] = intro03
+tl.OWN_TYPE.add('B-intro-03')
+
+
+# ---------------------------------------------------------------- shared 2D pieces: noon sky, paper-cut clouds
+def noon_sky(t, top='#2D6BE0', bottom='#F6F2E7', horizon=760):
+    from .print_fx import hexc as H
+    import math
+    key = ('noonsky', top, bottom, horizon)
+    if key not in _cache:
+        ys = kit._YS
+        tone = np.clip((horizon - ys) / horizon, 0, 1) ** 0.8
+        c, s_ = math.cos(math.radians(45)), math.sin(math.radians(45))
+        per = 10.0
+        u = (kit._XS * c + ys * s_) / per
+        v = (-kit._XS * s_ + ys * c) / per
+        d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+        m = np.clip((np.sqrt(tone) * 0.72 - d) * per * 0.6, 0, 1)
+        img = np.empty((1080, 1920, 3), np.float32)
+        img[:] = H(bottom)
+        img = img + (H(top)[None, None] - img) * m[..., None]
+        _cache[key] = img
+    return _cache[key].copy()
+
+
+def paper_cloud(img, cx, cy, scale=1.0, seed=0, col='#F6F2E7', shadow='#2C4C9A'):
+    import cv2
+    from .print_fx import hexc as H
+    rng = np.random.default_rng(seed)
+    m = np.zeros((1080, 1920), np.uint8)
+    for k in range(9):
+        dx, dy = rng.uniform(-160, 160) * scale, rng.uniform(-50, 20) * scale
+        r = rng.uniform(50, 95) * scale * (1.2 if abs(dx) < 60 * scale else 1.0)
+        cv2.circle(m, (int(cx + dx), int(cy + dy)), int(r), 255, -1, cv2.LINE_AA)
+    cv2.rectangle(m, (int(cx - 170 * scale), int(cy)), (int(cx + 170 * scale), int(cy + 40 * scale)), 255, -1)
+    m = m.astype(np.float32) / 255
+    sh = np.roll(np.roll(m, 8, 0), 8, 1)
+    img = img + (H(shadow)[None, None] - img) * (sh * 0.55)[..., None]
+    return img + (H(col)[None, None] - img) * m[..., None]
+
+
+# ---------------------------------------------------------------- B-hook-04: the title card inside a giant curve mirror
+def hook04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text, lyrics
+    from mva import fx
+    from .print_fx import hexc as H
+    img = noon_sky(t)
+    for k, (x0, y0, sc, sd) in enumerate(((1500, 210, 1.1, 1), (300, 330, 0.8, 2))):
+        img = paper_cloud(img, x0 - 10 * (t - 25.0), y0, sc, sd)
+    # wires across the top
+    for k in range(3):
+        sway = 3 * math.sin(t * 2.0 + k)
+        pts = [(x, int(120 + k * 28 + 60 * (1 - ((x - 960) / 1100) ** 2) + sway)) for x in range(-50, 1980, 40)]
+        for a, b in zip(pts, pts[1:]):
+            cv2.line(img, a, b, tuple(float(v) for v in H('#1A1416')), 2, cv2.LINE_AA)
+    push = 1.0 + 0.08 * clamp(local / (s['end'] - s['start']))
+    gust = 6.0 * math.sin(clamp((t - 28.09) / 0.6) * math.pi) * math.exp(-max(0, t - 28.09) * 2) if t >= 28.09 else 0.0
+    cx, cy, R = 900, 470, int(440 * push)
+    # pole + plate
+    cv2.rectangle(img, (cx - 14, cy + R - 20), (cx + 14, 1080), tuple(float(v) for v in H('#F08A3C')), -1)
+    cv2.rectangle(img, (cx - 90, 930), (cx + 90, 990), tuple(float(v) for v in H('#F6F2E7')), -1)
+    cv2.rectangle(img, (cx - 90, 930), (cx + 90, 990), tuple(float(v) for v in H('#1A1416')), 3)
+    gl, _ = text.layout_h('カーブ注意', cx, 960, 34, 'kaku', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        img = img + (H('#D9402B')[None, None] - img) * f[..., None]
+    # mirror content: the noon road (hook-03 plate), mirrored, fisheye, mirage pool, a dot cyclist
+    pl = once('hook03', _hook03_plate)
+    road = pl.frame(0.35 + 0.2 * clamp(local / 3.0))[:, ::-1].copy()
+    road = kit.mirage_band(road, t, 540, 600, 1320, 30)
+    if 26.0 <= t <= 28.0:
+        k = (t - 26.0) / 2.0
+        road = kit.dot_person(road, 600 + 700 * k, 640, 90, t, colors=('#2C4C9A', '#F6F2E7', '#F5C842', '#1A1416'))
+    road = fx.fisheye(cv2.resize(road, (2 * R, 2 * R)), k=0.45)
+    disc = np.zeros((1080, 1920), np.float32)
+    cv2.circle(disc, (cx, cy), R, 1.0, -1, cv2.LINE_AA)
+    M = cv2.getRotationMatrix2D((R, R), gust, 1.0)
+    road = cv2.warpAffine(road, M, (2 * R, 2 * R), borderMode=cv2.BORDER_REFLECT)
+    canvas = img.copy()
+    y0, x0 = cy - R, cx - R
+    ya, yb, xa, xb = max(0, y0), min(1080, y0 + 2 * R), max(0, x0), min(1920, x0 + 2 * R)
+    canvas[ya:yb, xa:xb] = road[ya - y0:yb - y0, xa - x0:xb - x0]
+    img = img + (canvas - img) * disc[..., None]
+    # sheen sweeps 26.61 / 28.09 (silver halftone band)
+    for ts in (26.61, 28.09):
+        k = (t - ts) / 0.4
+        if 0 <= k <= 1:
+            band = np.exp(-((kit._XS - kit._YS - (cx - R) - 2.6 * R * k + R) / 70.0) ** 2) * disc
+            img = img + (H('#F6F2E7')[None, None] - img) * (band * 0.6)[..., None]
+    # rim
+    cv2.circle(img, (cx, cy), R + 16, tuple(float(v) for v in H('#F08A3C')), 30, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), R + 32, tuple(float(v) for v in H('#1A1416')), 3, cv2.LINE_AA)
+    # title plates: cream fill + cobalt shadow swim out of register, snap on 27.35
+    reg = clamp((27.35 - t) / (27.35 - 25.87))
+    wob = 40 * reg * math.sin(t * 2 * math.pi * 1.2)
+    cols = [('泳いでく', cx + 110), ('ミラー', cx - 110)]
+    fill_all = np.zeros((1080, 1920), np.float32)
+    shadow_all = np.zeros((1080, 1920), np.float32)
+    for word, x in cols:
+        gl = text.layout_v(word, x, cy - 330, 160, 'mincho', tracking=0.04)
+        if word == 'ミラー':
+            for g in gl:
+                g['cy'] += 80
+        f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=1.0, dx=wob * 0.5, dy=reg * 30))
+        sh, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=1.0, dx=-wob * 0.5 + 9, dy=-reg * 30 + 9))
+        if f is not None:
+            fill_all = np.maximum(fill_all, f)
+            shadow_all = np.maximum(shadow_all, sh)
+    line = cv2.dilate(fill_all, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+    img = img + (H('#2D6BE0')[None, None] - img) * shadow_all[..., None]
+    img = img + (H('#1A1416')[None, None] - img) * line[..., None]
+    img = img + (H('#EDE3CF')[None, None] - img) * fill_all[..., None]
+    # 4-frame cobalt dot flash on the snap
+    if 27.35 <= t < 27.35 + 5 / 24:
+        img = kit.dot_flash(img, 1 - (t - 27.35) / (5 / 24), '#2D6BE0', 24)
+    # lead column 熱波ゆらり (40 px) right of the mirror
+    lead = once('h04_lead', lambda: VLyric(9, x=1480, y=200, size=44, accent='#2D6BE0', max_glyphs=5, zh=False))
+    img = lead.draw(img, t)
+    # HEAT WAVES letter by letter on 16ths from 28.09 + Chinese
+    if t >= 28.09:
+        n = min(10, int((t - 28.09) / (BEAT / 4)) + 1)
+        gl, _ = text.layout_h('HEAT WAVES'[:n], 1500, 760, 64, 'mincho', tracking=0.6, align='left')
+        f, _ = text.render_glyphs(gl)
+        if f is not None:
+            img = img + (H('#D9402B')[None, None] - img) * f[..., None]
+        gl, _ = text.layout_h(lyrics.ZH[9], 1500, 830, 30, 'zh', tracking=0.2, align='left')
+        f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=0.9))
+        if f is not None:
+            img = img + (H('#1E2550')[None, None] - img) * f[..., None]
+    return img
+
+
+R['B-hook-04'] = hook04
+tl.OWN_TYPE.add('B-hook-04')

@@ -107,3 +107,57 @@ def led_board(txt, cols=None, rows=16, dot=10, on='#7FC8B8', off='#16302E', bg='
         gl = cv2.GaussianBlur(lit * 1.0, (0, 0), dot * 0.9)
         rgb = rgb + hexc(on)[None, None] * gl[..., None] * glow * 0.6
     return np.clip(rgb, 0, 1), np.ones((h, w), np.float32)
+
+
+# ---------------------------------------------------------------- generic dot matrices (clocks, scoreboards)
+SEG = {  # seven-segment map per digit: a b c d e f g
+    '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc',
+    '8': 'abcdefg', '9': 'abcdfg', ' ': '', '-': 'g'}
+
+
+def seg_digit(ch, w=7, h=13):
+    g = np.zeros((h, w), bool)
+    m = h // 2
+    on = SEG.get(ch, '')
+    if 'a' in on: g[0, 1:w - 1] = True
+    if 'g' in on: g[m, 1:w - 1] = True
+    if 'd' in on: g[h - 1, 1:w - 1] = True
+    if 'f' in on: g[1:m, 0] = True
+    if 'b' in on: g[1:m, w - 1] = True
+    if 'e' in on: g[m + 1:h - 1, 0] = True
+    if 'c' in on: g[m + 1:h - 1, w - 1] = True
+    return g
+
+
+def clock_grid(s, colon_on=True, w=7, h=13, gap=2):
+    cols = []
+    for ch in s:
+        if ch == ':':
+            c = np.zeros((h, 3), bool)
+            if colon_on:
+                c[h // 3, 1] = c[2 * h // 3, 1] = True
+            cols.append(c)
+        else:
+            cols.append(seg_digit(ch, w, h))
+        cols.append(np.zeros((h, gap), bool))
+    return np.concatenate(cols[:-1], 1)
+
+
+def dot_matrix(grid, pitch=18, on='#7FC8B8', off_alpha=0.12, bg='#0B1414', glow=0.5):
+    h, w = grid.shape
+    H2, W2 = h * pitch, w * pitch
+    lit = cv2.resize(grid.astype(np.float32), (W2, H2), interpolation=cv2.INTER_NEAREST)
+    ys, xs = np.mgrid[0:H2, 0:W2].astype(np.float32)
+    cell = np.sqrt(((xs % pitch) - pitch / 2 + 0.5) ** 2 + ((ys % pitch) - pitch / 2 + 0.5) ** 2)
+    core = np.clip((pitch * 0.34 - cell) * 1.4, 0, 1)
+    ring = np.clip((pitch * 0.42 - cell) * 1.4, 0, 1) - core
+    rgb = np.empty((H2, W2, 3), np.float32)
+    rgb[:] = hexc(bg)
+    c = hexc(on)
+    rgb = rgb + (c * off_alpha + hexc(bg) * (1 - off_alpha) - rgb) * core[..., None]
+    rgb = rgb - ring[..., None] * 0.04
+    rgb = rgb + (c - rgb) * (core * lit)[..., None]
+    if glow:
+        g = cv2.GaussianBlur(lit, (0, 0), pitch * 0.7)
+        rgb = rgb + c[None, None] * g[..., None] * glow * 0.5
+    return np.clip(rgb, 0, 1)
