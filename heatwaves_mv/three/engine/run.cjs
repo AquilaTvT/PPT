@@ -33,7 +33,9 @@ const srv = http.createServer((req, res) => {
   pg.on('pageerror', e => console.log('pageerror:', e.message));
   const q = `scene=${args.scene}&w=${W}&h=${H}&aa=${args.aa || '1'}&params=${encodeURIComponent(args.params || '{}')}`;
   await pg.goto(`http://127.0.0.1:${port}/engine/page.html?${q}`);
-  await pg.waitForFunction('window.ready === true', null, { timeout: 120000 });
+  await pg.waitForFunction('window.ready === true || window.buildError', null, { timeout: 120000 });
+  const be = await pg.evaluate(() => window.buildError || null);
+  if (be) { console.error('scene build failed:', be); await b.close(); srv.close(); process.exit(2); }
   const n = Math.round((t1 - t0) * fps);
   const start = Date.now();
   const anchors = [];

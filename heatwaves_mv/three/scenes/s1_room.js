@@ -1,6 +1,7 @@
 // S1: six-tatami room at night, CRT TV (screen anchor for 2D inserts), oscillating fan, curtain, window onto
 // the railway, futon, wall calendar (16 circled), LED clock. params.cam: 'ozu' | 'tv' | 'over' | 'window'
 import { WORLDS } from '/scenes/worlds.js';
+import { applyPath } from '/engine/cam.js';
 
 function canvasTex(P, w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -110,6 +111,7 @@ export async function build(THREE, P, params = {}) {
   const camera = new THREE.PerspectiveCamera(params.fov || 42, 16 / 9, 0.02, 100);
   const cam = params.cam || 'ozu';
   function update(t, pulse) {
+    const pathed = params.path ? applyPath(camera, params.path, t, false) : false;
     head.rotation.y = Math.sin(t * 0.7) * 0.75;
     blades.rotation.z = t * 40.0;
     const pos = curtain.geometry.attributes.position;
@@ -120,7 +122,7 @@ export async function build(THREE, P, params = {}) {
     }
     pos.needsUpdate = true;
     if (params.clockFlip && t >= params.clockFlip[0]) drawClock(params.clockFlip[1]);
-    if (cam === 'ozu') { camera.position.set(1.45, 0.42, 1.25); camera.lookAt(-0.4, 0.55, -1.0); }
+    if (pathed) {} else if (cam === 'ozu') { camera.position.set(1.45, 0.42, 1.25); camera.lookAt(-0.4, 0.55, -1.0); }
     else if (cam === 'tv') { const k = Math.min(1, t / 6); camera.position.set(-0.6 + 0.3 * (1 - k), 0.75, 0.2 - k * 0.4); camera.lookAt(-0.62, 0.73, -1.35); }
     else if (cam === 'over') { camera.position.set(0.65, 1.9, 0.6); camera.lookAt(0.55, 0.0, -0.1); }
     else if (cam === 'window') { camera.position.set(-1.2, 1.0, 1.2); camera.lookAt(1.8, 1.2, -0.2); }

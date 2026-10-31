@@ -13,8 +13,11 @@ renderer.setPixelRatio(1);
 renderer.setSize(W, H, false);
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // inks are authored as final sRGB values
 THREE.ColorManagement.enabled = false;
-const mod = await import('/scenes/' + q.get('scene') + '.js');
-const S = await mod.build(THREE, P, params, { W, H });
+let S;
+try {
+  const mod = await import('/scenes/' + q.get('scene') + '.js');
+  S = await mod.build(THREE, P, params, { W, H });
+} catch (e) { window.buildError = String(e && e.stack || e); throw e; }
 let jit = [0, 0];
 window.renderAt = (t, beatPulse = 0, frameIdx = 0) => {
   P.U.uTime.value = t;

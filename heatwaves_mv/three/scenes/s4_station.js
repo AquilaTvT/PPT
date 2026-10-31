@@ -1,6 +1,7 @@
 // S4: small seaside station (one platform, shelter roof, name board, bench, lamps) + one-car train.
 // params.train: {z0, speed, t0}  cam: 'platform' | 'low' | 'side' | 'chase'
 import { WORLDS } from '/scenes/worlds.js';
+import { applyPath } from '/engine/cam.js';
 import { makeTrain } from '/scenes/train.js';
 
 export async function build(THREE, P, params = {}) {
@@ -47,9 +48,10 @@ export async function build(THREE, P, params = {}) {
   const cam = params.cam || 'platform';
   const camera = new THREE.PerspectiveCamera(params.fov || 40, 16 / 9, 0.05, 2000);
   function update(t) {
+    const pathed = params.path ? applyPath(camera, params.path, t, true) : false;
     const dt = Math.max(0, t - (T.t0 || 0));
     tr.group.position.set(0, 0, (T.z0 || 0) + (T.speed || 0) * dt + 0.5 * (T.accel || 0) * dt * dt);
-    if (cam === 'platform') { camera.position.set(-3.2, 2.4, -12); camera.lookAt(-0.5, 2.0, 10); }
+    if (pathed) {} else if (cam === 'platform') { camera.position.set(-3.2, 2.4, -12); camera.lookAt(-0.5, 2.0, 10); }
     else if (cam === 'low') { camera.position.set(-1.5, 1.2, 14); camera.lookAt(0, 2.2, -10); }
     else if (cam === 'side') { camera.position.set(-5.5, 2.4, tr.group.position.z * (params.follow ? 1 : 0)); camera.lookAt(0, 2.4, camera.position.z); }
     else if (cam === 'chase') { const z = tr.group.position.z; camera.position.set(4.5, 2.2, z - 6); camera.lookAt(0.5, 2.3, z + 8); }

@@ -24,6 +24,22 @@ export const WORLDS = {
     mirror: '#F5D7A0', vend: '#EDE3CF', vendGlow: '#F5C842', led: '#F08A3C', moon: '#F5C842', moonShade: '#F08A3C',
     rail: '#F5D7A0', ballast: '#2B2350', ink: '#1A1416', light: [-0.5, 0.35, 0.8], ambient: 0.3,
   },
+  festival: {
+    skyTop: '#1A1430', skyHor: '#4A2A4A', skyBand: '#7A3E5A', fog: '#2B1E3A', stars: 0.4,
+    road: '#3A2E44', roadShade: '#1E1A2E', line: '#F5D7A0', wall: '#4A3558', wallShade: '#22192E', house: '#3A2E44',
+    houseShade: '#1E1A2E', roof: '#141018', sea: '#1E2550', seaHi: '#F5C842',
+    window: '#F5C842', lamp: '#F5D08A', glow: '#F08A3C', pole: '#141018', mirrorPole: '#F08A3C', mirror: '#C9D3DC',
+    vend: '#EDE3CF', vendGlow: '#7FC8B8', led: '#7FC8B8', moon: '#EDE3CF', moonShade: '#C9B98F', rail: '#C9D3DC',
+    ballast: '#22192E', ink: '#120C14', light: [0.2, 0.9, 0.4], ambient: 0.35, lantern: '#E8452E', lanternOff: '#8E6A65',
+  },
+  morning: {
+    skyTop: '#5B8FE0', skyHor: '#F7E3C2', skyBand: '#FFF6E0', fog: '#C9D9EC', stars: 0.0,
+    road: '#8E95A6', roadShade: '#4A5878', line: '#F5F1E6', wall: '#E6E0D2', wallShade: '#8E95A6',
+    sea: '#3F6FB8', seaHi: '#FFF6E0', house: '#E6E0D2', houseShade: '#8E95A6', roof: '#3F5F8F',
+    window: '#3F5F8F', lamp: '#FFF6E0', glow: '#F5C842', pole: '#3A3236', mirrorPole: '#F08A3C',
+    mirror: '#E6EEF5', vend: '#D9402B', vendGlow: '#F5C842', led: '#D9402B', moon: '#FFF6DC', moonShade: '#F5C842',
+    rail: '#5A6070', ballast: '#8E95A6', ink: '#1A1416', light: [0.6, 0.55, 0.5], ambient: 0.5,
+  },
   dawn: {
     skyTop: '#3A4A8A', skyHor: '#F2A7A0', skyBand: '#F7E3C2', fog: '#8E7FA8', stars: 0.0,
     road: '#5A5E86', roadShade: '#33365E', line: '#F7E3C2', wall: '#9C95B8', wallShade: '#5A5E86',

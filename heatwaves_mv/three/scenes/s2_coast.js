@@ -1,6 +1,7 @@
 // S2: coastal road + seawall + single-track railway, telephone poles, curve mirrors, vending machines,
 // houses, sea, lighthouse, moon. Camera: params.cam = 'fly' (default) | 'static' | keyframes.
 import { WORLDS } from '/scenes/worlds.js';
+import { applyPath } from '/engine/cam.js';
 
 export async function build(THREE, P, params = {}) {
   const Wd = WORLDS[params.world || 'night'];
@@ -158,8 +159,9 @@ export async function build(THREE, P, params = {}) {
   const speed = params.speed || 11.0;
   const z0 = params.z0 || 0;
   function update(t, pulse) {
+    const pathed = params.path ? applyPath(camera, params.path, t, true) : false;
     beamPivot.rotation.y = t * 0.9;
-    if (cam === 'fly') {
+    if (pathed) {} else if (cam === 'fly') {
       const z = z0 + t * speed;
       camera.position.set(-(0.4 + Math.sin(t * 0.35) * 0.6), 1.7 + Math.sin(t * 0.9) * 0.08, z);
       camera.lookAt(-(0.2 + Math.sin(t * 0.3) * 1.5), 1.9, z + 40);
