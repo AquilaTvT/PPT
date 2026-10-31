@@ -110,6 +110,18 @@ def log(msg):
     print(time.strftime('%H:%M:%S'), msg, flush=True)
 
 
+MIN_FREE_GB = float(os.environ.get('HW_MIN_FREE_GB', '8'))
+
+
+def disk_ok():
+    """stop before the Mac's disk gets tight (models + swap need headroom)"""
+    free = shutil.disk_usage(ROOT).free / 2 ** 30
+    if free < MIN_FREE_GB:
+        log(f'STOP: only {free:.1f} GB free on disk (< {MIN_FREE_GB} GB)')
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------------------
 def do_keyframes(c, cfg, shots, man, n):
     k = cfg['keyframe']
@@ -124,6 +136,8 @@ def do_keyframes(c, cfg, shots, man, n):
         for tag, raw in prompts:
             existing = [x for x in st['keyframes'] if x['tag'] == tag]
             for i in range(len(existing), n):
+                if not disk_ok():
+                    return
                 seed = stable_seed(s['id'], tag, i)
                 prompt = expand_tokens(raw, cfg['tokens'])
                 g = gr.t2i_anima(prompt, w=k['w'], h=k['h'], seed=seed, model=k['model'], steps=k['steps'],
@@ -132,7 +146,7 @@ def do_keyframes(c, cfg, shots, man, n):
                 t0 = time.time()
                 outs = c.outputs(c.run(g))
                 dst = os.path.join(man.shot_dir(s['id']), f'{tag}_{i}.png')
-                c.fetch(outs[0], dst)
+                c.fetch(outs[0], dst, move=True)
                 st['keyframes'].append({'tag': tag, 'path': dst, 'seed': seed, 'prompt': prompt,
                                         'secs': round(time.time() - t0, 1)})
                 man.save()
@@ -200,6 +214,8 @@ def do_videos(c, cfg, shots, man, n):
         end = st['pick'].get('end') if (mode == 'flf' and st.get('pick')) else None
         frames = int(round(min(5.0, s.get('clip_seconds', 5)) * 16)) // 4 * 4 + 1
         for i in range(len(st['videos']), n):
+            if not disk_ok():
+                return
             seed = stable_seed(s['id'], 'v', i)
             up = c.upload(start, f"{s['id']}_start.png")
             upe = c.upload(end, f"{s['id']}_end.png") if end else None
@@ -220,7 +236,7 @@ def do_videos(c, cfg, shots, man, n):
             outs = c.outputs(c.run(g))
             vids = [o for o in outs if o['filename'].endswith(('.mp4', '.webm', '.mkv'))]
             dst = os.path.join(man.shot_dir(s['id']), f'v_{i}.mp4')
-            c.fetch(vids[0], dst)
+            c.fetch(vids[0], dst, move=True)
             st['videos'].append({'path': dst, 'seed': seed, 'engine': v['engine'], 'secs': round(time.time() - t0, 1)})
             if st['video_pick'] is None:
                 st['video_pick'] = dst

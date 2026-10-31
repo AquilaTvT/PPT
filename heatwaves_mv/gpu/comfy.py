@@ -58,12 +58,13 @@ class Comfy:
                                  headers={'Content-Type': f'multipart/form-data; boundary={boundary}'}, timeout=600))
         return (r.get('subfolder') + '/' if r.get('subfolder') else '') + r['name']
 
-    def fetch(self, item, dst):
-        """item = {'filename','subfolder','type'} from history outputs"""
+    def fetch(self, item, dst, move=False):
+        """item = {'filename','subfolder','type'} from history outputs; move=True leaves no second copy
+        in ComfyUI/output (disk is tight on the Mac)"""
         if self.root:
             src = os.path.join(self.root, item.get('type', 'output'), item.get('subfolder', ''), item['filename'])
             if os.path.exists(src):
-                shutil.copy(src, dst)
+                (shutil.move if move else shutil.copy)(src, dst)
                 return dst
         q = urllib.parse.urlencode({'filename': item['filename'], 'subfolder': item.get('subfolder', ''),
                                     'type': item.get('type', 'output')})
