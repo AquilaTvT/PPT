@@ -1,0 +1,1464 @@
+{
+ "mv": "B",
+ "title": "泳いでくミラー / HEAT WAVES",
+ "song": "Heat Waves (Japanese ver., Lime)",
+ "duration": 198.74,
+ "fps": 24,
+ "canvas": "1920x1080 native, no pixel grid",
+ "grid": {"bpm": 81.0, "beat": 0.74075, "bar0": 2.1635, "bar": 2.963, "note": "bar m starts at 2.1635 + m*2.963; every cut below sits on a bar line"},
+ "tokens": {
+  "<girl>": "short black hair, bob cut, flipped hair, swept bangs, brown eyes, mole under eye, an 18-year-old girl with a chin-length black bob whose ends flip outward and a small mole under her right eye,",
+  "<boy>": "black hair, messy hair, hair between eyes, grey eyes, an 18-year-old slim boy with messy short black hair falling over his eyes,",
+  "<girl_uniform>": "white serafuku, short sleeves, navy sailor collar, white collar stripes, red neckerchief, navy pleated skirt,",
+  "<girl_yukata>": "dark blue yukata, white morning glory print, red obi, red flower hair clip,",
+  "<boy_shirt>": "white collared school shirt, short sleeves, black trousers,",
+  "<boy_night>": "plain white t-shirt, short sleeves, dark navy trousers,"
+ },
+ "colour_worlds": {
+  "夜刷り Night Print": ["#141A33 night navy", "#1E2550 indigo", "#2C4C9A cobalt", "#C9D3DC mirage silver", "#EDE3CF cream paper", "#F08A3C heat orange", "#D9402B vermilion", "#7FC8B8 LED mint", "#1A1416 warm black"],
+  "正午刷り Noon Print": ["#2D6BE0 noon cobalt", "#F5C842 sun yellow", "#F6F2E7 paper white", "#C9D3DC mirage silver", "#F08A3C mirror-pole orange", "#D9402B vermilion", "#1A1416 warm black"],
+  "ブラウン管 CRT Glow": ["#1E2550", "#7FC8B8 phosphor mint", "#C9D3DC", "#EDE3CF", "#D9402B", "#141A33", "#1A1416"],
+  "ロードショー Roadshow (poster + CM)": ["#D9402B", "#F5C842", "#2D6BE0", "#EDE3CF", "#1A1416"],
+  "月刷り Moon Print": ["#141A33", "#1E2550", "#C9D3DC moon", "#EDE3CF", "#7FC8B8", "#F08A3C single accent", "#1A1416"],
+  "水底 Seabed": ["#141A33", "#1E2550", "#7FC8B8 caustics", "#C9D3DC bubbles", "#D9402B goldfish", "#EDE3CF", "#1A1416"],
+  "夕焼け刷り Dusk Print": ["#F08A3C sky", "#D9402B sun", "#1E2550 shadow", "#EDE3CF", "#F5C842 rim", "#1A1416"],
+  "祭 Festival": ["#141A33", "#D9402B lanterns", "#F08A3C glow", "#F5C842 sparks", "#EDE3CF", "#7FC8B8 accents", "#1A1416"],
+  "二色夢刷り Two-ink Dream": ["#2C4C9A cobalt ink", "#F08A3C orange ink", "#EDE3CF paper", "#292924 overprint"],
+  "黎明前 Blue Hour": ["#1E2550", "#2C4C9A", "#C9D3DC", "#EDE3CF", "#F08A3C", "#7FC8B8", "#1A1416"],
+  "夜明け刷り Dawn Print": ["#2C4C9A", "#C9D3DC", "#F08A3C", "#F5C842", "#D9402B sun core", "#EDE3CF", "#1A1416"]
+ },
+ "section_worlds": {"intro": "夜刷り", "hook": "正午刷り", "chorus1": "正午刷り (memory) / ブラウン管 (present)", "verse": "ブラウン管 + ロードショー", "chorus2": "月刷り", "bridge1": "水底 + 夕焼け刷り + 月刷り", "chorus3": "祭", "bridge2": "二色夢刷り", "chorus4": "黎明前", "outro": "夜明け刷り", "outro_hook": "正午刷り"},
+ "relay": [
+  {"t": 16.98, "from": "paper-cut sun on the stamp card", "to": "noon sun, then curve mirror", "shots": "B-intro-04 > B-hook-01"},
+  {"t": 31.79, "from": "curve mirror (her laughing face)", "to": "CRT glass (same face)", "shots": "B-chorus1-01 > B-chorus1-02"},
+  {"t": 76.24, "from": "test-card circle on the CRT", "to": "paper-cut moon", "shots": "B-verse-07 > B-chorus2-01"},
+  {"t": 111.79, "from": "moon", "to": "halftone firework", "shots": "B-bridge1-07 > B-chorus3-01"},
+  {"t": 135.50, "from": "last willow spark", "to": "dream-train headlight", "shots": "B-chorus3-08 > B-bridge2-01"},
+  {"t": 162.17, "from": "headlight", "to": "rising sun", "shots": "B-chorus4-05 > B-outro-01"},
+  {"t": 179.94, "from": "sun", "to": "sixth circle of the stamp card (loop closed)", "shots": "B-outro-06 > B-outro-07"}
+ ],
+ "transition_grammar": {
+  "円リレー Round Relay": "match cut between round objects at the same screen position and size; only for the 7 handoffs listed in relay",
+  "ミラー・アイリス Curve-mirror iris": "the convex mirror grows to fill the frame with a fisheye unwarp (or the frame shrinks into a mirror): entering or leaving her noon",
+  "チャンネル送り Channel flip": "2-frame halftone static band + vertical roll + mint OSD channel number: distraction, the TV pulling him away",
+  "陽炎ドット溶け Heat-haze dot-melt": "halftone dots ripple sinusoidally, grow into round LED dots and re-form the next image: illusion, mirage",
+  "シャッター Shutter wipe": "the festival shutters roll up all at once: a place opening",
+  "ポスター抜け Push-through": "the camera dives through a printed image, window or gap into what it shows: entering a fiction",
+  "版ずれ / 版はがし Misregistration / plate peel": "colour plates drift apart, or a plate peels off the paper: separation, letting go",
+  "網点フラッシュ Dot flash": "beat accents only: full-frame dots (20-28 px) in a world ink shrinking to 0 over 4-6 frames; never a white frame",
+  "刷り Print pass": "the world is printed or un-printed one ink at a time: the opening, the dawn, the end",
+  "beat cut": "default hard cut on a bar line, with screen-direction continuity"
+ },
+ "print_rules": [
+  "Native 1920x1080 at 24 fps; sub-pixel motion everywhere; no pixel grid, no nearest-neighbour, no dithering.",
+  "One halftone screen for the film: round dots, 45 degrees, 8 px period (three/engine/print.js uPeriod 8). Dots carry shading, gradients, skies and AM glows only (glow: 12-20 px period, coverage 80% at the source to 5% at ~300 px). Lit planes are flat ink, so flights never turn into screen-door noise.",
+  "2D layers carry their dots with them (dots move with parallax, as in the reference). In three.js shots drive uJitter from the camera's screen-space pan so big pans drag the dot field with the image; on fast flights the shading dots fall back to flat ink bands.",
+  "12-32 inks per shot from the shot's colour world; darkest #1A1416, lightest #F6F2E7 or #EDE3CF; never pure black or pure white.",
+  "Paper: one fixed scan (fibres + mottling), multiply 6%, never regenerated per frame; it rides the gate jitter.",
+  "Gate jitter applied last to the whole frame including type: new random offset every 2-3 frames (occasionally 5), 0.6-1.6 px (median 0.9), held between jumps; +-1% stepped luminance flicker on each jump.",
+  "Vignette flat to 0.55 of the half-diagonal, then linear to x0.80 at the corners. Grain: luma only, 1-3 px, +-3%.",
+  "No scanlines, no frame curvature, no chromatic aberration, no global bloom. Glows are designed per element. Misregistration only where a shot asks for it.",
+  "LED layer: real dot-matrix, round LEDs with a 2 px soft core and a dark ring, unlit dots visible at 12%; on-screen pitch 10-18 px; Latin 5x7, Japanese 16x16 dot font (Shinonome/JF-Dot 16 style); train board #F08A3C, vending/clock/TV #7FC8B8, pool scoreboard #F5C842. Scrolling is dot-locked (whole dots per frame): the only grid-locked element in the film.",
+  "Every shot has at least three independent motion sources (camera, character, secondary: wires, fan, curtain, water, crowd, particles). No still image is ever just pushed in on.",
+  "Master encode at 20 Mbps or more so the 8 px dots and dark flats survive (the reference's 4 Mbps turned dark flats into macroblocks)."
+ ],
+ "typography_rules": {
+  "japanese": "Shippori Mincho B1 ExtraBold, vertical. Main lyric glyph 100 px (column ~120 px with outline) at x~1720, first glyph y~160; lead glyphs 40 px; emphasis 180-230 px. Style A: cream #EDE3CF fill, 3 px warm-black #1A1416 line, offset shadow (+7,+7) in the world's accent ink (night/dusk/festival vermilion #D9402B, noon cobalt #2D6BE0, dream heat orange #F08A3C). Style B on busy plates: warm-black glyph with an 8 px cream outline.",
+  "entrance": "見当合わせ registration snap: each glyph arrives as two misregistered plates (fill + shadow, 24 px apart) that lock together in 2 frames, on its sung mora (vocal-stem onset detection; fallback: even spacing over 85% of the line). Exit: the glyph breaks into its halftone dots, which shrink away over 6 frames.",
+  "chinese": "Noto Serif SC SemiBold 30-34 px, cream at 85%, a thin vertical column left of the Japanese column (horizontal under the board for LED lines); the whole line fades in over 6 frames at the vocal onset and exits with the Japanese.",
+  "english": "English lines run on LED dot-matrix boards (5x7 caps); printed moments use Shippori Mincho B1 ExtraBold Latin caps, tracking 0.4-0.6 em.",
+  "placement": "Type never covers a face; it rides the world's verticals (poles, mirror poles, TV edge, moon path) or sits inside props."
+ },
+ "render_rules": {
+  "keyframe": "Anima 1280x704. Every prompt starts with 'masterpiece, best quality, score_7, safe, anime screenshot, ' and uses the tokens verbatim. 4 candidates per shot; pick by token fidelity (bob with outward-flipped ends, mole under HER right eye, red neckerchief; his hair over his eyes). Negative: worst quality, low quality, text, watermark, signature, logo, silhouette, extra fingers, bad hands, deformed, nsfw, detailed background, scenery, gradient background.",
+  "background": "Flat green ('simple background, green background') for every keyed character: both leads wear white, so a white background would break the key. Two-person stills that are split into print plates use a white background and SAM masks instead of a key.",
+  "video": "Wan 2.2 TI2V 5B Turbo image-to-video at 640x352, 24 fps, frames 4n+1 (3.0 s = 73, 4.0 s = 97). Every video prompt keeps the camera static; all camera motion happens in three.js or the compositor.",
+  "cutout": "Chroma key the green (spill suppression, 1 px erode, matte smoothing); upscale x3 Lanczos to ~1920x1056; stylize with mvb/halftone.py PrintStyle using the shot's world inks (period 8, angle 45, XDoG line in #1A1416); sticker rim = 2 px warm-black line + 5 px cream #EDE3CF + 1.5 px vermilion hairline; optional drop shadow (+8,+8) in the world shadow ink at 60%. Beat-synced light is added in comp by modulating the halftone coverage on the lit side.",
+  "still": "Mesh-warp (puppet) animation of hair, cloth and small sways at 1-2 Hz, plus comp light changes. Stills are never face close-ups held longer than one bar.",
+  "dots": "Instanced dot-people with 8-12-frame cycles; the leads keep a colour ID (her: navy collar + red dot; him: white shirt + mint halo at night).",
+  "reuse": "A shot with mode 'still' and a 'source' field reuses keyframes or loops of earlier clips and generates nothing new.",
+  "retime": "Optical-flow (OpenCV DIS) retime only in B-bridge1-06 (0.68x, intended slow motion for the energy drop)."
+ },
+ "shots": [
+  {
+   "id": "B-intro-01", "section": "intro", "start": 0.0, "end": 5.13, "lyric": [0],
+   "beat": "末班车的点阵行先牌一颗颗亮起、滚出第一句英文，镜头拉开，海边小镇被一版一版套色印出来。",
+   "scene": "S4+S5",
+   "camera": "0.00-3.65 locked on the LED destination board (board fills 90% of frame, dot pitch 18 px on screen). 3.65-5.13 dolly back 6 m and crane up 9 m with ease-in-out, tilting down 25 degrees: the board shrinks to the train's brow, the train and platform appear, then the S5 town below; lands framed on the house by the railway (lit window, upper-right third).",
+   "world": "夜刷り Night Print: #141A33, #1E2550, #2C4C9A, #EDE3CF, #F08A3C (board + windows), #7FC8B8, #1A1416",
+   "layers": [
+    "cream paper base with the fixed fibre scan (moves only with the gate jitter)",
+    "S5 town map printing itself: navy sea/land pass 3.65, cobalt roofs/roads 4.02, orange windows + vending machines 4.39, mint LEDs 4.76; each pass wipes left to right in 6 frames like a riso drum, edge wobble 3 px",
+    "S4 platform and one-car train (night); the train starts rolling out on 4.02 (0 to 1.5 m/s)",
+    "ink line-drawing of the board frame and train front, drawn 0.00-0.68 in 8 frames, then filled",
+    "LED destination board: orange 16x96 matrix, unlit dots at 12%",
+    "registration marks at the four corners and a colour bar of the 9 inks along the bottom margin, printed on 0.68, carried out of frame by the crane",
+    "gate jitter, grain, vignette"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no characters; the lit window at the end is his room"},
+   "devices": ["LED board boot: first dot 0.68, diagonal full-board dot flash 1.42, '回送' 2.16, line-0 scroll from 2.45", "Ink line-drawing reveal 0.00-0.68", "刷り print-pass reveal on 8ths 3.65 / 4.02 / 4.39 / 4.76", "registration marks + colour bar"],
+   "typography": "L0 'LAST NIGHT, ALL I THINK ABOUT IS YOU' scrolls right to left on the board in 5x7 orange caps at 2 dots/frame from the vocal onset 2.45; 'YOU' holds at board centre on 4.39 before the pull-back. Chinese '昨夜 满脑子都是你' Noto Serif SC 34 px, cream, centred under the board, 6-frame fade-in at 2.45, rides the pull-back, dissolves to dots by 5.0.",
+   "transition_out": "ポスター抜け push-through-window: 4.76-5.13 fast push (x1.4 per 3 frames) into the lit window; cut on the bar-1 downbeat 5.13 into the room.",
+   "sync": "0.68 first LED dot + paper flicker; 1.42 full-board dot flash; 2.16 bar 0: '回送' lights; 2.45 vocal: scroll starts; 2.90 / 3.65 / 4.39 beats: unlit-dot shimmer pulse; 3.65 pull-back + navy pass; 4.02 cobalt + train moves; 4.39 orange windows pulse 1.0 to 0.3 over 10 frames; 4.76 mint; 5.13 cut."
+  },
+  {
+   "id": "B-intro-02", "section": "intro", "start": 5.13, "end": 8.09, "lyric": [1],
+   "beat": "房间里风扇来回摇头，显像管下沿滚着文字放送，他的侧脸被电视光一闪一闪照亮——睡不着。",
+   "scene": "S1",
+   "camera": "Lateral dolly right to left, 1.2 m at floor-sitting eye height (90 cm), past the oscillating fan in the foreground 5.13-6.61, easing to a stop on his profile close-up at 6.61; slow 4% push to 8.09.",
+   "world": "ブラウン管 CRT Glow over 夜刷り: #1E2550, #7FC8B8 (TV light), #C9D3DC, #EDE3CF, #D9402B (fan button, calendar date), #141A33, #1A1416",
+   "layers": [
+    "back wall: June 1985 calendar (page lifts when the fan passes), curtain breathing",
+    "CRT TV (wooden cabinet, rabbit ears) showing a late-night sea weather chart in halftone; teletext ticker band along the bottom of the picture",
+    "the boy (clip), profile facing screen-left toward the CRT",
+    "TV light on him: comp halftone coverage driven by the TV picture's luminance, flicker on 8ths +-15%",
+    "mosquito-coil smoke as line-screen wisps rising through the TV light",
+    "oscillating fan, foreground left, blades motion-blurred, head sweeping on a 2-bar period, crossing the lens 5.13-6.20",
+    "gate jitter, grain, vignette"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up profile of the boy sitting on the floor at night, facing left, looking at something off-screen with tired sleepless eyes, lips slightly parted, soft cool light on the left side of his face, upper body, from side, profile, simple background, green background",
+    "video_prompt": "The boy sits still in profile, a breeze from an electric fan sweeps across him twice and lifts his bangs and the collar of his t-shirt, he blinks slowly, his eyes drift down and back up, his chest rises with a quiet breath, flickering light plays on his face, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Close-up, head and shoulders in the right 45% of frame (face ~560 px tall), profile toward the CRT; sticker rim (2 px warm-black, 5 px cream, 1.5 px vermilion); CRT Glow inks; halftone only on the shadow side. Clip offset chosen so the second fan gust lifts his bangs on 7.35."
+   },
+   "devices": ["CRT teletext ticker (文字放送, mint dot font)", "fan-wind secondary motion on calendar, curtain and hair, timed to the fan sweep", "CRT flicker on 8ths"],
+   "typography": "L1 'DON'T STOP, BABY, YOU CAN WALK THROUGH' runs on the teletext band in mint 5x7 caps from 5.43, one word per 8th; 'WALK' flashes orange on 7.35. Chinese '别停下 宝贝 你走得过去' Noto Serif SC 32 px, cream, lower right below his chin line.",
+   "transition_out": "Beat cut on 8.09 to the clock macro; the last CRT flicker matches the clock's first colon blink (same mint).",
+   "sync": "5.13 cut-in behind a passing fan blade (natural wipe); 5.43 ticker starts; 5.87 calendar page lifts; 6.61 dolly settles on his face; 7.35 fan gust lifts his bangs + 'WALK' flash; 8.09 cut."
+  },
+  {
+   "id": "B-intro-03", "section": "intro", "start": 8.09, "end": 11.05, "lyric": [2],
+   "beat": "点阵钟显示23:59，跑马灯滚着'不想再想你'，焦点移到矮桌上那张集章卡——最后一格是空的。",
+   "scene": "S1",
+   "camera": "Macro on the LED clock-radio (display fills 70% of frame) 8.09-9.57 with a 1.5% drift right; 9.57-10.31 comp rack focus (depth split) to the chabudai behind, where the stamp card lies in the TV light; 10.31-11.05 push 6% toward the card.",
+   "world": "夜刷り Night Print + mint LED: #141A33, #1E2550, #7FC8B8, #EDE3CF, #D9402B (old stamps), #1A1416",
+   "layers": [
+    "tatami weave (line-screen) and the chabudai with the stamp card plane, an empty ramune bottle",
+    "halftone bokeh of the CRT behind (150-220 px discs filled with 8 px dots), pulsing on beats",
+    "fan shadow sweeping across the table on the 2-bar fan period",
+    "LED clock-radio: 4-digit 7x13 dot clock '23:59' + 64x8 dot ticker",
+    "gate jitter, grain, vignette"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character; his absence frames the card"},
+   "devices": ["LED clock with dot-matrix ticker", "halftone bokeh", "comp rack focus"],
+   "typography": "L2 'DON'T WANT, BABY, THINK ABOUT YOU' scrolls on the clock ticker from 8.00 in mint caps (1 dot/frame); 'THINK' blinks off and on twice from 9.57, as if he tries not to. Chinese '不想再 宝贝 想起你' Noto Serif SC 32 px, vertical, right edge x=1780.",
+   "transition_out": "Beat cut on 11.05 to the card insert, matched on the card's position (its top-left corner stays on the same screen point).",
+   "sync": "8.09 / 8.83 / 9.57 / 10.31 colon blinks on every beat; 9.57 rack focus + THINK blinks; 10.31 fan shadow crosses the card; 11.05 cut."
+  },
+  {
+   "id": "B-intro-04", "section": "intro", "start": 11.05, "end": 16.98, "lyric": [3],
+   "beat": "集章卡填满画面：五个旧章一拍一个重新泛出朱红，最后一格'灯塔·日出'里，一枚剪纸太阳慢慢升起，越来越亮。",
+   "scene": "S1+2D",
+   "camera": "Starts on the card plane in S1 (TV light spill), then pure 2D over the riso card artwork (3200x1800 master): 11.05-14.02 slow truck right along the printed route from stamp 1 to 5 at 160 px/s with 1 degree roll; 14.02-16.24 push toward the empty sixth circle (x1.0 to x2.2, ease-in); 16.24-16.98 accelerating push until the circle fills the frame.",
+   "world": "夜刷り card print: #EDE3CF paper, #141A33 route, #2C4C9A sea, #D9402B stamps (faded to 55%), #F5C842 + #F08A3C paper-cut sun",
+   "layers": [
+    "card paper (cream), fibres, slight warp",
+    "printed map: coastline, single-track railway, 6 circles labelled カーブミラー / プール / 夏祭り / 駅 / 防波堤 / 灯台・日の出",
+    "5 old stamps (round hanko: curve mirror, pool lanes, lantern, station roof, seawall wave), faded vermilion with misregistered edges",
+    "name box with two signature doodles: a small sun (hers) and a crescent (his)",
+    "sixth circle: dashed outline; inside, a 3-layer paper-cut sun rising from the circle's horizon line (layers parallax 3 / 6 / 9 px)",
+    "letterpress footer line",
+    "CRT mint light spill on the card, fading as the sun brightens"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character"},
+   "devices": ["判子 hanko re-ink: stamps 1-5 re-saturate 55% to 100% with a 4-frame ink spread on 11.79 / 12.53 / 13.27 / 14.02 / 14.76", "paper-cut sun (rays rotate 4 degrees per beat, 8 from 15.50)", "AM halftone glow around the sun (16 px period, 80% to 5% over 300 px), growing 15.50-16.98", "letterpress caps"],
+   "typography": "L3 'YOU KNOW THAT I'M NEVER GONNA LOSE' prints on the card footer as letterpress caps (Shippori Mincho B1 ExtraBold Latin, 44 px, tracking 0.4 em, navy ink with a 1 px vermilion misregistration), one letter per 16th from 11.39, complete by 14.02; Chinese '你知道 我绝不会认输' Noto Serif SC 30 px under it. Pre-announce: on 16.80 the first glyph 光 of L4 (cream Mincho 230 px, vermilion shadow) snaps into register at the sun's centre.",
+   "transition_out": "円リレー Round Relay 1: on 16.98 the paper-cut sun fills the frame and becomes the noon sun of B-hook-01 (same centre x=960 y=540, same diameter), carried by a 3-frame sun-yellow dot flash.",
+   "sync": "11.05 cut; 11.39 vocal: letterpress starts; 11.79 / 12.53 / 13.27 / 14.02 / 14.76 stamps re-ink one per beat; 14.02 bar 4: push-in, sun clears the horizon line; 15.50 rays speed up; 16.24 AM glow jumps; 16.80 光 pre-glyph; 16.98 relay."
+  },
+  {
+   "id": "B-hook-01", "section": "hook", "start": 16.98, "end": 19.94, "lyric": [4, 5],
+   "beat": "第一次爆发：剪纸太阳炸成正午烈日，镜头从太阳甩下来落进弯道镜；镜子里她从热浪中朝这边走来，路面一下子亮了。",
+   "scene": "S2",
+   "camera": "16.98 framed on the sun (camera tilted up 70 degrees); 16.98-17.72 whip-tilt down 70 degrees (ease-out, 12 px motion blur) so the sun's disc slides into the curve mirror's disc (mirror at frame centre, 520 px); 17.72-19.94 slow 12% push toward the mirror.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C (mirror pole), #D9402B, #1A1416",
+   "layers": [
+    "halftone cobalt sky (dots densify toward the sun), paper-cut cumulonimbus drifting right 6 px/s",
+    "noon sea strip, seawall, single-track railway",
+    "coastal road to the vanishing point; asphalt halftone melts into silver mirage dots near the horizon (dot-melt shader, 0.8 Hz ripple)",
+    "telephone poles and sagging wires (sway +-2 px), curve mirror on an orange pole at centre",
+    "inside the mirror (convex warp k=0.35): the road reversed, the girl walking toward camera (clip) with heat haze at her feet",
+    "road-paint glyph decals on the asphalt (L4)",
+    "sun-yellow dot flash on 16.98 (28 px dots shrinking to 0 over 6 frames)"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl walks toward the viewer on a hot summer day with a relaxed smile, squinting slightly in bright sunlight, skirt and neckerchief moving in the wind, walking, front view, looking at viewer, summer, simple background, green background",
+    "video_prompt": "The girl walks slowly toward the camera with a relaxed smile, her bob and red neckerchief sway with each step, her skirt moves in a warm breeze, she squints a little in the bright light, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Only inside the curve mirror: full body ~300 px tall at the mirror's centre, convex-warped, 1.5% heat-haze displacement on her lower third; thin 3 px cream rim (she is a reflection); a silver halftone sheen crosses the glass on beats."
+   },
+   "devices": ["円リレー landing (sun to curve mirror)", "陽炎ドット溶け on the asphalt", "road-paint lyric decals", "sun-yellow dot flash"],
+   "typography": "L4 光りだすロード is painted on the asphalt as stretched road-marking glyphs (路面標示, cream paint, vertical stretch x3.5, perspective-correct); each glyph lights (paint brightens + silver sheen) on its mora: 光 already placed by the pre-announce, り 17.25, だ 17.45, す 17.65, ロ 17.80, ー 17.95, ド 18.10. L5 揺らいでくビジョン: vertical Mincho column x~1720 (100 px, cobalt shadow) snapping per mora from 18.20, glyphs wobbling with the heat haze (+-3 px, 1 Hz). Chinese '渐渐发亮的路 / 摇晃起来的视野' 30 px left of the column.",
+   "transition_out": "ミラー・アイリス: 19.57-19.94 the mirror disc scales to fill the frame (fisheye unwarp 0.35 to 0); cut on 19.94 inside the mirror world.",
+   "sync": "16.98 dot flash + full band + whip-tilt; 17.72 road-paint glyphs light; 18.46 wires twang (+4 px sway); 19.20 mirror sheen; 19.57 iris; 19.94 cut."
+  },
+  {
+   "id": "B-hook-02", "section": "hook", "start": 19.94, "end": 22.9, "lyric": [6],
+   "beat": "镜中世界的近景：她在热浪里回头一笑，外翘的发梢和红领巾被风掀起。",
+   "scene": "S2",
+   "camera": "Inside the mirror world: slow 12-degree orbit left around her at 1.6 m, eye height; on 21.42 a 2-frame 3% punch-in that settles over 6 frames.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #D9402B, #1A1416",
+   "layers": [
+    "halftone cobalt sky with a paper-cut cloud drifting",
+    "S2 noon road, guard rail and sea, mirrored left-right (we are inside the mirror)",
+    "heat-haze layer: silver dots rippling up from the asphalt",
+    "the girl (clip), mid shot",
+    "silver mirror-edge ring just visible in the corners",
+    "lyric columns"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> upper body, the girl looks back over her shoulder at the viewer and smiles brightly, hair swaying, neckerchief fluttering in the wind, looking back, from behind, smile, open mouth, bright summer light, simple background, green background",
+    "video_prompt": "The girl turns her head and shoulders to look back over her shoulder, then breaks into a bright smile, her chin-length bob swings out and settles, the red neckerchief flutters in a warm wind, she blinks once, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, waist-up, left of centre (figure ~800 px tall); full sticker rim; Noon inks with halftone only in hair shadow and collar; 0.6% heat-haze displacement on her outline on the off-beats."
+   },
+   "devices": ["heat-haze shimmer", "punch-in on 21.42", "liquid-silver glyph formation"],
+   "typography": "L6 熱波ゆらり 泳いでくミラー in two vertical columns right of her: 熱波ゆらり (100 px) per mora from 19.92; 泳いでくミラー (150 px) from 21.30, where 'ミラー' is not snapped but drawn by liquid-silver dots swimming together into the glyph shapes over 6 frames. Chinese '热浪摇曳 在镜中游去' 30 px.",
+   "transition_out": "Beat cut on 22.90 to the road flight, matched on screen direction (her look screen-right, the camera flies screen-right).",
+   "sync": "19.94 cut-in as her turn starts; 20.68 hair-swing apex; 21.42 punch-in on the smile; 22.16 heat-haze pulse; 22.90 cut."
+  },
+  {
+   "id": "B-hook-03", "section": "hook", "start": 22.9, "end": 25.87, "lyric": [7, 8],
+   "beat": "贴着正午公路低飞，电线杆一拍一根掠过，路面标线字一个个亮起，前方的蜃景里她小小的身影一直在跑。",
+   "scene": "S2",
+   "camera": "Continuous low flight 0.8 m above the asphalt at 22 m/s; poles at 16.3 m spacing so one pole passes the lens on every beat; 3-degree roll left on 24.39 and back; 25.50-25.87 rise 2 m and whip-yaw toward a curve mirror on the bend.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C, #1A1416",
+   "layers": [
+    "cobalt halftone sky + paper-cut sun upper left",
+    "sea and seawall screen-right with halftone wave dots",
+    "road with a mirage band at the vanishing point, breathing on beats",
+    "telephone poles and wires whipping past (18 px blur); a curve mirror every 3 poles throwing a sun glint",
+    "road-paint glyphs (L7) passing under the lens",
+    "the girl as a 60 px dot-person running in the mirage, inverted reflection below her",
+    "foreground guard-rail posts at 72 px/frame"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "The girl as a 60 px dot-person (uniform colour ID, 8-frame run cycle) running away inside the mirage band with an inverted reflection; she never gets closer."},
+   "devices": ["road-paint lyric decals lighting under the camera", "beat-spaced telephone poles", "mirage band pulse"],
+   "typography": "L7 光りだすロード: the camera flies over road-paint glyphs, each passing under the lens on its mora (光 22.70, り 23.10, だ 23.30, す 23.50, ロ 23.65, ー 23.85, ド 24.00) with a silver flash. L8 揺らいでくビジョン: vertical Mincho column upper right per mora from 24.15, rippling with the haze. Chinese '渐渐发亮的路 / 摇晃起来的视野' 30 px.",
+   "transition_out": "Whip-yaw into the curve mirror on the bend (25.50-25.87, 10 frames, 40 px horizontal blur); cut on 25.87 to the title mirror, direction continuous.",
+   "sync": "22.90 / 23.65 / 24.39 / 25.13 a pole passes the lens on each beat; mirage pulse every beat; 24.39 roll; 25.50 whip; 25.87 cut."
+  },
+  {
+   "id": "B-hook-04", "section": "hook", "start": 25.87, "end": 28.83, "lyric": [9],
+   "beat": "片名卡：巨大的弯道镜里，'泳いでくミラー'从蜃景里游出来，在重拍上套准；下面印出字距拉开的 HEAT WAVES。",
+   "scene": "S2+2D",
+   "camera": "Locked frontal on a giant curve mirror (disc 880 px, centre x=900 y=470), orange pole running to frame bottom; continuous 8% push over the bar; on 28.09 the mirror swings 6 degrees on its pole in a gust.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C, #D9402B, #1A1416",
+   "layers": [
+    "cobalt halftone sky with two paper-cut clouds crossing right to left at 10 px/s",
+    "telephone wires across the top (sway +-3 px)",
+    "curve mirror: convex reflection of the noon road with the mirage pool; a dot-person cyclist crosses inside the mirror 26.0-28.0",
+    "glass sheen: silver halftone band sweeping on 26.61 and 28.09",
+    "title glyphs inside the mirror",
+    "HEAT WAVES caps under the mirror",
+    "orange pole with a 'カーブ注意' plate"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character; only a dot-person cyclist in the reflection"},
+   "devices": ["title animation 版ずれ to 見当合わせ (misregistered plates snapping into register)", "liquid-silver dot-melt glyph formation", "mirror sheen sweep", "letterpress caps"],
+   "typography": "L9 熱波ゆらり 泳いでくミラー is staged as the title card itself. Title 泳いでくミラー: vertical Shippori Mincho B1 ExtraBold 220 px inside the mirror; the cream fill plate and the cobalt shadow plate swim up from the mirage 40 px out of register with a 1.2 Hz wobble from 25.87 and snap into register on 27.35, holding while their dots shimmer. 熱波ゆらり (sung 25.80-27.3) runs as a 40 px lead column right of the mirror. 'HEAT WAVES' in Shippori Mincho B1 ExtraBold Latin caps, 64 px, tracking 0.6 em, vermilion, printed letter by letter on 16ths from 28.09. Chinese '热浪摇曳 在镜中游去' 30 px under HEAT WAVES.",
+   "transition_out": "ミラー・アイリス: 28.46-28.83 the mirror disc grows to fill the frame; cut on the bar-9 downbeat 28.83 into the junction of mirrors.",
+   "sync": "25.87 cut; 26.61 sheen; 27.35 title snaps into register + 4-frame cobalt dot flash; 28.09 gust swing + HEAT WAVES on 16ths; 28.46 iris; 28.83 cut."
+  },
+  {
+   "id": "B-chorus1-01", "section": "chorus1", "start": 28.83, "end": 31.79, "lyric": [10],
+   "beat": "路口的三面弯道镜里全是她：她从镜边探出头来偷看，然后笑出声。",
+   "scene": "S2",
+   "camera": "Stepped orbit 40 degrees clockwise around a pole carrying a double-headed curve mirror plus a third mirror across the road, radius 3 m: 10 degrees in 4 frames on each beat, then hold, so each beat reframes a different mirror.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C, #D9402B, #1A1416",
+   "layers": [
+    "cobalt halftone sky",
+    "junction: wooden houses with tiled roofs, a vending machine, a bus-stop sign, wires",
+    "pole with two convex mirrors + a third mirror across the road",
+    "in each mirror the girl clip, time-offset +0 / +0.37 / +0.74 s, convex-warped",
+    "sun glint (AM halftone star) jumping between mirrors on beats",
+    "lyric column"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> upper body, the girl leans in from the side and peeks playfully at the viewer as if looking into a mirror, mischievous smile, head tilted, leaning forward, looking at viewer, close-up, simple background, green background",
+    "video_prompt": "The girl leans in from the side to peek at the camera, tilts her head, then laughs with her eyes squeezed shut and her shoulders shaking, her bob bounces, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 4.0,
+    "placement": "Three instances, one per mirror, head and shoulders ~380 px each, convex warp k=0.3-0.4, time-offset per mirror; sticker rim on all three; the mirror facing camera on each beat is at full saturation, the others at 70%."
+   },
+   "devices": ["stepped orbit on beats", "one clip multiplied across three mirrors", "sun-glint relay between mirrors"],
+   "typography": "L10 思い浮かぶの君ばかり: vertical Mincho column x~1720 (100 px, cobalt shadow) per mora from 28.99; 君 leaves the column on 30.31 and prints at 200 px in sun yellow inside the mirror facing camera, then returns. Chinese '浮现在脑海的 全都是你' 30 px.",
+   "transition_out": "円リレー Round Relay 2: hard match cut on 31.79 - the convex mirror holding her laughing face (screen centre, 600 px) becomes the convex CRT glass in his room showing the same face at the same size.",
+   "sync": "28.83 cut-in from the iris; 29.57 / 30.31 / 31.05 orbit clicks + glint jumps; 30.31 君 at 200 px; 31.79 relay."
+  },
+  {
+   "id": "B-chorus1-02", "section": "chorus1", "start": 31.79, "end": 34.76, "lyric": [11],
+   "beat": "接力：镜中的笑脸变成显像管上的同一张脸；镜头拉开是夜里的房间，点阵钟跳到0:00，他抬起头去看。",
+   "scene": "S1",
+   "camera": "Starts on the CRT glass (her face filling the curved screen at the mirror's size); 31.79-33.27 pull back 2.2 m and pan 20 degrees right to include the clock-radio on the shelf and the boy on the tatami; 33.27-34.76 hold with 2% drift.",
+   "world": "ブラウン管 CRT Glow: #1E2550, #7FC8B8, #C9D3DC, #EDE3CF, #141A33, #1A1416; the TV picture stays in Noon inks",
+   "layers": [
+    "room at night: curtain, dark window onto the railway, calendar",
+    "CRT TV showing her laughing face (frames of the B-chorus1-01 clip), throwing mint light into the room",
+    "LED clock-radio on the shelf, 23:59 to 0:00",
+    "the boy (clip) sitting on the tatami, screen-right, lit by the TV",
+    "full-frame mint dot flash on 32.53",
+    "gate jitter, grain, vignette"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> sitting on the floor at night with his knees loosely up and his arms resting on them, head lowered, about to look up toward the upper right, tired eyes, upper body, from side, three-quarter view, simple background, green background",
+    "video_prompt": "The boy sits with his head lowered, then slowly lifts his head and looks up to the upper right as if at a clock, his messy bangs slide off his eyes, he swallows and exhales, a soft breeze moves his t-shirt sleeve, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, sitting figure ~700 px tall, screen-right third; head lift timed so his eyes reach the clock on 32.53; sticker rim; CRT Glow inks; mint halftone light on his TV-facing side."
+   },
+   "devices": ["円リレー landing (mirror to CRT)", "LED clock flip 23:59 to 0:00", "full-frame LED dot flash (mint, 4 frames, 20 px dots)", "CRT light modulation"],
+   "typography": "L11 初夏零時過ぎたばかり: the clock-radio ticker runs it in mint 16-dot Japanese from 31.95; on 32.53 (零時) the digits 0:00 fill the frame for 4 frames as giant LED dots; in parallel the vertical Mincho column (x~1720, vermilion shadow) prints the line per mora with 零時 in mint instead of cream. Chinese '初夏 刚过零点' 30 px.",
+   "transition_out": "陽炎ドット溶け: 34.40-34.76 the room's halftone dots ripple and grow into silver mirage dots that re-form as the noon road; cut on 34.76.",
+   "sync": "31.79 relay cut; 31.95 ticker starts; 32.53 0:00 flip + mint dot flash + his eyes reach the clock; 33.27 colon blink; 34.02 CRT flicker; 34.40 melt; 34.76 cut."
+  },
+  {
+   "id": "B-chorus1-03", "section": "chorus1", "start": 34.76, "end": 37.72, "lyric": [12],
+   "beat": "正午公路上她站在热浪里四下张望；镜头一边推近一边拉广焦距，身后的路被越拉越长——在热浪里迷了路。",
+   "scene": "S2",
+   "camera": "Dolly-zoom (vertigo): dolly in 14 m while the lens widens 85 to 24 mm (three.js FOV 16 to 54 degrees) over 34.76-37.72, keeping her the same size; background road, poles and mirage stretch away; 2-degree roll oscillation on 8ths.",
+   "world": "正午刷り Noon Print, mirage-heavy: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC (dominant), #1A1416",
+   "layers": [
+    "halftone sky",
+    "road, stretching telephone poles, the mirage pool spreading under her",
+    "the girl (clip) centre, with an inverted mirage reflection (flipped copy, 40%, ripple displacement)",
+    "heat-haze displacement over everything below the horizon (1.5%)",
+    "lyric column"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl stands alone on a hot day looking around as if lost, one hand shading her eyes, worried expression, wind in her hair and skirt, standing, looking to the side, simple background, green background",
+    "video_prompt": "The girl stands still and looks around, turning her head slowly from left to right with a worried expression, one hand shading her eyes, a warm wind moves her hair and skirt, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Full body ~620 px tall at frame centre, constant size through the dolly-zoom; inverted mirage reflection below her feet; 4 px cream rim; Noon inks."
+   },
+   "devices": ["three.js dolly-zoom", "mirage reflection copy", "heat-haze displacement"],
+   "typography": "L12 ヒートウェイブに迷うのさ: vertical Mincho column right (100 px, cobalt shadow); each glyph snaps then drifts 6 px sideways with the haze; 迷 turns one slow full rotation (35.50-36.98) while the rest stays still. Chinese '在热浪里迷失方向' 30 px.",
+   "transition_out": "版ずれ misregistration split: 37.35-37.72 the plates slide apart (cobalt 40 px left, yellow 40 px right); cut on 37.72 into the two-plate print.",
+   "sync": "34.76 cut; 35.50 her head turn reaches left; 36.24 poles stretch past; 36.98 迷 completes its turn; 37.35 split; 37.72 cut."
+  },
+  {
+   "id": "B-chorus1-04", "section": "chorus1", "start": 37.72, "end": 40.68, "lyric": [13],
+   "beat": "两人在防波堤上的双色孔版印刷：她在橙版，他在钴蓝版；唱到'幸福'时两块版慢慢错开，再也套不准。",
+   "scene": "2D",
+   "camera": "2D multiplane: the two plates sit on planes 2 cm apart; slow 80 px truck right with a 1.5% push, so parallax visibly separates the plates.",
+   "world": "二色刷り preview: #F08A3C (her plate) + #2C4C9A (his plate) on #EDE3CF, overprint #292924",
+   "layers": [
+    "cream paper with registration marks",
+    "cobalt plate: the boy standing on the seawall (still) + the sea",
+    "orange plate: the girl sitting on the seawall edge (still) + the sun and road",
+    "overprint where the plates overlap (#292924)",
+    "lyric column"
+   ],
+   "character": {
+    "mode": "still",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_uniform> <boy> <boy_shirt> the girl sits on the edge of a concrete seawall swinging her legs and smiling at the sea, the boy stands a little apart beside her with his hands in his pockets looking at her, side by side, not touching, full body, from side, simple background, white background",
+    "video_prompt": "",
+    "clip_seconds": 0,
+    "placement": "Two-shot across the lower 60% of frame, split by SAM masks into the two plates. Mesh animation: her hair and skirt sway at 2 Hz and her legs swing +-8 degrees; his shirt hem flutters. The plates drift apart 0 to 56 px in beat steps."
+   },
+   "devices": ["版ずれ misregistration drift (14 px per beat from 38.46)", "multiplane parallax", "mesh-animated still"],
+   "typography": "L13 君に幸せあげられない: vertical Mincho column right; the glyphs 幸せ are printed in BOTH plates (orange fill, cobalt shadow) and drift apart with them, so they never register, while the other glyphs stay in register. Chinese '我给不了你幸福' 30 px.",
+   "transition_out": "Beat cut on 40.68 to the pool; the drifting orange plate's sun becomes the noon sun over the pool (same top-left position).",
+   "sync": "37.72 cut; 37.75 vocal; 38.46 / 39.20 / 39.94 drift steps (14 px each) with her leg swings; 40.68 cut."
+  },
+  {
+   "id": "B-chorus1-05", "section": "chorus1", "start": 40.68, "end": 46.61, "lyric": [14, 15],
+   "beat": "一镜到底：正午的学校泳池，她坐在池边晃腿、眯眼看太阳，计分板八条泳道全显示'君'；镜头抬到计时器的0:00.00，点阵融化成夜里房间的点阵钟。",
+   "scene": "S7+S1",
+   "camera": "Phase A 40.68-43.65: crane down 4 m to 1.2 m beside lane 4, ending on her mid shot at the pool edge with the scoreboard behind her. Phase B 43.65-45.13: tilt up 25 degrees and push 3 m into the race clock '0:00.00' until its LEDs are 40 px wide. Phase C 45.13-46.61: dot-melt; the LEDs re-form as the room clock '0:00' (night) and the camera pulls back 1 m from it as the fan shadow passes.",
+   "world": "Phases A-B 正午刷り (#2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #D9402B, #1A1416) with amber LEDs #F5C842; Phase C 夜刷り / CRT Glow (#141A33, #1E2550, #7FC8B8, #EDE3CF)",
+   "layers": [
+    "halftone sky, school building edge, LED scoreboard (8 rows: lane number, 16x16 name field, time)",
+    "pool water: caustic line-screen + halftone ripples; lane ropes with red/white floats bobbing",
+    "starting blocks 1-8",
+    "the girl (clip) sitting on the edge, feet in the water; comp splash rings on each forward swing",
+    "Phase C: S1 clock-radio, fan shadow, CRT glow"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl sits on the edge of a school swimming pool with her bare feet dangling down, hands on the edge beside her, looking up at the bright summer sky and squinting, gentle smile, barefoot, sitting, from side, full body, simple background, green background",
+    "video_prompt": "The girl sits on the edge and swings her bare feet back and forth, she tilts her head back to look up at the bright sky, squints, then smiles, a breeze moves her bob and her neckerchief, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Phase A only: mid shot, sitting figure ~720 px tall, screen-left third, feet cropped into the water layer; sticker rim; Noon inks; she leaves frame as the camera tilts up."
+   },
+   "devices": ["LED scoreboard fills 君 two lanes per beat (41.42 lanes 1-2, 42.16 3-4, 42.90 5-6, 43.65 7-8)", "race clock '0:00.00'", "陽炎ドット溶け amber to mint LEDs 45.13-45.87", "caustic line-screen water"],
+   "typography": "L14 思い浮かぶの君ばかり is carried by the scoreboard: every lane's name field prints 君 in amber 16-dot (all lanes, all you), while the full line runs in the vertical Mincho column per mora from 40.75. L15 初夏零時過ぎたばかり: from 43.65 the scoreboard's top row scrolls it in amber dots; 零時 lands on the race clock's 0:00 on 44.39; in Phase C the room clock ticker finishes it in mint. Chinese '浮现在脑海的 全都是你 / 初夏 刚过零点' 30 px.",
+   "transition_out": "Beat cut on 46.61 to the curve-mirror forest; the clock's two colon dots match two mirror glints.",
+   "sync": "40.68 cut-in; 41.42 / 42.16 / 42.90 / 43.65 lane pairs fill with 君, her feet kick on each; 43.65 tilt up; 44.39 0:00.00 + 零時; 45.13 melt begins; 45.87 dots re-form as 0:00 (mint); 46.61 cut."
+  },
+  {
+   "id": "B-chorus1-06", "section": "chorus1", "start": 46.61, "end": 49.57, "lyric": [16],
+   "beat": "正午的弯道镜森林：镜头在几十面镜子之间穿行，每拍转90度，每面镜子里都是她不同的一瞬。",
+   "scene": "S2",
+   "camera": "Flythrough at 6 m/s, 1.6 m high, through a grid of ~40 curve mirrors on orange poles; on each beat the camera yaws 90 degrees in 5 frames (ease-in-out) and flies on; 49.20-49.57 yaws into a single mirror.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C, #1A1416",
+   "layers": [
+    "halftone sky",
+    "asphalt with mirage dot-melt patches",
+    "instanced curve mirrors (40), each a render target showing a 1-2 s loop of her",
+    "glints on 8ths",
+    "glyphs scattered across mirrors"
+   ],
+   "character": {"mode": "still", "source": "loops from the clips of B-hook-01, B-hook-02, B-chorus1-01 and B-chorus1-03 (no new generation)", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Each mirror holds one convex-warped loop, 150-420 px by distance; nearest mirror at full saturation."},
+   "devices": ["mirror forest (instanced render targets)", "90-degree yaws on beats", "glints"],
+   "typography": "L16 ヒートウェイブに迷うのさ: each glyph appears in a different mirror on its mora from 46.95, so the line has to be read across mirrors; on 48.83 the glyphs fly out of the mirrors and assemble into the vertical column at x~1720. Chinese '在热浪里迷失方向' 30 px.",
+   "transition_out": "Reverse ミラー・アイリス: 49.20-49.57 the camera yaws into one mirror, which shrinks back to a small disc; cut on 49.57 to the stamp card's empty dashed circle at the same position.",
+   "sync": "46.61 cut; 47.35 / 48.09 / 48.83 90-degree yaws; glints on 8ths; 48.83 glyphs assemble; 49.20 yaw into a mirror; 49.57 cut."
+  },
+  {
+   "id": "B-chorus1-07", "section": "chorus1", "start": 49.57, "end": 52.53, "lyric": [17],
+   "beat": "回到夜里：矮桌上的集章卡，最后一格空着，剪纸太阳想升起来，闪了几下又灭了。",
+   "scene": "S1+2D",
+   "camera": "60-degree high angle over the chabudai, 10% push toward the sixth circle over the bar; the TV's channel colours wash across the card on beats.",
+   "world": "夜刷り Night Print: #141A33, #1E2550, #7FC8B8, #EDE3CF, #D9402B, #F5C842 (the failing sun)",
+   "layers": [
+    "tatami weave line-screen",
+    "chabudai + stamp card (5 stamps, empty sixth circle)",
+    "paper-cut sun trying to rise in the sixth circle: rises 30% on 50.31 and slips back, again on 51.05, flickers out on 51.79",
+    "CRT colour wash (cycling channel colours) sweeping the card on beats",
+    "fan shadow",
+    "stamped lyric ring"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character"},
+   "devices": ["paper-cut sun (failing rise)", "rubber-stamp ring (date-stamp style)", "CRT colour wash", "dashed-circle pulse on beats"],
+   "typography": "L17 君に幸せあげられない: the glyphs are rubber-stamped one per mora around the empty circle's dashed outline like a date-stamp ring, vermilion ink with uneven pressure; 幸せ is stamped almost dry (ink 25%). Chinese '我给不了你幸福' 30 px.",
+   "transition_out": "チャンネル送り channel flip: 52.20-52.53 the frame tears into a 2-frame halftone static band and rolls; cut on the bar-17 downbeat 52.53 to the TV.",
+   "sync": "49.57 cut; 49.66 vocal; 50.31 sun attempt 1; 51.05 attempt 2; 51.79 flicker out; 52.20 static; 52.53 cut."
+  },
+  {
+   "id": "B-verse-01", "section": "verse", "start": 52.53, "end": 55.5, "lyric": [18],
+   "beat": "电视的旋钮一拍一换台：天气图、夜场棒球、时代剧、问答节目、新闻……就是不让电视停下来。",
+   "scene": "S1",
+   "camera": "Locked frontal on the CRT (screen fills 62% of frame) with a 1.5% push; a 2-frame 1.5% shake on each channel click.",
+   "world": "ブラウン管 CRT Glow: #1E2550, #7FC8B8, #C9D3DC, #EDE3CF, #D9402B, #1A1416; each channel in its own 3-ink halftone set",
+   "layers": [
+    "wall behind the TV with the calendar, lit by the changing channel colours",
+    "TV cabinet + rotary channel dial (30-degree click per channel)",
+    "screen content: 52.53 CH1 coast weather map with sun icons; 53.28 CH3 night baseball with its LED scoreboard; 54.02 CH4 samurai drama; 54.76 CH6 quiz show with a spinning roulette; 55.13 CH8 news desk",
+    "mint 7x13 OSD channel number top-right of the picture on each flip",
+    "2-frame static band between channels",
+    "room reflection on the glass (fan, window)"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character; he is the hand we never see, his presence is the dial turning"},
+   "devices": ["チャンネル送り x5 (4 beats + one 8th)", "TV OSD channel numbers (LED)", "programme parodies in halftone"],
+   "typography": "L18 テレビつけて消さないように: vertical Mincho column right of the TV per mora from 52.60; 消 drops out for 2 frames with the static on every flip. Chinese '打开电视 别让它熄灭' 30 px.",
+   "transition_out": "Beat cut on 55.50 to the reverse angle from inside the TV.",
+   "sync": "52.53 CH1; 53.28 CH3; 54.02 CH4; 54.76 CH6; 55.13 CH8; a dial click and shake on each; 55.50 cut."
+  },
+  {
+   "id": "B-verse-02", "section": "verse", "start": 55.5, "end": 58.46, "lyric": [19],
+   "beat": "从电视里面往外看：隔着弧形玻璃，他闭上眼仰起头，长长地呼出一口气——不去想'我们'。",
+   "scene": "S1",
+   "camera": "TV-POV rig inside the CRT looking out: locked, glass barrel distortion k=0.18, mirrored OSD; slow 3% push.",
+   "world": "ブラウン管 CRT Glow: #1E2550, #7FC8B8, #C9D3DC, #EDE3CF, #1A1416",
+   "layers": [
+    "room behind him, out of focus: fan oscillating, curtain, window",
+    "the boy (clip) sitting cross-legged facing camera",
+    "TV light on him changing colour on beats (mint, amber, vermilion)",
+    "CRT glass layer: barrel warp, mirrored channel number, phosphor-dot sheen in halftone (no scanlines)"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> the boy sits cross-legged on the floor facing the viewer, hands resting on his ankles, staring straight ahead with empty eyes, upper body, front view, looking at viewer, night, simple background, green background",
+    "video_prompt": "The boy sits facing the camera, he closes his eyes, tilts his head back slowly and lets out a long breath, his shoulders drop, his bangs fall back from his forehead, then he lowers his head again, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, centred, figure ~760 px tall, seen through the CRT barrel warp (applied over the cut-out); sticker rim; CRT Glow inks; the TV light colour on him flips on beats."
+   },
+   "devices": ["TV point of view through curved glass", "beat-synced channel light on the character", "mirrored OSD numbers"],
+   "typography": "L19 僕らのこと考えないように: vertical Mincho column, at first mirror-reversed (we are inside the TV); each glyph flips on the Y axis (3 frames) to read correctly on the mora it is sung, from 55.68; 僕ら in vermilion. Chinese '好让自己不去想我们' 30 px, normal reading.",
+   "transition_out": "Beat cut on 58.46 to the TV picture: the roadshow poster (his eyes-closed moment ends as the poster appears).",
+   "sync": "55.50 cut; 56.24 light mint to amber; 56.98 head fully back; 57.72 light to vermilion; 58.46 cut."
+  },
+  {
+   "id": "B-verse-03", "section": "verse", "start": 58.46, "end": 64.39, "lyric": [20, 21],
+   "beat": "一镜到底：电视放'今晚的好莱坞电影'，两人被印成网点海报上的电影明星；镜头从屏幕里退出来，电影的光像投影一样爬过他的脸。",
+   "scene": "2D+S1",
+   "camera": "Phase A 58.46-61.42: 2D crane-down over the poster inside the TV picture, from the title to the stars (x1.0 to x1.15), searchlights sweeping. Phase B 61.42-64.39: reverse push-through, pulling back out through the CRT glass 2 m and swinging 30 degrees to a close-up of his face lit by the screen.",
+   "world": "ロードショー poster (#D9402B, #F5C842, #2D6BE0, #EDE3CF, #1A1416), then CRT Glow in the room with the poster colours projected on his face",
+   "layers": [
+    "poster: halftone sky with two searchlight beams (one sweep per bar), title 'HEAT WAVE' in a 1950s slab face, tagline caps, credit block",
+    "poster art: the girl and the boy as movie stars (still), mesh-animated hair and collar",
+    "riso passes printing the poster on beats: yellow 58.46, vermilion 59.20, cobalt 59.94, black 60.68",
+    "Phase B: dark room, CRT glow, the boy (clip) close-up",
+    "projection layer: the poster image plus a 24-frame shutter flicker mapped across his face as moving halftone light, sliding 30 px/s"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at night watching a screen in the dark, light flickering across his face, wide unblinking eyes, slightly parted lips, face focus, portrait, front view, looking ahead, simple background, green background",
+    "video_prompt": "The boy watches something in the dark without moving, flickering light slides across his face, his eyes glisten, he blinks once slowly and presses his lips together, a faint breath moves his bangs, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Phase B: close-up, face ~720 px tall, right of centre; the projected poster layer multiplies onto his cut-out at 70% so the two movie stars slide across his face.",
+    "extra_stills": ["masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_uniform> <boy> <boy_shirt> classic 1950s hollywood movie poster pose, the girl in front looking up dramatically with wind in her hair, the boy behind her looking away into the distance, posed separately, not touching, upper body, dramatic lighting, simple background, white background"]
+   },
+   "devices": ["movie-poster parody (halftone, 4 print passes on beats)", "searchlight beams", "reverse ポスター抜け (pull-out through the CRT glass)", "projection of the poster onto the character"],
+   "typography": "L20 今日のハリウッド映画放映 is the poster's top billing: vertical Mincho column at the poster's right (120 px, vermilion shadow) per mora from 58.55, small caps 'TONIGHT'S ROADSHOW' beneath. L21 僕らのことまるで投影: in Phase B the glyphs are projected on the wall beside his face (cream light, slightly keystoned, flickering with the shutter) per mora from 61.60; 投影 carries a 12 px out-of-focus ghost like a projector. Chinese '今天放映的好莱坞电影 / 简直是我们的投影' 30 px.",
+   "transition_out": "チャンネル送り: 64.02-64.39 the CRT behind him flips channel; cut on 64.39 to that channel (the commercial) full frame.",
+   "sync": "58.46 poster + yellow pass; 59.20 vermilion; 59.94 cobalt + searchlight 1; 60.68 black; 61.42 pull-back; 62.16 his blink; 62.91 searchlight 2 crosses his face; 63.65 shutter-flicker accent; 64.02 flip; 64.39 cut."
+  },
+  {
+   "id": "B-verse-04", "section": "verse", "start": 64.39, "end": 67.35, "lyric": [22],
+   "beat": "插播的夏日广告：阳光、大海，她笑着朝镜头跑来——'你本该会幸福'的那种完美画面。",
+   "scene": "2D+S2",
+   "camera": "The frame is the TV picture (rounded-corner mask, barrel 0.08) at 100%; inside it a three.js beach plate (S2 noon seawall stairs and sea) trucks back 2 m as she runs in; on 66.61 a CM-style 3-frame 6% freeze-zoom on her laugh, then release.",
+   "world": "ロードショー CM: #2D6BE0, #F5C842, #F6F2E7, #D9402B (logo), #1A1416",
+   "layers": [
+    "halftone sky + paper-cut sun logo with spinning rays",
+    "noon beach and seawall stairs, sea sparkle as AM halftone glints",
+    "the girl (clip) running toward camera",
+    "CM super: slogan (the lyric), sun logo, small fictional brand '夏ソーダ', 'SUMMER 1985'",
+    "CRT mask, phosphor sheen, OSD '10'"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl runs toward the viewer laughing on a bright summer day, arms swinging, hair and skirt flying in the sea wind, running, happy, open mouth smile, looking at viewer, simple background, green background",
+    "video_prompt": "The girl runs slowly toward the camera, laughing, her arms swing naturally, her bob and red neckerchief fly back in the wind, her skirt flutters, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Full body, scaled 500 to 900 px tall in comp to sell the approach, centre; thick 6 px cream rim like a CM cut-out; CM inks; AM halftone sun glare behind her."
+   },
+   "devices": ["CM parody inside the CRT frame", "spinning paper-cut sun logo", "AM halftone glints on beats", "freeze-zoom"],
+   "typography": "L22 幸せに君なるはず is the CM slogan: vertical Mincho 150 px at right, sun-yellow fill with cobalt shadow, snapping per mora from 64.30; on 66.61 the whole slogan bounces 6% with the freeze. Chinese '你本该会幸福的' 30 px.",
+   "transition_out": "版ずれ: 67.00-67.35 the CM separates into its plates (yellow slides up, cobalt down); cut on 67.35 into the two-plate print.",
+   "sync": "64.39 cut; 65.13 sea glint flash; 65.87 hair flies highest; 66.61 freeze-zoom on the laugh; 67.00 split; 67.35 cut."
+  },
+  {
+   "id": "B-verse-05", "section": "verse", "start": 67.35, "end": 70.31, "lyric": [23],
+   "beat": "两人在站台上的双色印刷照：他那一块钴蓝版像丝网一样从纸上揭起、卷走，只剩她，她那一版反而更亮了。",
+   "scene": "2D",
+   "camera": "2D multiplane with the paper tilted 12 degrees to camera; the camera follows the peeling sheet up 8%.",
+   "world": "二色刷り: #F08A3C (her) + #2C4C9A (him) on #EDE3CF, overprint #292924",
+   "layers": [
+    "cream paper with registration marks",
+    "orange plate: the girl on the platform with a small wave (still)",
+    "cobalt plate: the boy beside her (still) and the station-name board",
+    "peel: from 68.09 the cobalt plate lifts from its left corner, curls (paper sim) and slides off frame by 69.57, casting a soft shadow",
+    "her plate brightens: halftone coverage -20% and a sun-yellow overprint blooms behind her"
+   ],
+   "character": {
+    "mode": "still",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_uniform> <boy> <boy_shirt> the girl and the boy stand side by side on a small railway platform in summer, the girl smiles and lifts one hand in a small wave, the boy stands stiffly beside her looking down, not touching, full body, front view, simple background, white background",
+    "video_prompt": "",
+    "clip_seconds": 0,
+    "placement": "Two-shot, full body ~700 px tall, centre, split by SAM masks into the two plates; mesh animation on her hair and raised hand; his figure rides the peeling sheet."
+   },
+   "devices": ["版はがし plate peel (silkscreen sheet lift, paper-curl sim)", "halftone brighten"],
+   "typography": "L23 僕じゃなきゃ可能なはず: vertical Mincho column right; 僕じゃ are printed on the cobalt sheet and peel away with it, the rest stays on the paper. Chinese '只要那个人不是我' 30 px.",
+   "transition_out": "ポスター抜け: 69.94-70.31 push into the blank where his plate was, which becomes the glare of the noon road; cut on 70.31.",
+   "sync": "67.35 cut; 67.64 vocal; 68.09 peel starts; 68.83 sheet at 45 degrees; 69.57 off frame; 69.94 push; 70.31 cut."
+  },
+  {
+   "id": "B-verse-06", "section": "verse", "start": 70.31, "end": 73.28, "lyric": [24],
+   "beat": "逃げ水漫开：路面的网点像热浪一样起伏、长大，变成会荡漾的LED点，银色的'水'一路漫到镜头前。",
+   "scene": "S2",
+   "camera": "Low 0.5 m track forward at 4 m/s toward the mirage; 72.53-73.28 the lens dips under the silver surface.",
+   "world": "正午刷り, mirage-dominant: #C9D3DC, #2D6BE0, #F5C842, #F6F2E7, #1A1416",
+   "layers": [
+    "halftone sky, mirrored in the mirage",
+    "road: the mirage wavefront advances toward camera one dot row per frame; asphalt dots ripple and grow into round LED dots that reflect the sky",
+    "the girl (still) far away standing in the mirage with an inverted reflection",
+    "glyphs with wobbling inverted reflections"
+   ],
+   "character": {"mode": "still", "source": "keyframe of B-chorus1-03 (girl standing, looking around)", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Small, ~180 px tall at the road's end inside the mirage pool, inverted reflection; mesh sway of hair and skirt; she dissolves into LED dots on 72.53."},
+   "devices": ["陽炎ドット溶け hero use: halftone to rippling LED dots", "inverted mirage reflections"],
+   "typography": "L24 路に広がる逃げ水: vertical Mincho column right; each glyph appears with an inverted, wobbling reflection below the horizon line; 逃げ水 is built from the same LED dots and ripples. Chinese '路面漫开的蜃景' 30 px.",
+   "transition_out": "Under-the-surface cut on 73.28: the lens goes under the mirage and the silver becomes the grey of the TV sign-off screen.",
+   "sync": "70.31 cut; 71.05 wavefront 1; 71.79 wavefront 2 reaches mid-frame; 72.53 she dissolves to dots; 73.28 cut."
+  },
+  {
+   "id": "B-verse-07", "section": "verse", "start": 73.28, "end": 76.24, "lyric": [25],
+   "beat": "放送结束：电视只剩测试图中央的一个圆；房间一拍一拍暗下去，矮桌上的集章卡不见了——他出门了。",
+   "scene": "S1",
+   "camera": "Wide of the room from the doorway, locked, slow 5% push.",
+   "world": "ブラウン管 to darkness: #141A33, #1E2550, #C9D3DC (test-card grey), #7FC8B8, #1A1416",
+   "layers": [
+    "room: futon, curtain, window; fan stops oscillating on 74.02 and its blades spin down",
+    "CRT: 73.28 generic sign-off card '本日の放送は終了しました'; 74.02 generic test card with a big centre circle; 75.50 everything on the screen fades except the circle",
+    "chabudai: the stamp card is gone, only the empty ramune bottle remains",
+    "room light: halftone coverage stepping down on every beat until only the circle glows",
+    "lyric fading into darkness"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character: the missing card says he has gone out"},
+   "devices": ["CRT sign-off card + test card", "beat-stepped darkness", "fan spin-down"],
+   "typography": "L25 闇の中ではもう見えず: vertical Mincho column right per mora from 73.60; each glyph shrinks into its dots and vanishes one beat after it appears, so the line is never fully visible. Chinese '在黑暗里 已经看不见' fades with it.",
+   "transition_out": "円リレー Round Relay 3: on 76.24 the test-card circle (centre-left, 300 px) becomes the paper-cut moon over the tiled roofs at the same position and size.",
+   "sync": "73.28 sign-off card; 74.02 test card + fan stops; 74.76 light step down; 75.50 only the circle; 76.24 relay."
+  },
+  {
+   "id": "B-chorus2-01", "section": "chorus2", "start": 76.24, "end": 79.2, "lyric": [26],
+   "beat": "月亮挂在瓦顶上，他走在屋檐下，一排风铃随着歌声一个接一个亮起、叮当作响，每张短册上写着一个字。",
+   "scene": "S2",
+   "camera": "Starts framed on the moon (relay landing); crane down 4 m and track left with him, side-on at 3 m, at walking speed 1.3 m/s; eaves in the upper foreground.",
+   "world": "月刷り Moon Print: #141A33, #1E2550, #C9D3DC, #EDE3CF, #F08A3C (one lit window), #1A1416",
+   "layers": [
+    "halftone night sky, paper-cut moon with an AM halftone halo",
+    "tiled roofs and telephone wires",
+    "wooden house fronts (shutters, potted morning glories)",
+    "10 furin hanging from the eaves, each with a paper tanzaku",
+    "the boy (clip) walking left",
+    "eave edge in the foreground passing at 2x speed"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy walks slowly at night with his hands in his pockets, looking slightly up, calm, sneakers, walking, from side, profile, simple background, green background",
+    "video_prompt": "The boy walks slowly from right to left with his hands in his pockets, the camera follows him so he stays in the centre of the frame, a light night breeze moves his hair and t-shirt, he glances up once as if hearing something above him, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid-full shot, figure ~640 px tall, centre-left, in-place walk with the ground moving under him; sticker rim; Moon inks; moonlight halftone on his right side."
+   },
+   "devices": ["per-syllable furin lighting with glyphs (10 furin)", "relay landing from the moon", "parallax eaves"],
+   "typography": "L26 思い浮かぶの君ばかり: each furin's tanzaku carries one glyph (思 い 浮 か ぶ の 君 ば か り, cream Mincho 80 px); on each sung mora from 76.20 that furin swings, rings (glass glint) and lights from silver to mint with a 6-frame AM glow; 君's furin is vermilion. Chinese '浮现在脑海的 全都是你' 30 px lower right.",
+   "transition_out": "Beat cut on 79.20 to the vending machine; his walk carries over (he enters the machine's light from screen-right).",
+   "sync": "76.24 relay + crane; 76.98 / 77.72 / 78.46 furin 3, 6 and 8 land on the beats, the rest on the syllables between; 79.20 cut."
+  },
+  {
+   "id": "B-chorus2-02", "section": "chorus2", "start": 79.2, "end": 82.16, "lyric": [27],
+   "beat": "他停在自动贩卖机前，脸被灯光照亮；机器的点阵跑马灯滚着'刚过零点'，中奖轮盘停在0012。",
+   "scene": "S2",
+   "camera": "Three-quarter close on him and the machine, slow 15-degree arc right; 4% push on 80.68.",
+   "world": "月刷り + vending glow: #141A33, #1E2550, #7FC8B8, #F08A3C (machine light), #EDE3CF, #C9D3DC, #1A1416",
+   "layers": [
+    "night road, a telephone pole, a dark curve mirror far behind",
+    "vending machine: 12 lit can dummies in halftone, mint 16-dot ticker band, 4-digit 7-segment roulette",
+    "12 moths (flapping sprites on 2s) circling the light",
+    "the boy (clip) facing the machine",
+    "machine light on him: heat-orange halftone coverage, flicker on 8ths"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands in front of a glowing vending machine at night, his face lit by warm light from the front, looking at it blankly, tired, three-quarter view, simple background, green background",
+    "video_prompt": "The boy stands still in warm light, he looks at something in front of him, his eyes move as if reading, then he looks down and exhales through his nose with a faint bitter smile, a breeze moves his hair, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid close-up, waist-up ~820 px tall, screen-left half, machine on the right half; sticker rim; heat-orange light side in halftone."
+   },
+   "devices": ["vending-machine LED ticker (Japanese 16-dot, mint)", "4-digit roulette spinning on 16ths and stopping digit by digit on beats", "moth particles"],
+   "typography": "L27 初夏零時過ぎたばかり scrolls on the machine's ticker from 79.25 at 2 dots/frame; the roulette stops 0 (79.94), 0 (80.68), 1 (81.42), 2 (82.16) to read 0012, twelve past midnight; the vertical Mincho column (left of his head, 100 px) mirrors the line per mora, its last glyphs carried over the cut. Chinese '初夏 刚过零点' 30 px.",
+   "transition_out": "陽炎ドット溶け: 81.80-82.16 the ticker's mint dots spread over the frame and re-form as the night town map; cut on 82.16.",
+   "sync": "79.20 cut; 79.94 / 80.68 / 81.42 roulette digits stop; moths scatter on 80.68; his exhale ~81.4; 82.16 last digit + cut."
+  },
+  {
+   "id": "B-chorus2-03", "section": "chorus2", "start": 82.16, "end": 85.13, "lyric": [28],
+   "beat": "俯瞰夜里的小镇地图：道路像水一样晃动，一拍转一个方向，他是地图上一个小小的光点，在迷宫里绕圈。",
+   "scene": "S5",
+   "camera": "Top-down at 120 m, rotating 22.5 degrees on each beat (5-frame ease), descending to 90 m over the bar.",
+   "world": "月刷り map: #141A33 land, #1E2550 sea, #C9D3DC roads and moon path, #7FC8B8 vending dots, #F08A3C three lit windows, #EDE3CF route line, #1A1416",
+   "layers": [
+    "sea with the moon path in halftone",
+    "town: roofs, railway, coastline, lighthouse beam sweeping",
+    "roads with a ripple and re-route shader (they wobble like water; junctions reconnect on beats)",
+    "stamp-route overlay (dashed cream) with the 6 circles",
+    "the boy as a glowing dot-person (8 px figure + 40 px mint halo)",
+    "map curve mirrors flashing noon yellow on the off-beats"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Single dot-person (him) with a mint halo walking the roads, pausing at each re-route."},
+   "devices": ["map maze with road ripple", "stepped rotation on beats", "noon flashes in the map's mirrors"],
+   "typography": "L28 ヒートウェイブに迷うのさ: glyphs are map labels (vertical, 70 px, cream with navy outline) popping at junctions per mora from 82.60 and rotating with the map; 迷 at the centre junction stays upright while the map turns under it. Chinese '在热浪里迷失方向' 30 px fixed to screen.",
+   "transition_out": "Beat cut on 85.13 to the seawall at night; the map's moon path matches the real moon path on the sea.",
+   "sync": "82.16 cut; 82.91 / 83.65 / 84.39 rotations + re-routes; mirror flashes on 8ths; 85.13 cut."
+  },
+  {
+   "id": "B-chorus2-04", "section": "chorus2", "start": 85.13, "end": 88.09, "lyric": [29],
+   "beat": "防波堤上，他背对着我们看海；月光在海面铺成一条竖着的光路，歌词就印在光路里，被浪打碎；潮水越涨越高。",
+   "scene": "S2",
+   "camera": "Low behind him on the seawall top, locked, 1.5% push; 87.35-88.09 the camera drops toward the sea as a swell rises over the wall.",
+   "world": "月刷り Moon Print: #141A33, #1E2550, #C9D3DC, #EDE3CF, #F08A3C (lighthouse lamp), #1A1416",
+   "layers": [
+    "halftone night sky, paper-cut moon",
+    "lighthouse far right, beam sweeping once per bar",
+    "sea in halftone waves; the moon path is a vertical column of silver dots",
+    "lyric glyphs printed inside the moon path, broken by the waves",
+    "the boy (still) standing on the seawall, back view",
+    "swell: a wave crest rising over the seawall 87.35-88.09 with halftone foam"
+   ],
+   "character": {
+    "mode": "still",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy stands alone seen from behind, looking at the sea at night, hands in pockets, wind blowing his t-shirt and hair, from behind, standing, simple background, green background",
+    "video_prompt": "",
+    "clip_seconds": 0,
+    "placement": "Back view, full body ~560 px tall, screen-left third on the seawall top; mesh animation of t-shirt hem and hair in the sea wind (1.6 Hz); moon rim light as cream halftone."
+   },
+   "devices": ["moon-path lyric (glyphs inside the reflection column, wave displacement)", "lighthouse sweep", "rising swell"],
+   "typography": "L29 君に幸せあげられない: the moon path IS the lyric column - glyphs (cream, 110 px) form out of silver wave dots per mora from 85.15 and are broken by passing wave lines (8 px displacement); 幸せ breaks apart completely on 86.61. Chinese '我给不了你幸福' 30 px lower right.",
+   "transition_out": "Sea surge: 87.35-88.09 the swell rises over the wall and the camera; on 88.09 the frame is underwater (the cut hides in the foam).",
+   "sync": "85.13 cut; 85.87 lighthouse beam passes; 86.61 幸せ breaks; 87.35 swell rises; 88.09 underwater."
+  },
+  {
+   "id": "B-bridge1-01", "section": "bridge1", "start": 88.09, "end": 91.05, "lyric": [30],
+   "beat": "整条商店街沉在海底：卷帘门关着，没点亮的灯笼像水母一样往上飘，金鱼在摊位之间游；歌词装在气泡里，一个音破一个。",
+   "scene": "S6",
+   "camera": "Sinks from the surface (moon above as a wobbling disc) 6 m down into the street, then a slow 1 m/s forward glide at lantern height; underwater sway +-1 degree at 0.3 Hz.",
+   "world": "水底 Seabed: #141A33, #1E2550, #7FC8B8, #C9D3DC, #D9402B, #EDE3CF, #1A1416",
+   "layers": [
+    "surface seen from below: the moon as a wobbling silver disc inside a caustic net",
+    "S6 shotengai: closed shutters, yatai frames, signboards, caustic line-screen sweeping over them",
+    "unlit lanterns floating upward on slack wires, bobbing",
+    "goldfish school (60 boids) weaving between stalls",
+    "glyph bubbles",
+    "the boy as a 50 px dot-person walking on the street floor"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Him as a tiny dot-person walking the street floor in the distance, hair floating: he keeps walking even underwater."},
+   "devices": ["S6 caustics and bubbles", "goldfish boids", "bubble lyrics (one glyph per bubble, popping on the next mora)"],
+   "typography": "L30 闘えず息できず: each glyph rises inside a bubble (cream Mincho 90 px in a silver ring) from the street floor on its mora from 87.86 (the first glyph is carried over the cut) and pops into dots on the next mora, so the line is never whole. Chinese '无力抵抗 无法呼吸' 30 px fixed right.",
+   "transition_out": "Bubble wipe: 90.70-91.05 a column of bubbles rises across the frame; cut behind it on 91.05 to the dusk seawall.",
+   "sync": "88.09 underwater; 88.83 lanterns lift; 89.57 goldfish turn together; 90.31 caustic flash; 90.70 bubble wipe; 91.05 cut."
+  },
+  {
+   "id": "B-bridge1-02", "section": "bridge1", "start": 91.05, "end": 94.02, "lyric": [31],
+   "beat": "去年夏天的黄昏：防波堤的水泥上，粉笔画的相合伞自己画了出来，伞下一个太阳、一个月亮；她坐在旁边，捂着嘴害羞地笑。",
+   "scene": "S2",
+   "camera": "Low three-quarter on the seawall top at 1.2 m, slow 10-degree arc right; 4% push on 93.28.",
+   "world": "夕焼け刷り Dusk Print: #F08A3C, #D9402B, #1E2550, #EDE3CF, #F5C842, #1A1416",
+   "layers": [
+    "halftone dusk sky with a paper-cut vermilion sun at the horizon",
+    "sea in orange halftone, the seawall stretching away",
+    "chalk doodle on the concrete: 相合傘 umbrella with two signatures (sun = hers, crescent = his), drawn stroke by stroke",
+    "the girl (clip) sitting beside it",
+    "long dusk shadows"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl sits on the edge of a concrete seawall at sunset, looking down shyly, blushing, hand raised near her mouth, embarrassed smile, sitting, upper body, from side, warm sunset light, simple background, green background",
+    "video_prompt": "The girl sits and giggles shyly, she lowers her face and covers her smile with her hand, then glances up at the camera with a blush and looks away again, the sea breeze moves her bob and neckerchief, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, sitting figure ~700 px tall, screen-right; the doodle in the screen-left foreground; sticker rim; Dusk inks with a sun-yellow rim light."
+   },
+   "devices": ["ink line-drawing reveal (the chalk doodle draws itself)", "paper-cut dusk sun"],
+   "typography": "L31 愛とか言っていたって: the umbrella is drawn first (91.05-91.79), then the lyric is written in chalk-textured Mincho (cream, 90 px) down the umbrella's handle per mora from 91.05; 愛 sits at the umbrella's tip in vermilion chalk. Chinese '就算说过爱之类的话' 30 px.",
+   "transition_out": "Beat cut on 94.02 to the wide seawall behind her (her look leads to his receding figure).",
+   "sync": "91.05 cut; 91.79 signatures drawn; 92.53 her glance up; 93.28 push; 94.02 cut."
+  },
+  {
+   "id": "B-bridge1-03", "section": "bridge1", "start": 94.02, "end": 96.98, "lyric": [32],
+   "beat": "黄昏的长堤：前景是她的背影，远处他一个人沿着堤走远了；歌词被夕阳拉成长长的影子投在水泥上。",
+   "scene": "S2",
+   "camera": "85 mm telephoto, locked behind her shoulder, very slow 2% push.",
+   "world": "夕焼け刷り Dusk Print: #F08A3C, #D9402B, #1E2550, #EDE3CF, #F5C842, #1A1416",
+   "layers": [
+    "halftone sky, vermilion sun low on the horizon, rays turning slowly",
+    "sea with orange glitter (AM halftone glints on beats)",
+    "seawall receding to a vanishing point; a curve mirror at the bend",
+    "him as a dot-person walking away along the wall (90 to 40 px)",
+    "glyph shadows cast long across the concrete",
+    "her back (still) out of focus in the foreground"
+   ],
+   "character": {
+    "mode": "still",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl sits on a seawall seen from behind, looking into the distance, wind in her hair, from behind, upper body, sunset, simple background, green background",
+    "video_prompt": "",
+    "clip_seconds": 0,
+    "placement": "Her back, out-of-focus foreground left, ~900 px tall cropped at the waist, mesh animation of bob and neckerchief in the wind; him as a dot-person (school-shirt colours) shrinking into the distance."
+   },
+   "devices": ["glyph cast shadows (invisible 3D glyph planes lit by the low sun; only their shadows print)", "dot-person walk-away", "glints on beats"],
+   "typography": "L32 行くべきなのさ: the glyphs are invisible planes standing on the seawall; only their long indigo halftone shadows print on the concrete, each appearing on its mora from 94.34 and stretching as the sun sinks. Chinese '我也该走了' 30 px.",
+   "transition_out": "Beat cut on 96.98 to top-down on the doodle as a wave rises.",
+   "sync": "94.02 cut; 94.76 glint; 95.50 his figure passes the curve mirror and his reflection flashes in it; 96.24 sun dips; 96.98 cut."
+  },
+  {
+   "id": "B-bridge1-04", "section": "bridge1", "start": 96.98, "end": 99.94, "lyric": [33],
+   "beat": "俯拍粉笔画：一个浪拍上堤，把伞下他那一半冲掉，空出来的地方慢慢浮出一个用网点拼成的问号。",
+   "scene": "S2",
+   "camera": "Top-down on the doodle, locked, 1-degree rotation over the bar; 4-frame shake when the wave hits on 97.72.",
+   "world": "夕焼け刷り Dusk Print: #F08A3C, #D9402B, #1E2550, #EDE3CF, #C9D3DC (foam), #1A1416",
+   "layers": [
+    "concrete texture in halftone",
+    "the chalk 相合傘 doodle with the sun and crescent signatures",
+    "wave: a halftone foam sheet slides across the right half on 97.72 and retreats by 98.46, leaving a water sheen and a chalk smear where the crescent was",
+    "dotted question mark assembling in his empty slot 98.46-99.20",
+    "her shadow (soft indigo) falling into frame from the left on 99.20"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "only her shadow"},
+   "devices": ["wave-wash erasure (halftone foam sweep, chalk smear)", "dot-assembly question mark"],
+   "typography": "L33 ほかの誰かふさわしいよ: written in chalk Mincho along the umbrella's right side per mora from 96.90; the wave washes away 誰か on 97.72 and it re-forms in dots, the same dots as the question mark. Chinese '别的谁 更适合你' 30 px.",
+   "transition_out": "Beat cut on 99.94 to the present night; the question mark's dots match the lighthouse lamp's dots.",
+   "sync": "96.98 cut; 97.72 wave hit + shake; 98.46 wave retreats; 99.20 question mark complete + her shadow; 99.94 cut."
+  },
+  {
+   "id": "B-bridge1-05", "section": "bridge1", "start": 99.94, "end": 102.91, "lyric": [34],
+   "beat": "现在：夜里的防波堤，灯塔的光一下下扫过他的脸，他紧闭着眼又睁开，望着海，咬住下嘴唇。",
+   "scene": "S2",
+   "camera": "Close-up, slow 5% push; otherwise locked; the lighthouse beam crosses on every second beat.",
+   "world": "月刷り Moon Print: #141A33, #1E2550, #C9D3DC, #EDE3CF, #F08A3C, #1A1416",
+   "layers": [
+    "night sea and sky as halftone bokeh",
+    "lighthouse beam (AM halftone fan) sweeping across frame",
+    "the boy (clip) close-up",
+    "beam light on his face: halftone coverage spike as the beam passes"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at night by the sea, eyes squeezed shut in pain, jaw tight, wind in his messy hair, portrait, face focus, three-quarter view, simple background, green background",
+    "video_prompt": "The boy keeps his eyes shut tight for a moment, then slowly opens them and looks out toward the sea, he bites his lower lip and breathes in shakily, the sea wind pushes his hair across his forehead, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Close-up, face ~700 px tall, centre-right; sticker rim; Moon inks; a cream halftone band crosses his face as the beam passes on 100.68 and 102.16."
+   },
+   "devices": ["lighthouse beam sweeps (beat-synced light pulse)", "halftone bokeh", "cracking-ink glyph"],
+   "typography": "L34 そりゃつらいけど: vertical Mincho column left of his face (100 px, vermilion shadow) per mora from 99.90; on つらい the glyph's cream fill cracks open in hairline gaps like dried paint. Chinese '当然 会很难受' 30 px.",
+   "transition_out": "Beat cut on 102.91 back to dusk; the beam's last pass becomes the low sun's glare.",
+   "sync": "99.94 cut; 100.68 beam pass 1; 101.42 eyes open; 102.16 beam pass 2; 102.91 cut."
+  },
+  {
+   "id": "B-bridge1-06", "section": "bridge1", "start": 102.91, "end": 108.83, "lyric": [35, 36],
+   "beat": "去年的黄昏，她看着他：先像是懂了一样轻轻点头、笑了一下，接着眼泪涌出来，笑着哭；她的印刷边缘开始一粒粒散开，像快碎了。",
+   "scene": "S2",
+   "camera": "Close-up, locked, one continuous 6% push over two bars; no cuts through the energy drop at 104.",
+   "world": "夕焼け to blue: sky steps #F08A3C to #2C4C9A on 104.39 / 105.87 / 107.35; #D9402B, #1E2550, #EDE3CF, #1A1416",
+   "layers": [
+    "dusk sky turning blue in halftone steps",
+    "sea out of focus",
+    "the girl (clip) close-up, retimed 0.68x (4.0 s over 5.92 s)",
+    "dot-scatter edge: from 106.61 her sticker rim lifts and outer dots detach and drift up (60 dots/s), reversing after 108.09 so she stays whole",
+    "tear highlights as cream dots"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> close-up of the girl's face at dusk, gentle sad smile, eyes beginning to fill with tears, looking at the viewer, portrait, face focus, warm light, simple background, green background",
+    "video_prompt": "The girl looks at the camera and gives a small understanding nod with a sad smile, then her eyes fill with tears and a tear rolls down her cheek while she keeps smiling, her lips tremble, the evening breeze moves her bob, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 4.0,
+    "placement": "Close-up, face ~760 px tall, centre-left; sticker rim; Dusk inks shifting to blue; optical-flow retime 0.68x (intended slow motion for the quiet bars)."
+   },
+   "devices": ["dot-scatter 'breaking' edge (壊れそうだ)", "halftone-stepped sky shift on beats", "optical-flow retime"],
+   "typography": "L35 君もわかるはず: soft vertical column right per mora from 103.10 (100 px). L36 泣いてる君壊れそうだ from 105.98: each glyph snaps, then 壊 splits into its dots like her edge and re-forms one beat later. Chinese '你也应该明白 / 哭着的你 像要碎掉' 30 px.",
+   "transition_out": "Beat cut on 108.83 to the present night sky; her tear's highlight dot matches the moon's position.",
+   "sync": "102.91 cut; 103.65 nod; 104.39 band drops out + sky step 1; 105.87 sky step 2 + tears; 106.61 dot-scatter begins; 107.35 sky step 3; 108.09 dots return; 108.83 cut."
+  },
+  {
+   "id": "B-bridge1-07", "section": "bridge1", "start": 108.83, "end": 111.79, "lyric": [37],
+   "beat": "现在的夜空：月亮越来越鼓，网点一拍比一拍快地脉动；一枚烟花火箭拖着点线从港口升起——再一次，就说再见。",
+   "scene": "S2+S5",
+   "camera": "Wide of the bay from the seawall, tilting up 20 degrees with the rocket over the bar; 111.05-111.79 hold while everything inhales.",
+   "world": "月刷り with festival pre-glow: #141A33, #1E2550, #C9D3DC, #EDE3CF, #F5C842 (rocket trail), #D9402B, #1A1416",
+   "layers": [
+    "night sky with the paper-cut moon, AM halo pulsing on 8ths then 16ths",
+    "town on the far shore in dark ink with lit windows",
+    "harbour with the festival street's unlit lantern lines",
+    "rocket: dotted trail rising from the harbour 109.57-111.05",
+    "the boy as a 70 px dot-person on the seawall, head tilting up (2 sprite states)",
+    "lyric column"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Him as a 70 px dot-person on the seawall looking up."},
+   "devices": ["moon AM halo pulse accelerating (8ths to 16ths)", "dotted rocket trail", "inhale: all halftone coverage shrinks 30% on 111.05"],
+   "typography": "L37 さよならにも一度だけ: vertical Mincho column right per mora from 109.12; the last glyph け holds and its dots swell with the moon. Chinese '再一次 然后就说再见' 30 px.",
+   "transition_out": "円リレー Round Relay 4: on 111.79 the moon bursts into a halftone firework at the same position and size.",
+   "sync": "108.83 cut; 109.57 rocket launches; 110.31 moon pulse to 16ths; 111.05 inhale; 111.79 relay burst."
+  },
+  {
+   "id": "B-chorus3-01", "section": "chorus3", "start": 111.79, "end": 114.76, "lyric": [38],
+   "beat": "第二次爆发：月亮炸成巨大的网点烟花，整条商店街的卷帘门同时拉起、灯笼同时点亮、人潮出现；镜头从天上俯冲进街里，十盏大灯笼随歌声一盏盏亮起。",
+   "scene": "S3",
+   "camera": "Starts framed on the burst (tilted up 50 degrees); 111.79-112.54 dive 25 m into the street at lantern height (ease-in, 4-frame motion blur); 112.54-114.76 fly down the street centre at 7 m/s, passing under one lantern wire per beat.",
+   "world": "祭 Festival: #141A33, #D9402B, #F08A3C, #F5C842, #EDE3CF, #7FC8B8, #1A1416",
+   "layers": [
+    "night sky: giant chrysanthemum firework made of dots (900 px radius), AM halftone sparks",
+    "S3 shotengai: every shutter rolls up at once on 111.79 (6-frame shutter wipe revealing the stalls)",
+    "every lantern ignites on 111.79 (vermilion to orange dot flash), then breathes on beats",
+    "yatai: kingyo-sukui, masks, kakigori, yo-yo balloons; nobori banners snapping in the wind",
+    "instanced dot crowd (1,200, 12-frame walk cycles) popping in over 8 frames",
+    "10 hero lanterns across the street carrying the L38 glyphs"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "The crowd appears on 111.79, walking both ways; the leads are not yet singled out."},
+   "devices": ["円リレー landing (moon to firework)", "halftone firework", "シャッター wipe (all shutters at once)", "whole-street lantern ignition (dot flash)", "per-syllable lanterns with glyphs", "dot crowd"],
+   "typography": "L38 思い浮かぶの君ばかり: ten hero lanterns over the street, one glyph each (black brush-weight Mincho on vermilion paper); each lights on its mora from 111.93 with an orange AM glow that contracts over 6 frames; the camera passes under 君's lantern on 113.28. Chinese '浮现在脑海的 全都是你' 30 px fixed lower right.",
+   "transition_out": "Beat cut on 114.76 to her in the crowd, matched on a lantern glow (the lantern's centre becomes the glint on her hair clip).",
+   "sync": "111.79 burst + shutters + ignition + crowd + full band; 112.54 dive ends; 113.28 under 君; 114.02 lantern wire overhead; 114.76 cut."
+  },
+  {
+   "id": "B-chorus3-02", "section": "chorus3", "start": 114.76, "end": 117.72, "lyric": [39],
+   "beat": "人潮里，穿浴衣的她转过身来看他，笑得很开；灯笼的光一拍一拍照在她脸上。",
+   "scene": "S3",
+   "camera": "Mid shot, slow 6% push and 5-degree arc left; foreground dot people cross the lens on beats.",
+   "world": "祭 Festival: #141A33, #D9402B, #F08A3C, #F5C842, #EDE3CF, #7FC8B8, #1A1416",
+   "layers": [
+    "lantern bokeh (halftone discs 180 px) pulsing on beats",
+    "stalls and the crowd in the mid-ground",
+    "the girl (clip) in yukata",
+    "foreground dot people crossing at 2x speed",
+    "firework colour flashes on her as halftone light on beats"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_yukata> upper body, at a summer festival at night, the girl turns around to look back at the viewer with a wide happy smile, warm lantern light on her face, looking back, smile, simple background, green background",
+    "video_prompt": "The girl turns around toward the camera and smiles widely, her bob swings and her yukata sleeves sway, warm light flickers on her face, she laughs softly, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, waist-up ~820 px tall, centre; sticker rim; Festival inks; orange lantern halftone on her lit side pulsing on beats."
+   },
+   "devices": ["lantern-light beat pulses on the character", "halftone bokeh", "foreground crowd wipes"],
+   "typography": "L39 初夏零時過ぎたばかり: vertical Mincho column right per mora from 114.81 (100 px, vermilion shadow); 零時 printed in mint. Chinese '初夏 刚过零点' 30 px.",
+   "transition_out": "Crowd wipe: a dense group of dot people crosses the lens 117.50-117.72; cut behind them on 117.72.",
+   "sync": "114.76 cut; 115.50 her turn completes; 116.24 smile peak + lantern pulse; 116.98 firework flash on her; 117.72 cut."
+  },
+  {
+   "id": "B-chorus3-03", "section": "chorus3", "start": 117.72, "end": 120.68, "lyric": [40],
+   "beat": "他在人潮里找她，左右张望；身边的点状人群像潮水一样分开又合上。",
+   "scene": "S3",
+   "camera": "Mid shot, locked on him while the crowd flows; on 119.20 a 90-degree stepped orbit around him in 6 frames.",
+   "world": "祭 Festival: #141A33, #D9402B, #F08A3C, #F5C842, #EDE3CF, #1A1416",
+   "layers": [
+    "lantern rows overhead, swinging",
+    "stalls",
+    "dot crowd flowing around him in three parallax layers (far 1x, mid 2x, near 4x with motion blur)",
+    "the boy (clip)",
+    "uchiwa fans carried by the crowd, flipping to show glyphs"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands in a crowd at a night festival looking around for someone, anxious, warm lantern light, looking to the side, simple background, green background",
+    "video_prompt": "The boy looks around anxiously, turning his head to the left, then quickly to the right, searching for someone, his messy hair swings with the movement, he takes a short breath, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, waist-up ~780 px tall, centre; the crowd passes in front of and behind him; sticker rim; Festival inks."
+   },
+   "devices": ["dot crowd flow (three parallax layers)", "stepped orbit on 119.20", "uchiwa glyph flips"],
+   "typography": "L40 ヒートウェイブに迷うのさ: glyphs are printed on uchiwa fans carried by the dot crowd; each fan flips to show its glyph as it passes him, on its mora from 117.72; the vertical column at right gathers them. Chinese '在热浪里迷失方向' 30 px.",
+   "transition_out": "Beat cut on 120.68 straight down into the goldfish tank.",
+   "sync": "117.72 cut; 118.46 head turn left; 119.20 orbit step; 119.94 head turn right; 120.68 cut."
+  },
+  {
+   "id": "B-chorus3-04", "section": "chorus3", "start": 120.68, "end": 123.65, "lyric": [41],
+   "beat": "捞金鱼的水槽：一群金鱼聚成'幸せ'两个字，纸网伸进来，纸一下就破了，鱼散开；水面上映着她看着的脸。",
+   "scene": "S3",
+   "camera": "Top-down on the tank, locked, 2% slow rotation; 3% punch-in on the tear at 122.91.",
+   "world": "祭 water: #1E2550, #7FC8B8, #D9402B, #F08A3C, #EDE3CF, #1A1416",
+   "layers": [
+    "tank floor (blue enamel) with caustic line-screen",
+    "goldfish boids (80) that flock into the glyph shapes 幸せ on 121.42 and hold",
+    "water surface ripples in halftone; her face reflected (still), ripple-distorted",
+    "paper poi (paper-cut frame + tissue) dipping in on 122.17 and tearing (paper-tear sim) on 122.91",
+    "fish scatter after the tear"
+   ],
+   "character": {"mode": "still", "source": "keyframe of B-chorus3-02 (girl in yukata), mirrored and seen from above", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Reflection on the water surface, face ~500 px at 40% opacity, ripple displacement, mesh hair sway."},
+   "devices": ["glyph-forming goldfish (boids steered to the glyph mask)", "paper poi tear", "caustics"],
+   "typography": "L41 君に幸せあげられない: 幸せ is made of goldfish; the rest of the line runs in the vertical Mincho column at right per mora from 120.60; on あげられない the poi tears and 幸せ scatters into swimming fish. Chinese '我给不了你幸福' 30 px.",
+   "transition_out": "Rise cut on 123.65: the scattering fish become sparks; cut to the street with the camera rising.",
+   "sync": "120.68 cut; 121.42 fish lock into 幸せ; 122.17 poi dips; 122.91 tear + scatter + punch-in; 123.65 cut."
+  },
+  {
+   "id": "B-chorus3-05", "section": "chorus3", "start": 123.65, "end": 126.61, "lyric": [42],
+   "beat": "镜头从街上穿过灯笼线升到屋顶之上，港口上空烟花一拍一发，第四发用点阵火花拼出一个巨大的'君'。",
+   "scene": "S3+S5",
+   "camera": "Crane up 30 m from the street through the lantern wires 123.65-125.13 (lanterns swing in the camera's wake), then tilt up 15 degrees to the harbour sky; one continuous move.",
+   "world": "祭 Festival: #141A33, #D9402B, #F08A3C, #F5C842, #EDE3CF, #7FC8B8, #1A1416",
+   "layers": [
+    "sky: halftone fireworks bursting on 123.65 (peony), 124.39 (chrysanthemum), 125.13 (ring) and on 125.87 a dot-matrix glyph firework",
+    "harbour and sea reflecting each burst as dot columns",
+    "tiled roofs and the glowing festival street below with the dot crowd",
+    "lantern wires passing the lens"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Dot crowd in the street below; every head turns up (sprite swap) on 125.87."},
+   "devices": ["halftone fireworks on beats", "dot-matrix glyph firework (sparks placed on a 16x16 glyph grid)", "lantern wires swinging"],
+   "typography": "L42 思い浮かぶの君ばかり: vertical Mincho column right per mora from 123.70; the 125.87 firework draws 君 across the sky (120 sparks, 600 px tall), holding one beat before drifting down. Chinese '浮现在脑海的 全都是你' 30 px.",
+   "transition_out": "Beat cut on 126.61 to the two of them looking up, the 君 sparks still falling across the cut.",
+   "sync": "123.65 burst 1; 124.39 burst 2 + wires pass; 125.13 burst 3; 125.87 君 firework; 126.61 cut."
+  },
+  {
+   "id": "B-chorus3-06", "section": "chorus3", "start": 126.61, "end": 129.57, "lyric": [43],
+   "beat": "一组连发烟花在夜空里拼出'0:00'；从正面看，她和他并排仰着头，烟花的光一拍一拍照在两人脸上。",
+   "scene": "S3+2D",
+   "camera": "Frontal low-angle two-shot looking up at them, slow 4% push; the sky above them in frame.",
+   "world": "祭 Festival: #141A33, #D9402B, #F08A3C, #F5C842, #7FC8B8 (digit sparks), #EDE3CF, #1A1416",
+   "layers": [
+    "sky: a starmine drawing 0:00 in mint dot sparks, one character per beat",
+    "lantern wires",
+    "the girl (yukata) and the boy (t-shirt) side by side, faces up (still)",
+    "firework light on their faces as halftone coverage pulses (mint for the digits)"
+   ],
+   "character": {
+    "mode": "still",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_yukata> <boy> <boy_night> the girl and the boy stand side by side at a night festival looking up at fireworks, faces lit by colourful light, the girl smiling with her mouth open, the boy looking up quietly, a little apart, not touching, upper body, front view, from below, simple background, green background",
+    "video_prompt": "",
+    "clip_seconds": 0,
+    "placement": "Two-shot, waist-up, both ~760 px tall, centred with a gap between them, separated by SAM masks; mesh hair and sleeves; on 128.83 his head tilts 2 degrees toward her (mesh warp)."
+   },
+   "devices": ["LED-digit firework (a starmine as a dot-matrix clock)", "firework light pulses on the characters", "mesh-animated still"],
+   "typography": "L43 初夏零時過ぎたばかり: the sky's 0:00 is 零時 itself; the vertical Mincho column runs per mora from 126.60 with 零時 in mint. Chinese '初夏 刚过零点' 30 px.",
+   "transition_out": "Beat cut on 129.57 to her running; the digits' last sparks wipe down across the cut.",
+   "sync": "126.61 '0'; 127.35 ':'; 128.09 '0'; 128.83 '0' + his head tilt; 129.57 cut."
+  },
+  {
+   "id": "B-chorus3-07", "section": "chorus3", "start": 129.57, "end": 132.54, "lyric": [44],
+   "beat": "她跑到前面，穿过人潮回头笑着招手；灯笼一排排从镜头两边掠过。",
+   "scene": "S3",
+   "camera": "Backward tracking at her running speed (3 m/s) at chest height; lanterns stream past both sides; 2-frame 2% punch on her wave at 131.05.",
+   "world": "祭 Festival: #141A33, #D9402B, #F08A3C, #F5C842, #EDE3CF, #1A1416",
+   "layers": [
+    "street perspective with lantern rows streaming toward camera",
+    "dot crowd parting for her (6-frame offset)",
+    "the girl (clip) running toward camera",
+    "foreground lantern bokeh passing"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_yukata> full body, the girl runs through a summer festival at night, looking back over her shoulder and waving at the viewer to follow, laughing, sleeves fluttering, running, looking back, waving, simple background, green background",
+    "video_prompt": "The girl runs forward with small steps in her yukata, looks back over her shoulder and waves for the camera to follow, laughing, her sleeves and hair flutter, the camera follows her at the same speed, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Full shot ~700 px tall, centre-left, in-place run with the ground and crowd moving; sticker rim; Festival inks."
+   },
+   "devices": ["backward tracking through lanterns", "crowd parting", "lantern pulses on beats"],
+   "typography": "L44 ヒートウェイブに迷うのさ: glyphs printed on the right-hand lantern row, one per mora from 129.55, each lighting as it passes the lens. Chinese '在热浪里迷失方向' 30 px.",
+   "transition_out": "Tilt-up cut on 132.54: the last frames tilt toward the sky; cut to the willow firework.",
+   "sync": "129.57 cut; 130.31 look back; 131.05 wave + punch; 131.79 lantern burst; 132.54 cut."
+  },
+  {
+   "id": "B-chorus3-08", "section": "chorus3", "start": 132.54, "end": 135.5, "lyric": [45],
+   "beat": "最后一发垂柳烟花：金色火星慢慢垂落，歌词像柳丝一样挂着、往下滴；音乐渐收，一粒火星落向海平线。",
+   "scene": "S2+2D",
+   "camera": "Wide over the sea, tilting down 25 degrees with one spark from the sky to the horizon (ease-in-out over the bar).",
+   "world": "祭 into 夢: #141A33, #F5C842 sparks, #F08A3C, #C9D3DC, #2C4C9A, #1A1416",
+   "layers": [
+    "sky: shidare-yanagi firework, gold dots falling with long AM-halftone tails",
+    "sea reflecting the falling gold as dotted columns",
+    "falling glyphs",
+    "one bright spark tracked down to the horizon"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character"},
+   "devices": ["willow firework", "dripping lyric glyphs", "spark tracking"],
+   "typography": "L45 君に幸せあげられない: each glyph (cream, 90 px) appears at a spark's tip on its mora from 132.55, then droops and drips down with the trail; 幸せ drips into the sea. Chinese '我给不了你幸福' 30 px.",
+   "transition_out": "円リレー Round Relay 5: on 135.50 the spark at the horizon becomes the headlight of the dream train (same position, glow radius matched).",
+   "sync": "132.54 willow opens; 133.28 trails lengthen; 134.02 sea reflections bloom; 134.76 the tracked spark separates; 135.50 relay."
+  },
+  {
+   "id": "B-bridge2-01", "section": "bridge2", "start": 135.5, "end": 138.46, "lyric": [46],
+   "beat": "双色的梦：海边铁路上，单节电车的车头灯从远处驶来，橙色点阵行先牌写着'夢 行'，接着滚出'你在怎样的梦里'。",
+   "scene": "S4+S2",
+   "camera": "Low at the platform end, 50 cm above the rail, locked; the train approaches head-on and slows to a stop by 138.0; 1% push.",
+   "world": "二色夢刷り Two-ink Dream: #2C4C9A + #F08A3C on #EDE3CF, overprint #292924",
+   "layers": [
+    "cream sky with a cobalt halftone gradient",
+    "sea in cobalt line-screen",
+    "rails (orange) converging",
+    "one-car train approaching, headlight AM glow breathing on beats",
+    "LED destination board (orange)",
+    "platform edge in the foreground with the station-name board '潮見'"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character"},
+   "devices": ["円リレー landing (spark to headlight)", "LED destination board", "two-ink riso world switch (matches the quiet section)"],
+   "typography": "L46 君はどんな夢のなかに: the board shows '夢 行' from 135.50, then scrolls the line in 16-dot Japanese from 135.60; the vertical Mincho column (cobalt fill, orange shadow) runs per mora at right. Chinese '你在怎样的梦里' 30 px.",
+   "transition_out": "Beat cut on 138.46 to the side view as the train moves off (wipe by the train's front).",
+   "sync": "135.50 headlight; 136.24 board '夢 行'; 136.98 glow breath; 137.72 brakes and stops; 138.46 cut."
+  },
+  {
+   "id": "B-bridge2-02", "section": "bridge2", "start": 138.46, "end": 141.42, "lyric": [47],
+   "beat": "走马灯：电车从侧面驶过，每帧正好走过一个窗距，车身看起来像停着，窗里的她却一格一格动起来——闭着眼，心满意足地笑。",
+   "scene": "S4",
+   "camera": "Locked side view, the train fills the middle 60% of frame; it moves exactly one window pitch (180 px on screen) per frame, so the car looks frozen; at 140.68 the lock breaks, the train slows and the windows smear into motion.",
+   "world": "二色夢刷り: #2C4C9A, #F08A3C, #EDE3CF, overprint #292924",
+   "layers": [
+    "cream sky with cobalt halftone",
+    "dream variant of the train: the one car instanced into an endless chain; window n shows clip frame n",
+    "wheel spokes (appearing frozen, the wagon-wheel effect used on purpose)",
+    "platform lamps",
+    "window plates carrying the lyric"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl lies on her back floating on water as if asleep, eyes closed, arms loosely spread, hair spreading around her head, peaceful contented smile, from above, upper body, lying, simple background, green background",
+    "video_prompt": "The girl floats on her back with her eyes closed, her hair drifts gently around her head, her chest rises with slow breaths, a contented smile slowly spreads across her face, the camera is static looking down, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Inside each window (170x120 px on screen), frame-indexed so the eight visible windows each animate her smile with a one-frame phase offset, like a contact sheet coming alive; two-ink stylization."
+   },
+   "devices": ["zoetrope windows (stroboscopic lock: one window pitch per frame)", "lock break into motion blur at 140.68"],
+   "typography": "L47 満たされた笑み浮かべて: one glyph per window plate above the windows (like car numbers), each lighting orange on its mora from 138.55; when the lock breaks they streak. Chinese '浮起满足的笑容' 30 px.",
+   "transition_out": "Beat cut on 141.42 to the boy on the platform as the train streaks past behind him.",
+   "sync": "138.46 lock engages (train looks frozen); 139.20 window light pulse; 139.94 the smile completes across the windows; 140.68 lock breaks; 141.42 cut."
+  },
+  {
+   "id": "B-bridge2-03", "section": "bridge2", "start": 141.42, "end": 144.39, "lyric": [48],
+   "beat": "他站在月台上一动不动，车窗的光一格格从他身上扫过，风把头发和T恤推向一边——他什么也做不了。",
+   "scene": "S4",
+   "camera": "Mid shot, locked, the train passing behind him right to left; slow 3% push.",
+   "world": "二色夢刷り: #2C4C9A, #F08A3C, #EDE3CF, #292924",
+   "layers": [
+    "passing train windows behind him (blurred orange rectangles)",
+    "platform and lamp posts",
+    "the boy (clip), printed under-inked (pale tint) as if his plate is starved of ink",
+    "window-light strobe across him: orange halftone bands on 16ths"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands still on a railway platform at night as a train rushes past behind him, wind blowing his hair and t-shirt to one side, he looks down at his open hands, helpless expression, simple background, green background",
+    "video_prompt": "The boy stands still while strong wind from a passing train blows his hair and t-shirt sideways, flickering light passes over him, he looks down at his open hands and slowly lets them fall to his sides, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, waist-up ~800 px, centre; under-inked: halftone coverage capped at 60%; normal sticker rim; two-ink stylization."
+   },
+   "devices": ["window-light strobe on 16ths", "under-inked print of the character"],
+   "typography": "L48 思い知る自分の無力: vertical Mincho per mora from 141.43, printed under-inked (cream at 50% density); 無力 is so faint it reads only when a window light passes behind it. Chinese '才明白自己的无力' 30 px.",
+   "transition_out": "Beat cut on 144.39 to her face in the light; the last window light becomes the light on her face.",
+   "sync": "141.42 cut; strobes on 16ths throughout; 142.17 hair gust; 142.91 he looks at his hands; 143.65 hands drop; 144.39 cut."
+  },
+  {
+   "id": "B-bridge2-04", "section": "bridge2", "start": 144.39, "end": 147.35, "lyric": [49],
+   "beat": "她在梦里睁开眼，迎着光平静地看过来；脸上那层网点阴影像一张薄纸被揭走，她的脸干干净净，没有一点阴影。",
+   "scene": "2D",
+   "camera": "Close-up, locked, 4% push; the shade sheet peels diagonally 145.13-146.61.",
+   "world": "二色夢刷り with a dawn hint: #2C4C9A, #F08A3C, #EDE3CF, one #F5C842 glow at the end",
+   "layers": [
+    "cream paper with cobalt halftone light rays",
+    "the girl (clip) close-up in two layers: line + flat ink, and a separate halftone shade layer",
+    "shade peel: the halftone layer lifts as a thin sheet (paper-curl sim) and drifts off top-right",
+    "a faint sun-yellow overprint blooming behind her head (dawn foreshadow)"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> close-up of the girl's face, eyes slowly opening, looking calmly at the viewer, serene gentle smile, soft light on her face, portrait, face focus, front view, simple background, green background",
+    "video_prompt": "The girl slowly opens her eyes and looks calmly at the camera with a serene gentle smile, she blinks once, a soft breeze moves strands of her bob across her cheek, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Close-up, face ~780 px tall, centre; stylized into separate line/flat and shade layers so the shade can be peeled; after the peel her face is flat cream + ink line only = 陰りない."
+   },
+   "devices": ["shade-plate peel (halftone layer lifted as a sheet)", "dawn overprint bloom"],
+   "typography": "L49 陰りない君の表情に: vertical Mincho per mora from 144.35; the glyphs carry a halftone shadow that peels off with her shade sheet, leaving clean cream glyphs. Chinese '面对你毫无阴霾的神情' 30 px.",
+   "transition_out": "Beat cut on 147.35 to the blue-hour town map; her clean cream face becomes the pale dawn sea on the map.",
+   "sync": "144.39 cut; 145.13 eyes open + peel starts; 145.87 blink; 146.61 sheet off frame + yellow bloom; 147.35 cut."
+  },
+  {
+   "id": "B-chorus4-01", "section": "chorus4", "start": 147.35, "end": 150.31, "lyric": [50],
+   "beat": "黎明前的小镇地图：车头灯的光点沿海岸铁路滑行，集章路线从车站一路亮到灯塔，地名标签随歌声一个个弹出。",
+   "scene": "S5",
+   "camera": "Oblique 40 degrees over the map, tracking the headlight dot along the coastal railway, slow 10% descent.",
+   "world": "黎明前 Blue Hour: #1E2550 to #2C4C9A, #C9D3DC, #EDE3CF, #F08A3C (headlight), #1A1416",
+   "layers": [
+    "sea in cobalt halftone brightening toward the horizon",
+    "town, lit windows going dark one by one on beats",
+    "railway with the headlight dot and its AM glow",
+    "stamp route lighting from the station to the lighthouse (dashed cream to solid)",
+    "map-label glyphs",
+    "his dot-person on the seawall"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "His dot-person (mint halo) walking the seawall toward the lighthouse."},
+   "devices": ["map labels as lyric glyphs", "route line lighting", "windows going dark on beats"],
+   "typography": "L50 思い浮かぶの君ばかり: glyphs are map labels (vertical, 70 px, cream with indigo outline) popping per mora along the railway as the headlight passes, from 147.40; 君 pops at the lighthouse. Chinese '浮现在脑海的 全都是你' 30 px fixed.",
+   "transition_out": "ポスター抜け push-through-window on 150.31: the camera dives at his house's dark window.",
+   "sync": "147.35 cut; 148.09 / 148.83 / 149.57 a group of windows goes dark + labels pop; 150.31 cut."
+  },
+  {
+   "id": "B-chorus4-02", "section": "chorus4", "start": 150.31, "end": 153.28, "lyric": [51],
+   "beat": "空房间：电视关着，风扇还在摇，点阵钟从0:00开始飞快地跳，一夜在几秒里过去，停在4:52；窗外的天从深蓝变成钴蓝。",
+   "scene": "S1",
+   "camera": "Locked medium on the clock-radio with the window behind; 1% push.",
+   "world": "黎明前 Blue Hour: #1E2550 to #2C4C9A window light, #7FC8B8, #C9D3DC, #EDE3CF, #1A1416",
+   "layers": [
+    "window: sky stepping navy to cobalt in halftone, one step per beat",
+    "curtain breathing",
+    "fan oscillating, blades still",
+    "clock-radio digits counting 0:00 to 4:52, accelerating",
+    "TV off with a faint mint afterglow dot in the CRT centre"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character: the room without him"},
+   "devices": ["LED clock time-lapse counter (accelerating like a flip counter)", "halftone-stepped sky"],
+   "typography": "L51 初夏零時過ぎたばかり: the ticker runs the line once in mint 16-dot from 150.38 while the digits race; the vertical Mincho column right has 零時 crossed by the racing digits. Chinese '初夏 刚过零点' 30 px.",
+   "transition_out": "Beat cut on 153.28 to the seawall; the clock's colon dots match the lighthouse's two lamp highlights.",
+   "sync": "150.31 count starts (one step per beat); 151.05 steps on 8ths; 151.80 on 16ths; 152.54 on 32nds; 153.28 lands on 4:52."
+  },
+  {
+   "id": "B-chorus4-03", "section": "chorus4", "start": 153.28, "end": 156.24, "lyric": [52],
+   "beat": "黎明前的防波堤，他一个人朝灯塔走，海风很大，灯塔的光最后几次扫过他。",
+   "scene": "S2",
+   "camera": "Side tracking at walking speed, 3 m off, slightly low; the lighthouse ahead screen-left.",
+   "world": "黎明前 Blue Hour: #1E2550, #2C4C9A, #C9D3DC, #EDE3CF, #F08A3C, #1A1416",
+   "layers": [
+    "cobalt halftone sky lightening at the horizon",
+    "sea with a silver dawn-mist ripple",
+    "lighthouse, beam sweeping once per bar (its last sweeps)",
+    "the boy (clip) walking",
+    "seawall railing posts in the foreground at 2x parallax"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy walks along a seawall at dawn in strong sea wind, his t-shirt and hair blown sideways, determined but tired face, walking, from side, profile, simple background, green background",
+    "video_prompt": "The boy walks steadily from right to left against a strong sea wind, his t-shirt flaps and his hair is blown back, he lifts his face toward the horizon, the camera follows him so he stays in the centre of the frame, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Full shot ~640 px tall, centre-right, in-place walk with the seawall moving; sticker rim; Blue Hour inks; the beam passes over him on 154.02."
+   },
+   "devices": ["lighthouse sweep", "dawn-mist ripple", "parallax railing"],
+   "typography": "L52 ヒートウェイブに迷うのさ: vertical Mincho column left (100 px, cobalt shadow) per mora from 153.75, wavering in the mist ripple; the tail of L51 is carried over the cut for its last 0.47 s. Chinese '在热浪里迷失方向' 30 px.",
+   "transition_out": "Beat cut on 156.24 to the vending machine on the seawall road; he exits screen-left as the machine enters screen-right.",
+   "sync": "153.28 cut; 154.02 beam pass; 154.76 wind gust; 155.50 he lifts his face; 156.24 cut."
+  },
+  {
+   "id": "B-chorus4-04", "section": "chorus4", "start": 156.24, "end": 159.2, "lyric": [53],
+   "beat": "堤边的自动贩卖机：中奖轮盘'7、7、7……6'，没中；跑马灯滚着'给不了你幸福'，他的倒影从机器玻璃上走过。",
+   "scene": "S2",
+   "camera": "Frontal on the vending machine, locked, 2% push; 2-frame shake on the miss at 158.83.",
+   "world": "黎明前 + vending: #1E2550, #2C4C9A, #7FC8B8, #F08A3C, #EDE3CF, #D9402B, #1A1416",
+   "layers": [
+    "seawall and sea behind in cobalt",
+    "vending machine: lit dummies, mint ticker, 4-digit roulette",
+    "his reflection sliding across the glass right to left (still, 30% opacity)",
+    "a few moths leaving in the dawn"
+   ],
+   "character": {"mode": "still", "source": "keyframe of B-chorus4-03 (boy walking, profile)", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Reflection only, ~500 px tall, sliding across the glass 156.98-158.46 with mesh shirt flutter."},
+   "devices": ["vending roulette stopping on beats (7, 7, 7, then 6 on the 8th)", "LED ticker", "'はずれ' blink in red dots"],
+   "typography": "L53 君に幸せあげられない scrolls on the ticker in mint 16-dot from 156.10; the roulette stops 7 (156.98), 7 (157.72), 7 (158.46), 6 (158.83, a miss) and 'はずれ' blinks in red dots to 159.20; vertical Mincho column right. Chinese '我给不了你幸福' 30 px.",
+   "transition_out": "Beat cut on 159.20 to the rails; the '6' digit's dots melt into the approaching headlight.",
+   "sync": "156.24 cut; 156.98 / 157.72 / 158.46 sevens; 158.83 six + はずれ + shake; 159.20 cut."
+  },
+  {
+   "id": "B-chorus4-05", "section": "chorus4", "start": 159.2, "end": 162.17, "lyric": [54],
+   "beat": "蓄力：电车的车头灯沿海岸铁路朝镜头开来，行先牌从'夢'翻成'日の出'；歌词越印越快，网点光晕一拍一拍胀大。",
+   "scene": "S2+S4",
+   "camera": "Low between the rails, locked; the train approaches from 400 m to 15 m over the bar; 161.42-162.17 the headlight fills the frame.",
+   "world": "黎明前 to 夜明け: #1E2550, #2C4C9A, #C9D3DC, #F08A3C, #F5C842, #EDE3CF",
+   "layers": [
+    "pre-dawn sky with a pale orange horizon band",
+    "silver rails converging",
+    "one-car train approaching; the LED board flips 夢 to 日の出 on 159.94",
+    "headlight AM halftone glow, radius doubling each beat",
+    "lyric column printing faster"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character"},
+   "devices": ["LED destination board flip", "AM halftone glow growing on beats", "build: glyph snaps speed from 3 frames to 1 frame"],
+   "typography": "L54 君に幸せあげられない: vertical Mincho column right per mora from 159.30, each glyph's snap shortening from 3 frames to 1; the board scrolls 'SUNRISE' under 日の出. Chinese '我给不了你幸福' 30 px.",
+   "transition_out": "円リレー Round Relay 6: on 162.17 the headlight glow fills the frame and becomes the rising sun at the same centre.",
+   "sync": "159.20 cut; 159.94 board flips to 日の出; 160.68 glow x2; 161.42 glow x4 + glyphs on 16ths; 162.17 relay."
+  },
+  {
+   "id": "B-outro-01", "section": "outro", "start": 162.17, "end": 165.13, "lyric": [55],
+   "beat": "第三次爆发：车头灯变成日出，太阳从海里升起，整个小镇被重新印成黎明的颜色；他站在堤上转身迎着光，眯起眼，第一次笑了一点。",
+   "scene": "S2+S4",
+   "camera": "Starts on the sun (relay landing, wide); 162.17-163.65 pull back 8 m and pan 25 degrees right to find him on the seawall in mid shot; 163.65-165.13 slow 8-degree arc.",
+   "world": "夜明け刷り Dawn Print: #2C4C9A, #C9D3DC, #F08A3C, #F5C842, #D9402B (sun core), #EDE3CF, #1A1416",
+   "layers": [
+    "dawn sky printing over the night: orange pass 162.17, yellow 162.91, silver 163.65, each wiping outward from the sun",
+    "paper-cut sun with rays and AM halftone glare",
+    "sea with a gold dot sun path",
+    "the one-car train passing on the coastal track behind him, its LED board scrolling L55",
+    "the boy (clip)",
+    "sun-yellow dot flash on 162.17"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, on a seawall at sunrise, the boy turns toward the rising sun, squinting into the bright light, a small first smile, wind in his hair and t-shirt, warm golden light on his face, from side, simple background, green background",
+    "video_prompt": "The boy turns his head and shoulders toward a bright light, squints, lifts a hand slightly to shade his eyes, then lowers it as a small smile appears, the morning wind moves his hair and t-shirt, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Mid shot, waist-up ~780 px, screen-left third facing right toward the sun; sticker rim with a sun-yellow hairline; Dawn inks with gold halftone on his lit side."
+   },
+   "devices": ["円リレー landing (headlight to sun)", "刷り print-pass reveal of the dawn", "paper-cut sun", "LED destination board (L55)", "sun-yellow dot flash"],
+   "typography": "L55 'SOMETIMES, ALL I THINK ABOUT IS YOU' runs on the passing train's board in orange 5x7 caps from 162.30, and 'SOMETIMES' is also printed across the sky band in letter-spaced caps (Shippori Mincho B1 Latin, 72 px, tracking 0.5 em), one letter per 16th. Chinese '有时候 满脑子都是你' 30 px.",
+   "transition_out": "Whip-up: 164.76-165.13 the camera whips 40 degrees up into the sky (30 px blur); cut on 165.13 into the aerial.",
+   "sync": "162.17 relay + dot flash + full band; 162.91 yellow pass; 163.65 silver pass + his turn; 164.39 smile; 164.76 whip; 165.13 cut."
+  },
+  {
+   "id": "B-outro-02", "section": "outro", "start": 165.13, "end": 168.09, "lyric": [56],
+   "beat": "一镜飞过醒来的小镇：夜的那层藏青版像一张纸一样从小镇上揭起，露出底下黎明的印刷；镇上所有的LED依次滚出这句英文。",
+   "scene": "S5+S2",
+   "camera": "Aerial at 40 m over the town toward the sea at 25 m/s, banking 15 degrees on 166.61; one continuous move.",
+   "world": "夜明け刷り Dawn Print: #2C4C9A, #C9D3DC, #F08A3C, #F5C842, #EDE3CF, #1A1416; the peeling sheet in #141A33",
+   "layers": [
+    "dawn sky with the paper-cut sun",
+    "S5 town in the dawn print",
+    "night-plate sheet (a navy print of the same town) peeling off from the sea edge inland, curling like paper, 165.13-167.35",
+    "LED displays across town (vending machines, station board, pool scoreboard, a clock-radio in a window, a bus-stop light box) lighting in sequence as the camera passes",
+    "halftone gulls crossing",
+    "his dot-person running on the seawall far below"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "His dot-person (mint halo fading in daylight) running along the seawall."},
+   "devices": ["版はがし night-plate peel over the whole town", "LED relay across town", "halftone gulls"],
+   "typography": "L56 'LATE NIGHTS IN THE MIDDLE OF JUNE': one word or pair per LED display, lit in sequence as the camera passes - LATE 165.25 (vending machine), NIGHTS 165.87 (station board), IN THE 166.61 (pool scoreboard), MIDDLE 167.00 (clock-radio in a window), OF JUNE 167.35 (bus-stop light box). Chinese '六月中旬的深夜' 30 px fixed lower right.",
+   "transition_out": "Descend cut on 168.09 to the seawall at running height.",
+   "sync": "165.13 peel starts; 165.87 NIGHTS; 166.61 bank + sheet halfway; 167.35 sheet off; 168.09 cut."
+  },
+  {
+   "id": "B-outro-03", "section": "outro", "start": 168.09, "end": 171.05, "lyric": [57],
+   "beat": "他沿着防波堤朝灯塔跑；堤边一排自动贩卖机，他每跑过一台，就亮出一个英文词。",
+   "scene": "S2",
+   "camera": "Side tracking at his running speed (5 m/s), 2.5 m off, chest height; vending machines and poles pass in the foreground at 2x parallax.",
+   "world": "夜明け刷り Dawn Print: #2C4C9A, #C9D3DC, #F08A3C, #F5C842, #EDE3CF, #7FC8B8, #1A1416",
+   "layers": [
+    "dawn sky with the sun low ahead",
+    "sea with a gold dot path",
+    "seawall road with a row of 6 vending machines",
+    "the boy (clip) running",
+    "foreground poles and railings whipping past"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy runs along a seaside road at dawn, arms pumping, hair and t-shirt flying back in the wind, breathing hard but almost smiling, running, from side, profile, simple background, green background",
+    "video_prompt": "The boy runs at a steady pace from right to left, arms swinging, his hair and t-shirt fly back in the wind, he breathes hard and his face relaxes into an almost-smile, the camera follows him so he stays in the centre of the frame, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Full shot ~680 px tall, centre, in-place run with the road moving; sticker rim; Dawn inks."
+   },
+   "devices": ["vending-machine word relay (one machine per beat)", "parallax foreground"],
+   "typography": "L57 'HEAT WAVES BEEN FAKIN' ME OUT': each machine's mint ticker shows one word as he passes it - HEAT 168.09, WAVES 168.83, BEEN 169.57, FAKIN' 170.31, ME 170.68, OUT 171.05 (carried over the cut). Chinese '热浪一直在骗我' 30 px.",
+   "transition_out": "Beat cut on 171.05 to the school pool, matched on the sun glare.",
+   "sync": "168.09 / 168.83 / 169.57 / 170.31 a machine passes and lights on each beat; 170.68 on the 8th; 171.05 cut."
+  },
+  {
+   "id": "B-outro-04", "section": "outro", "start": 171.05, "end": 174.02, "lyric": [58],
+   "beat": "清晨的学校泳池：计分板上八条泳道的'君'一个个熄掉，滚出英文；她坐过的池边，残影化成网点散去。",
+   "scene": "S7",
+   "camera": "Wide from the far end of the pool, slow 2 m crane down with a 1.5% push.",
+   "world": "夜明け刷り + pool: #2C4C9A, #7FC8B8 water, #F5C842 LEDs, #F08A3C, #EDE3CF, #1A1416",
+   "layers": [
+    "dawn sky",
+    "school building",
+    "LED scoreboard: the eight 君 name fields go dark one per 8th from 171.05; the top row scrolls L58",
+    "pool water with gold caustics; lane ropes bobbing",
+    "her afterimage at the pool edge, dot-dissolving 172.54-173.28"
+   ],
+   "character": {"mode": "still", "source": "keyframe of B-chorus1-05 (girl sitting on the pool edge)", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Afterimage at the pool edge, ~360 px tall at 50% opacity, dissolving into the water's caustic dots."},
+   "devices": ["LED scoreboard lanes switching off", "afterimage dot-dissolve", "caustics"],
+   "typography": "L58 'CAN'T MAKE YOU HAPPIER NOW' scrolls across the scoreboard's top row in amber 5x7 caps from 171.10 while the lanes go dark below. Chinese '如今已无法让你更快乐' 30 px.",
+   "transition_out": "Beat cut on 174.02 to the curve mirrors at dawn; the scoreboard's dots become mirror glints.",
+   "sync": "171.05 / 171.42 / 171.80 / 172.17 / 172.54 / 172.91 / 173.28 / 173.65 one lane goes dark per 8th; 172.54 afterimage dissolves; 174.02 cut."
+  },
+  {
+   "id": "B-outro-05", "section": "outro", "start": 174.02, "end": 176.98, "lyric": [59],
+   "beat": "海边公路上的一排弯道镜接住朝阳，每面镜子在一拍里闪回她的一个瞬间——回头、偷看、浴衣、奔跑——然后只剩阳光。",
+   "scene": "S2",
+   "camera": "Tracking along the road past four curve mirrors at 8 m/s at mirror height; each mirror passes frame centre on a beat.",
+   "world": "夜明け刷り Dawn Print (#2C4C9A, #F5C842, #F08A3C, #C9D3DC, #EDE3CF); each flash in 正午刷り (#2D6BE0, #F6F2E7)",
+   "layers": [
+    "dawn sky",
+    "road and sea",
+    "4 curve mirrors on orange poles",
+    "inside each mirror for one beat: a loop of her, then a sun-glare whiteout in AM halftone"
+   ],
+   "character": {"mode": "still", "source": "loops from the clips of B-hook-02, B-chorus1-01, B-chorus3-02 and B-chorus3-07 (no new generation)", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "One loop per mirror, ~360 px convex-warped, in Noon inks for its beat, then replaced by the sun glare."},
+   "devices": ["mirror memory reel (one beat per mirror)", "sun-glare whiteout in AM halftone (never plain white)"],
+   "typography": "L59 'SOMETIMES, ALL I THINK ABOUT IS YOU' in letter-spaced caps (72 px, cream, cobalt shadow), one phrase under each mirror as it passes - SOMETIMES 174.15, ALL I THINK 174.76, ABOUT 175.50, IS YOU 176.24. Chinese '有时候 满脑子都是你' 30 px.",
+   "transition_out": "Beat cut on 176.98 to the lighthouse; the last mirror's glare matches the lighthouse lens flash.",
+   "sync": "174.02 / 174.76 / 175.50 / 176.24 one mirror and one memory per beat; 176.98 cut."
+  },
+  {
+   "id": "B-outro-06", "section": "outro", "start": 176.98, "end": 179.94, "lyric": [60],
+   "beat": "灯塔：镜头绕着白色灯塔螺旋上升，灯的最后一圈光在日光里淡掉；他到了塔下，木头集章台就在门边。",
+   "scene": "S2",
+   "camera": "Spiral up around the lighthouse: 120-degree orbit + 12 m rise at constant speed over the bar, ending on the lamp room with the sun beside it.",
+   "world": "夜明け刷り Dawn Print: #2C4C9A, #C9D3DC, #F08A3C, #F5C842, #EDE3CF, #D9402B (stamp box), #1A1416",
+   "layers": [
+    "dawn sky with the sun",
+    "sea",
+    "white lighthouse with halftone shading; the lamp's beam fades 177.72-179.20",
+    "wrap-around text band on the tower",
+    "at the base: the red wooden stamp box and him as a dot-person arriving",
+    "gulls"
+   ],
+   "character": {"mode": "dots", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "Him as a 60 px dot-person arriving by the stamp box at 177.72."},
+   "devices": ["wrap-around banner type", "lighthouse beam fade", "spiral camera"],
+   "typography": "L60 'LATE NIGHTS IN THE MIDDLE OF JUNE' in letter-spaced caps printed as a band wrapping the tower (cream, vermilion shadow, 80 px), revealed word by word by the orbit from 177.12. Chinese '六月中旬的深夜' 30 px fixed.",
+   "transition_out": "円リレー Round Relay 7 (closing): on 179.94 the sun beside the lamp room matches to the empty sixth circle of the stamp card at the same position and size.",
+   "sync": "176.98 cut; 177.72 he arrives; 178.46 beam fades; 179.20 orbit completes; 179.94 relay."
+  },
+  {
+   "id": "B-outro-07", "section": "outro", "start": 179.94, "end": 182.91, "lyric": [61],
+   "beat": "集章卡填满画面：太阳正好落进最后一格'灯塔·日出'，像一枚印章按下去；六个章齐了，卡片边缘在晨风里发抖。",
+   "scene": "2D",
+   "camera": "2D over the card, from the sixth circle at x2.2 pulling back to x1.0 over the bar to reveal the whole card.",
+   "world": "夜明け card: #EDE3CF, #D9402B, #F5C842, #F08A3C, #2C4C9A, #1A1416",
+   "layers": [
+    "card paper in warm dawn light",
+    "printed route map",
+    "five stamps, now full vermilion",
+    "sixth circle: the sun lands like a stamp on 179.94 (dot burst, ink spread) and becomes a round sun stamp (vermilion ring, yellow core)",
+    "the two signature doodles side by side",
+    "letterpress footer",
+    "card edge fluttering in the wind (paper sim)"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character"},
+   "devices": ["円リレー landing (sun to stamp circle)", "判子 hanko slam with ink spread", "paper flutter", "letterpress caps"],
+   "typography": "L61 'HEAT WAVES BEEN FAKIN' ME OUT' prints as letterpress caps on the card footer over the old L3 line, one letter per 16th from 180.15, the old line fading as the new one prints. Chinese '热浪一直在骗我' 30 px.",
+   "transition_out": "Beat cut on 182.91 to his face; the card's flutter continues as it flies off in the next shot.",
+   "sync": "179.94 sun stamp + dot burst; 180.68 pull-back; 181.43 all six stamps pulse once; 182.17 card edge lifts in the wind; 182.91 cut."
+  },
+  {
+   "id": "B-outro-08", "section": "outro", "start": 182.91, "end": 185.87, "lyric": [62],
+   "beat": "他的特写：他笑了，眼睛有点湿，长长地呼出一口气；风把集章卡从他身边吹起，卡片像风筝一样朝太阳飞去。",
+   "scene": "S2",
+   "camera": "Close-up, locked with a 3% push; 185.13-185.87 tilt up 30 degrees following the card into the sky.",
+   "world": "夜明け刷り Dawn Print: #2C4C9A, #C9D3DC, #F08A3C, #F5C842, #EDE3CF, #1A1416",
+   "layers": [
+    "dawn sky with the sun (AM halftone glare)",
+    "sea",
+    "the train passing far behind, its LED board scrolling L62",
+    "the boy (clip) close-up",
+    "the stamp card (2D paper-cut) lifting from frame bottom on 183.65 and flying up like a kite, tumbling (paper sim)"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at sunrise, a gentle smile with slightly teary eyes, morning wind in his hair, warm golden light, looking up, portrait, face focus, three-quarter view, simple background, green background",
+    "video_prompt": "The boy looks up toward the sky and smiles gently with slightly teary eyes, he lets out a long slow breath, his shoulders relax, the morning wind moves his hair, his eyes follow something rising upward, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Close-up, face ~760 px tall, screen-right; sticker rim with a sun-yellow hairline; Dawn inks with gold halftone light; the card enters bottom-left and rises past his eyeline."
+   },
+   "devices": ["paper-card flight (kite-like tumble)", "LED destination board in the background (L62)", "sun glare"],
+   "typography": "L62 'CAN'T MAKE YOU HAPPIER NOW' on the distant train's board in orange caps from 182.90; 'NOW' is the last word on the board as the train leaves frame at 185.5. Chinese '如今已无法让你更快乐' 30 px.",
+   "transition_out": "Tilt-up cut on the bar-62 downbeat 185.87, following the card into the sky.",
+   "sync": "182.91 cut; 183.65 card lifts; 184.39 his exhale; 185.13 tilt starts; 185.87 cut."
+  },
+  {
+   "id": "B-outro_hook-01", "section": "outro_hook", "start": 185.87, "end": 188.83, "lyric": [63],
+   "beat": "卡片在空中飞过小镇，天色在几拍里从黎明变成正午，公路上又冒起热浪，路面标线印着英文。",
+   "scene": "S5+S2",
+   "camera": "Following the card from behind at 20 m, descending to 2 m over the coastal road by 188.83.",
+   "world": "夜明け to 正午刷り: dawn #F08A3C / #F5C842 stepping to noon #2D6BE0 / #F5C842 / #F6F2E7 on each beat; mirage #C9D3DC",
+   "layers": [
+    "sky print passes on beats: dawn, morning, noon",
+    "paper-cut sun climbing 6 degrees per beat",
+    "town and road",
+    "the card flying ahead (paper sim)",
+    "road with the mirage band returning (dot-melt)",
+    "English road paint"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character: the card is the protagonist"},
+   "devices": ["刷り print passes as a time-lapse (one per beat)", "road-paint type", "mirage dot-melt"],
+   "typography": "L63 'ROAD SHIMMER WIGGLIN' THE VISION' as road-paint caps on the asphalt (cream paint, stretched x3, perspective) passing under the camera one word per beat from 186.22, wobbling in the shimmer (callback to the hook's road paint). Chinese '路面微光 晃动了视线' 30 px.",
+   "transition_out": "The card flies into a curve mirror's disc: ミラー・アイリス on 188.83.",
+   "sync": "185.87 cut; 186.61 morning pass; 187.35 noon pass; 188.09 mirage returns; 188.83 iris."
+  },
+  {
+   "id": "B-outro_hook-02", "section": "outro_hook", "start": 188.83, "end": 191.8, "lyric": [64],
+   "beat": "弯道镜里的正午：她站在镜中的路上，转身朝热浪走去，走了几步回头，冲镜头笑了一下；镜面像水一样晃。",
+   "scene": "S2",
+   "camera": "Frontal on the curve mirror (disc 900 px), slow 5% push; the mirror surface ripples like water.",
+   "world": "正午刷り Noon Print: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C, #D9402B, #1A1416",
+   "layers": [
+    "halftone sky",
+    "mirror frame and orange pole",
+    "inside the mirror: the noon road with the mirage; the girl (clip) walking away, then glancing back",
+    "mirror-surface ripple (sinusoidal 6 px, 1.2 Hz): swimming in a mirror",
+    "the flying card catching on the mirror's rim"
+   ],
+   "character": {
+    "mode": "clip",
+    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl walks away on a hot summer road, then glances back over her shoulder at the viewer with a gentle smile, wind in her hair and skirt, from behind, looking back, walking, simple background, green background",
+    "video_prompt": "The girl walks slowly away from the camera, after a few steps she stops, glances back over her shoulder and smiles gently, then turns forward again, a warm wind moves her hair and skirt, the camera is static, the plain green background stays flat.",
+    "clip_seconds": 3.0,
+    "placement": "Inside the mirror, full body ~420 px tall, centre, convex-warped and ripple-displaced; thin 3 px cream rim."
+   },
+   "devices": ["liquid mirror ripple", "card catching on the mirror rim"],
+   "typography": "L64 'HEAT, HEAT WAVES, I'M SWIMMIN' IN A MIRROR' in letter-spaced caps (cream, cobalt shadow, 64 px) swimming across the mirror's convex surface with the ripple, one word per 8th from 188.85; MIRROR settles flat on 191.05. Chinese '热浪 热浪 我在镜中游泳' 30 px.",
+   "transition_out": "Continuous beat cut on 191.80: the mirror becomes the centre of the end card layout.",
+   "sync": "188.83 iris; 189.57 she walks; 190.31 glance back; 191.05 smile + MIRROR settles; 191.80 cut."
+  },
+  {
+   "id": "B-outro_hook-03", "section": "outro_hook", "start": 191.8, "end": 198.74, "lyric": [65, 66],
+   "beat": "片尾：空了的镜中公路上浮出'泳いでくミラー'；然后印刷倒着走，一层层揭版，只剩奶油色的纸、套准标记和那枚太阳印；最后一颗LED点熄灭。",
+   "scene": "2D+S2",
+   "camera": "191.80-194.76 locked on the mirror with a 4% pull-back revealing the full title layout; 194.76-198.74 locked 2D while the plates lift toward camera one per beat.",
+   "world": "正午刷り to bare paper: #2D6BE0, #F5C842, #F6F2E7, #C9D3DC, #F08A3C, #D9402B, #EDE3CF, #1A1416",
+   "layers": [
+    "cream paper with registration marks and the colour bar (callback to the opening)",
+    "the mirror with the empty noon road, mirage moving",
+    "title 泳いでくミラー (vertical, 220 px) forming from the mirage dots",
+    "HEAT WAVES caps",
+    "the completed stamp card, small, lower left, its sun stamp glowing",
+    "plate lift: sun yellow 194.76, cobalt 195.50, orange 196.24, silver 196.98 - each plate peels toward camera and reveals less",
+    "one mint LED dot (the film's first dot) blinking bottom right, off on 197.72"
+   ],
+   "character": {"mode": "none", "keyframe_prompt": "", "video_prompt": "", "clip_seconds": 0, "placement": "no character; the empty road is where she was"},
+   "devices": ["title re-formation from mirage dots", "版はがし reverse print (one plate per beat)", "registration marks + colour bar", "last LED dot off", "45-degree halftone dot-dissolve to warm black"],
+   "typography": "L65 'ROAD SHIMMER WIGGLIN' THE VISION' in letter-spaced caps under the mirror, one word per beat from 192.00. Title 泳いでくミラー re-forms 192.54-193.28 and snaps into register on 193.28; 'HEAT WAVES' prints on 194.02. L66 'HEAT, HEAT WAVES, I'M SWIMMIN' IN A MIRROR' prints word by word from 194.70 while the plates lift, each word leaving with its plate. Credit 'Heat Waves (Japanese ver., Lime) / MV-B' in Noto Serif SC 28 px warm black on 196.24. Chinese '路面微光 晃动了视线 / 热浪 热浪 我在镜中游泳' 30 px.",
+   "transition_out": "End: 197.72 the last LED dot goes off; 197.72-198.40 the bare paper stays alive (gate jitter, grain); 198.40-198.74 45-degree halftone dot-dissolve to warm black #1A1416.",
+   "sync": "191.80 cut; 192.54 title forms; 193.28 title snaps into register; 194.02 HEAT WAVES; 194.76 / 195.50 / 196.24 / 196.98 plate lifts; 197.72 LED dot off (bar 66); 198.74 end."
+  }
+ ],
+ "clip_count": 26,
+ "scene_list": {
+  "S1": "Tatami room (6 mats), 1985. CRT TV: 14-inch, wooden cabinet, rabbit-ear antenna, rotary channel dial with 30-degree click detents, screen = render target for any image/clip, generic sign-off card, generic test card (big centre circle, grey steps, colour bars), teletext ticker band; TV-POV rig (camera inside the CRT, barrel k=0.18, glass reflection layer, mirrored OSD). Oscillating fan (blade spin, 90-degree oscillation on a 2-bar period, stop and spin-down). Curtain (cloth, breathing). Window onto the railway with night / blue-hour plates. Folded futon, wall calendar (June 1985, page flutter), LED clock-radio (4-digit 7x13 dot clock + 64x8 mint ticker, colon blink on beats, fast-count mode 0:00 to 4:52), chabudai with the stamp-card plane and an empty ramune bottle, mosquito-coil smoke. Variants: night (TV on), sign-off (light stepping down on beats), blue-hour empty (TV off, afterglow dot).",
+  "S2": "Coastal road + seawall + railway. Lighting variants: noon, night, dusk (seawall), blue hour, dawn. Telephone poles at 16.3 m spacing (one per beat at 22 m/s) with catenary wires that sway; curve mirrors on orange poles (single, double-headed junction pole, a 40-mirror 'forest' variant, a giant title mirror), each mirror a render target with convex warp and ripple option; 2 vending machines plus a row of 6 on the seawall road (mint 16-dot ticker, 4-digit roulette, lit dummies, moth sprites); bus-stop sign and light box; concrete seawall with steps and railing, chalk-doodle decal slot and wave-wash; white lighthouse (rotating AM-halftone beam, lamp fade, red stamp box at the base, tower band for wrap-around type); sea (halftone waves, moon path, sun path, swell over the seawall); single-track rail alongside; wooden houses with eaves and 10 furin with tanzaku; asphalt with the mirage dot-melt shader and road-marking decal slots; a long straight for the dolly-zoom; invisible glyph planes for cast-shadow type.",
+  "S3": "Festival street / shotengai. Lanterns on wires (instanced, per-lantern emissive, glyph decal and swing), 10 hero lanterns spanning the street, yatai stalls (kingyo-sukui tank with 80 goldfish boids that can steer to a glyph mask and a paper poi with tear sim, mask stall, kakigori, yo-yo balloons), nobori banners, rolling shutters with an all-at-once roll-up, instanced dot crowd (1,200, both directions, parting behaviour, heads-up sprite), uchiwa fans with glyph flip. Variants: empty night (shutters down, unlit) and festival (lit, crowd).",
+  "S4": "Small station '潮見' + one-car train: platform, station-name board, lamp posts; train with an orange LED destination board (16x96: '回送', '夢 行', '日の出' + scrolling), lit windows each a render target with a per-window frame index (zoetrope), AM-halftone headlight; dream variant in two inks where the car is instanced into an endless chain for the zoetrope lock (one window pitch per frame); dawn variant passing behind the seawall.",
+  "S5": "Town map, oblique and top-down: coastline, railway, lighthouse and the 6 stamp locations; print-pass AOVs (navy, cobalt, orange, mint, silver) for print reveals; a navy night-plate sheet with paper-curl peel for the dawn; road ripple / re-route shader for the maze; stamp-route overlay (dashed to solid); map-label slots; window-light groups that can switch off on beats.",
+  "S6": "Underwater variant of S3: caustic line-screen projector, bubble emitter including glyph bubbles, lanterns floating up on slack wires, 60 goldfish boids, the surface seen from below with the moon as a wobbling disc.",
+  "S7": "School pool: 8 lanes, lane ropes with bobbing floats, starting blocks 1-8, amber LED scoreboard (8 rows: lane number, 16x16 name field, time) with a race clock '0:00.00', caustic water; noon and dawn variants.",
+  "2D": "Riso assets for the compositor: the stamp-rally card '潮見線 夏のスタンプラリー 1984' (layers: paper, route map, 6 circles, 5 stamps, sun stamp, two signature doodles, letterpress footer); the 'HEAT WAVE' 1950s movie poster in 4 plates; the summer CM super with a paper-cut sun logo; two-plate prints for B-chorus1-04 and B-verse-05; the title layout 泳いでくミラー / HEAT WAVES; registration marks and colour bar; paper-cut sun and moon kits; halftone firework kit (peony, chrysanthemum, ring, willow, starmine digits, glyph firework)."
+ }
+}
