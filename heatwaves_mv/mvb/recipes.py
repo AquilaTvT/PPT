@@ -586,3 +586,146 @@ def hook02(s, t, local, fi):
 
 R['B-hook-02'] = hook02
 tl.OWN_TYPE.add('B-hook-02')
+
+
+# ---------------------------------------------------------------- TV programme parodies (print-styled), shared by S1 shots
+def _styled(name, fn):
+    from mvb.halftone import PrintStyle
+    if name not in _cache:
+        img = fn()
+        img = img.a if hasattr(img, 'a') else img
+        sty = PrintStyle(['#1E2550', '#2C4C9A', '#7FC8B8', '#C9D3DC', '#EDE3CF', '#F08A3C', '#D9402B', '#F5C842', '#1A1416'],
+                         period=8, grain=0.0)
+        _cache[name] = sty(np.asarray(img, np.float32))
+    return _cache[name]
+
+
+def _canvas(bg):
+    from .print_fx import hexc as H
+    im = np.empty((1080, 1920, 3), np.float32)
+    im[:] = H(bg)
+    return im
+
+
+def prog_samurai():
+    import cv2
+    from .print_fx import hexc as H
+    from mv import text
+    im = _canvas('#F08A3C')
+    for y in range(0, 700, 6):
+        im[y:y + 3] = im[y:y + 3] * 0.0 + H('#F5C842') * (1 - y / 700) + H('#F08A3C') * (y / 700)
+    cv2.circle(im, (1250, 470), 200, tuple(float(v) for v in H('#D9402B')), -1, cv2.LINE_AA)
+    hill = np.array([[0, 820], [400, 700], [900, 760], [1400, 640], [1920, 720], [1920, 1080], [0, 1080]], np.int32)
+    cv2.fillPoly(im, [hill], tuple(float(v) for v in H('#1A1416')), cv2.LINE_AA)
+    castle = [(560, 700, 360, 70), (600, 630, 280, 70), (640, 560, 200, 70), (680, 490, 120, 70)]
+    for x, y, w, h in castle:
+        cv2.rectangle(im, (x, y), (x + w, y + h), tuple(float(v) for v in H('#1A1416')), -1)
+        pts = np.array([[x - 30, y + 8], [x + w + 30, y + 8], [x + w // 2, y - 30]], np.int32)
+        cv2.fillPoly(im, [pts], tuple(float(v) for v in H('#1A1416')), cv2.LINE_AA)
+    gl = text.layout_v('夏祭り捕物帖', 1700, 120, 120, 'brush')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        im = im + (H('#EDE3CF')[None, None] - im) * f[..., None]
+    return im
+
+
+def prog_quiz(t=0.0):
+    import cv2, math
+    from .print_fx import hexc as H
+    from mv import text
+    im = _canvas('#2C4C9A')
+    for k in range(12):
+        a0 = k * 30 + t * 220
+        col = ('#F5C842', '#D9402B', '#EDE3CF', '#7FC8B8')[k % 4]
+        cv2.ellipse(im, (960, 470), (360, 360), 0, a0, a0 + 30, tuple(float(v) for v in H(col)), -1, cv2.LINE_AA)
+    cv2.circle(im, (960, 470), 60, tuple(float(v) for v in H('#1A1416')), -1, cv2.LINE_AA)
+    pts = np.array([[960, 70], [930, 20], [990, 20]], np.int32)
+    cv2.fillPoly(im, [pts], tuple(float(v) for v in H('#EDE3CF')), cv2.LINE_AA)
+    for x in (300, 960, 1620):
+        cv2.rectangle(im, (x - 160, 880), (x + 160, 1080), tuple(float(v) for v in H('#D9402B')), -1)
+        cv2.circle(im, (x, 860), 40, tuple(float(v) for v in H('#F5C842')), -1, cv2.LINE_AA)
+    gl, _ = text.layout_h('クイズ 夏の100人', 960, 960, 80, 'dela', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        im = im + (H('#EDE3CF')[None, None] - im) * f[..., None]
+    return im
+
+
+def prog_news():
+    import cv2
+    from .print_fx import hexc as H
+    from mv import text
+    im = _canvas('#1E2550')
+    cv2.rectangle(im, (1000, 120), (1800, 640), tuple(float(v) for v in H('#2C4C9A')), -1)
+    cv2.circle(im, (1400, 380), 160, tuple(float(v) for v in H('#7FC8B8')), 6, cv2.LINE_AA)
+    cv2.rectangle(im, (0, 760), (1920, 1080), tuple(float(v) for v in H('#C9D3DC')), -1)
+    cv2.rectangle(im, (200, 560), (900, 760), tuple(float(v) for v in H('#5A3E36')), -1)
+    gl, _ = text.layout_h('ニュース 深夜便', 120, 900, 90, 'kaku', align='left')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        im = im + (H('#1A1416')[None, None] - im) * f[..., None]
+    gl, _ = text.layout_h('0:00', 1750, 900, 90, 'kaku', align='right')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        im = im + (H('#D9402B')[None, None] - im) * f[..., None]
+    return im
+
+
+def tv_static(seed, h=480, w=640):
+    rng = np.random.default_rng(seed)
+    n = rng.random((h // 8, w // 8)).astype(np.float32)
+    import cv2
+    n = cv2.resize(n, (w, h), interpolation=cv2.INTER_NEAREST)
+    return np.repeat(n[..., None], 3, -1) * 0.9
+
+
+# ---------------------------------------------------------------- B-verse-01: channel flips, one per beat
+def _verse01_plate():
+    path = [{'t': 0.0, 'pos': [-0.55, 0.78, 0.25], 'look': [-0.62, 0.70, -1.2], 'fov': 40},
+            {'t': 2.97, 'pos': [-0.55, 0.78, 0.21], 'look': [-0.62, 0.70, -1.2], 'fov': 39.4}]
+    return plate('B-verse-01', 's1_room', {'path': path}, 0.0, 2.97, fps=24)
+
+
+def verse01(s, t, local, fi):
+    import cv2
+    from mv.el import channels
+    from .print_fx import clock_grid, dot_matrix, hexc as H
+    flips = [52.53, 53.28, 54.02, 54.76, 55.13]
+    chs = [1, 3, 4, 6, 8]
+    idx = max(i for i, f in enumerate(flips) if t >= f) if t >= flips[0] else 0
+    since = t - flips[idx]
+    pl = once('verse01', _verse01_plate)
+    img = pl.frame(local).copy()
+    q = pl.anchor(local, 'tv')
+    if since < 2 / 24:
+        content = tv_static(int(t * 24))
+    else:
+        if idx == 0:
+            content = weather_chart(t)
+        elif idx == 1:
+            content = _styled('baseball', lambda: channels.baseball(0.0))
+        elif idx == 2:
+            content = _styled('samurai', prog_samurai)
+        elif idx == 3:
+            content = _styled('quiz%d' % (int(t * 12) % 6), lambda: prog_quiz(t))
+        else:
+            content = _styled('news', prog_news)
+        content = content.copy()
+        osd = once(('osd', chs[idx]), lambda: dot_matrix(clock_grid(str(chs[idx])), pitch=10, on='#7FC8B8', bg='#000000'))
+        oh, ow = osd.shape[:2]
+        content = cv2.resize(content, (640, 480))
+        content[24:24 + oh, 640 - ow - 30:640 - 30] = np.maximum(content[24:24 + oh, 640 - ow - 30:640 - 30], osd)
+    if q:
+        img = warp_quad(img, cv2.resize(content, (640, 480)), [p[:2] for p in q])
+    # wall lit by the channel colour
+    tint = [H('#7FC8B8'), H('#2C4C9A'), H('#F08A3C'), H('#F5C842'), H('#C9D3DC')][idx]
+    img = img * (0.88 + 0.12 * tint[None, None])
+    if since < 2 / 24:
+        dx = int(1920 * 0.015 * (1 if int(t * 24) % 2 else -1))
+        img = np.roll(img, dx, axis=1)
+    ly = once('v01', lambda: VLyric(18, x=1700, accent='#D9402B'))
+    return ly.draw(img, t)
+
+
+R['B-verse-01'] = verse01
+tl.OWN_TYPE.add('B-verse-01')
