@@ -12,7 +12,7 @@ export async function build(THREE, P, params = {}) {
   P.U.uLightDir.value.set(...Wd.light).normalize(); P.U.uPeriod.value = params.period || 8;
   root.add(P.sky(Wd.skyTop, Wd.skyHor, { stars: Wd.stars, band: Wd.skyBand }));
   const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-  const L = 600;
+  const L = params.trackL || 600;
   // ground, sea beyond
   const ground = box(60, 0.2, L, P.ink(Wd.ballast, { ambient: 0.5 })); ground.position.set(-20, -0.1, 0); scene.add(ground);
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), P.ink(Wd.sea, { flat: 1, grain: 0.06 }));
@@ -24,25 +24,42 @@ export async function build(THREE, P, params = {}) {
   const m4 = new THREE.Matrix4();
   for (let i = 0; i < sl.count; i++) { m4.makeTranslation(0, 0.1, -L / 2 + i * 0.7); sl.setMatrixAt(i, m4); } scene.add(sl);
   // platform (left side of the track), shelter, bench, name board, lamps
+  const station = new THREE.Group(); if (!params.noStation) scene.add(station);
+  if (params.poles) {   // coastal telephone poles every 16.3 m on the sea side, sagging wires between them
+    const pm = P.ink(Wd.pole, { ambient: 0.6 });
+    const tops = [];
+    for (let z = -L / 2; z < L / 2; z += 16.3) {
+      const p = P.outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 8.5, 8), pm), Wd.ink, 0.02); p.position.set(3.6, 4.25, z); scene.add(p);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.1), pm); arm.position.set(3.6, 8.0, z); scene.add(arm);
+      tops.push(z);
+    }
+    for (const dx of [-0.6, 0.6]) for (let i = 0; i + 1 < tops.length; i++)
+      scene.add(P.catenary(new THREE.Vector3(3.6 + dx, 8.05, tops[i]), new THREE.Vector3(3.6 + dx, 8.05, tops[i + 1]), 0.35, Wd.pole));
+  }
   const platMat = P.ink(Wd.wall, { shade: Wd.wallShade, ambient: 0.35 });
-  const plat = P.outlined(box(4.0, 1.0, 60, platMat), Wd.ink, 0.03); plat.position.set(-3.7, 0.5, 0); scene.add(plat);
-  const edge = box(0.25, 0.02, 60, P.ink('#F5C842', { flat: 1 })); edge.position.set(-1.85, 1.01, 0); scene.add(edge);
+  const plat = P.outlined(box(4.0, 1.0, 60, platMat), Wd.ink, 0.03); plat.position.set(-3.7, 0.5, 0); station.add(plat);
+  const edge = box(0.25, 0.02, 60, P.ink('#F5C842', { flat: 1 })); edge.position.set(-1.85, 1.01, 0); station.add(edge);
   const roofM = P.ink(Wd.roof, { ambient: 0.5 });
-  const roof = P.outlined(box(3.4, 0.15, 14, roofM), Wd.ink, 0.03); roof.position.set(-4.0, 3.7, 0); roof.rotation.z = 0.08; scene.add(roof);
-  for (const z of [-6, 0, 6]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.7, 8), P.ink(Wd.pole, { ambient: 0.6 })); p.position.set(-4.9, 2.35, z); scene.add(p); }
-  const bench = P.outlined(box(0.5, 0.45, 2.2, P.ink('#7A3E5A', { shade: '#2B2350' })), Wd.ink, 0.02); bench.position.set(-4.8, 1.22, 2.5); scene.add(bench);
+  const roof = P.outlined(box(3.4, 0.15, 14, roofM), Wd.ink, 0.03); roof.position.set(-4.0, 3.7, 0); roof.rotation.z = 0.08; station.add(roof);
+  for (const z of [-6, 0, 6]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.7, 8), P.ink(Wd.pole, { ambient: 0.6 })); p.position.set(-4.9, 2.35, z); station.add(p); }
+  const bench = P.outlined(box(0.5, 0.45, 2.2, P.ink('#7A3E5A', { shade: '#2B2350' })), Wd.ink, 0.02); bench.position.set(-4.8, 1.22, 2.5); station.add(bench);
   const nb = document.createElement('canvas'); nb.width = 512; nb.height = 160;
   const g = nb.getContext('2d'); g.fillStyle = '#EDE3CF'; g.fillRect(0, 0, 512, 160);
   g.fillStyle = '#141A33'; g.font = 'bold 74px serif'; g.textAlign = 'center'; g.fillText(params.stationName || 'うみべ', 256, 92);
   g.fillStyle = '#2C4C9A'; g.fillRect(0, 118, 512, 42); g.fillStyle = '#EDE3CF'; g.font = '26px serif'; g.fillText(params.stationRoman || 'UMIBE', 256, 148);
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.69), P.flatTex(nb)); board.position.set(-2.4, 3.0, 9); board.rotation.y = Math.PI / 2; scene.add(board);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.69), P.flatTex(nb)); board.position.set(-2.4, 3.0, 9); board.rotation.y = Math.PI / 2; station.add(board);
+  if (params.endBoard) {   // name board at the platform end, facing down the line (toward +z)
+    const eb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.69), P.flatTex(nb)); eb.position.set(-2.95, 2.55, 29.6); eb.scale.x = -1; station.add(eb);
+    const ebk = P.outlined(box(2.3, 0.78, 0.06, P.ink(Wd.pole, { flat: 1 })), Wd.ink, 0.01); ebk.position.set(-2.95, 2.55, 29.55); station.add(ebk);
+    for (const dx of [-0.9, 0.9]) { const pp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 8), P.ink(Wd.pole, { ambient: 0.6 })); pp.position.set(-2.95 + dx, 1.1, 29.55); station.add(pp); }
+  }
   for (const z of [-14, 9, 22]) {
-    const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 8), P.ink(Wd.pole, { ambient: 0.6 })); lp.position.set(-3.0, 2.7, z); scene.add(lp);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.25), P.ink(Wd.lamp, { emissive: 1 })); head.position.set(-2.8, 4.4, z); scene.add(head);
-    const gl = P.glow(Wd.glow, 3.0, { strength: 0.75 }); gl.position.set(-2.8, 4.2, z); scene.add(gl);
+    const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 8), P.ink(Wd.pole, { ambient: 0.6 })); lp.position.set(-3.0, 2.7, z); station.add(lp);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.25), P.ink(Wd.lamp, { emissive: 1 })); head.position.set(-2.8, 4.4, z); station.add(head);
+    const gl = P.glow(Wd.glow, 3.0, { strength: 0.75 }); gl.position.set(-2.8, 4.2, z); station.add(gl);
   }
   // train
-  const tr = makeTrain(THREE, P, Wd, { led: params.led || 'ワンマン 海岸線' });
+  const tr = makeTrain(THREE, P, Wd, { led: params.led || 'ワンマン 海岸線', ...(params.trainOpts || {}) });
   scene.add(tr.group);
   const T = params.train || { z0: -120, speed: 0, t0: 0, decel: 0 };
   const cam = params.cam || 'platform';
@@ -50,12 +67,16 @@ export async function build(THREE, P, params = {}) {
   function update(t) {
     const pathed = params.path ? applyPath(camera, params.path, t, true) : false;
     const dt = Math.max(0, t - (T.t0 || 0));
-    tr.group.position.set(0, 0, (T.z0 || 0) + (T.speed || 0) * dt + 0.5 * (T.accel || 0) * dt * dt);
+    if (T.zStop !== undefined) {   // approach and brake: z = zStop - D * (1 - u)^p, u = dt / T
+      const u = Math.min(1, dt / T.T); tr.group.position.set(0, 0, T.zStop - T.D * Math.pow(1 - u, T.p || 3));
+    } else tr.group.position.set(0, 0, (T.z0 || 0) + (T.speed || 0) * dt + 0.5 * (T.accel || 0) * dt * dt);
     if (pathed) {} else if (cam === 'platform') { camera.position.set(-3.2, 2.4, -12); camera.lookAt(-0.5, 2.0, 10); }
     else if (cam === 'low') { camera.position.set(-1.5, 1.2, 14); camera.lookAt(0, 2.2, -10); }
     else if (cam === 'side') { camera.position.set(-5.5, 2.4, tr.group.position.z * (params.follow ? 1 : 0)); camera.lookAt(0, 2.4, camera.position.z); }
     else if (cam === 'chase') { const z = tr.group.position.z; camera.position.set(4.5, 2.2, z - 6); camera.lookAt(0.5, 2.3, z + 8); }
   }
-  const anchors = () => ({ windows: tr.windows.slice(7, 14).map(w => w.getWorldPosition(new THREE.Vector3())) });
+  const anchors = () => ({ windows: tr.windows.slice(7, 14).map(w => w.getWorldPosition(new THREE.Vector3())),
+                           board: tr.boardCorners.map(c => tr.group.localToWorld(c.clone())),
+                           head: [tr.group.localToWorld(tr.headPos.clone())] });
   return { scene: root, camera, update, anchors };
 }

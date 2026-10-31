@@ -56,4 +56,20 @@ export const WORLDS = {
     mirror: '#F7E3C2', vend: '#EDE3CF', vendGlow: '#7FC8B8', led: '#7FC8B8', moon: '#FFF2D6', moonShade: '#F2A7A0',
     rail: '#F7E3C2', ballast: '#33365E', ink: '#1A1630', light: [0.6, 0.25, 0.75], ambient: 0.38,
   },
+  dream: {   // 二色夢刷り: cobalt + heat orange on cream (overprint #292924); the compositor re-separates to two inks
+    skyTop: '#2C4C9A', skyHor: '#EDE3CF', skyBand: '#EDE3CF', fog: '#EDE3CF', stars: 0.0,
+    road: '#2C4C9A', roadShade: '#292924', line: '#EDE3CF', wall: '#EDE3CF', wallShade: '#2C4C9A',
+    sea: '#2C4C9A', seaHi: '#EDE3CF', house: '#EDE3CF', houseShade: '#2C4C9A', roof: '#292924',
+    window: '#F08A3C', lamp: '#F08A3C', glow: '#F08A3C', pole: '#292924', mirrorPole: '#F08A3C',
+    mirror: '#EDE3CF', vend: '#F08A3C', vendGlow: '#F08A3C', led: '#F08A3C', moon: '#F08A3C', moonShade: '#2C4C9A',
+    rail: '#F08A3C', ballast: '#8C93B8', ink: '#292924', light: [0.4, 0.7, 0.6], ambient: 0.42,
+  },
+  predawn: {   // 黎明前 -> 夜明け: navy sky, pale orange horizon band, silver rails
+    skyTop: '#1E2550', skyHor: '#F0B070', skyBand: '#F5C842', fog: '#5A6AA8', stars: 0.15,
+    road: '#2C4C9A', roadShade: '#1E2550', line: '#EDE3CF', wall: '#5A6AA8', wallShade: '#1E2550',
+    sea: '#1E2550', seaHi: '#F0B070', house: '#2C4C9A', houseShade: '#1E2550', roof: '#141A33',
+    window: '#F08A3C', lamp: '#F5C842', glow: '#F08A3C', pole: '#141A33', mirrorPole: '#F08A3C',
+    mirror: '#C9D3DC', vend: '#EDE3CF', vendGlow: '#7FC8B8', led: '#F08A3C', moon: '#EDE3CF', moonShade: '#C9D3DC',
+    rail: '#C9D3DC', ballast: '#2C4C9A', ink: '#141018', light: [0.2, 0.5, -0.8], ambient: 0.36,
+  },
 };

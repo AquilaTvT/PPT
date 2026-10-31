@@ -44,7 +44,7 @@ def dots_mask(k, period=8.0, angle=45.0):
 
 class VLyric:
     def __init__(self, idx, x=1720, y=160, size=100, accent='#D9402B', style='A', out_t=None, zh=True,
-                 times=None, color=None, en_led=False, max_glyphs=None):
+                 times=None, color=None, en_led=False, max_glyphs=None, snap=2.0):
         self.ln = LYRICS[idx]
         self.idx = idx
         self.size, self.accent, self.style = size, accent, style
@@ -60,13 +60,15 @@ class VLyric:
         self.glyphs = text.layout_v(s, x, y, size, 'mincho', tracking=0.08)
         self.x, self.y = x, y
         self.zh = zh and idx in lyrics.ZH
+        self.snap = snap          # registration-lock length in frames (number, or f(onset) for builds)
 
     def _anim(self, t, dx=0.0, dy=0.0):
         def anim(g):
             tc = self.times[min(g['i'], len(self.times) - 1)]
             if t < tc:
                 return None
-            k = clamp((t - tc) / (2.0 / 24))          # 2-frame lock
+            sn = self.snap(tc) if callable(self.snap) else self.snap
+            k = clamp((t - tc) / (max(0.5, sn) / 24))      # registration lock (default 2 frames)
             return dict(alpha=1.0, dx=dx * (1 - k), dy=dy * (1 - k))
         return anim
 

@@ -161,3 +161,61 @@ def dot_matrix(grid, pitch=18, on='#7FC8B8', off_alpha=0.12, bg='#0B1414', glow=
         g = cv2.GaussianBlur(lit, (0, 0), pitch * 0.7)
         rgb = rgb + c[None, None] * g[..., None] * glow * 0.5
     return np.clip(rgb, 0, 1)
+
+
+# ---------------------------------------------------------------- 二色夢刷り: riso two-ink separation
+_TWO = {}
+
+
+def _lab(rgb):
+    from .halftone import to_lab
+    return to_lab(rgb)
+
+
+def _screen(tone, period, angle, off=(0.0, 0.0)):
+    """AM halftone coverage for a tone map on a screen-locked grid (round dots, full solid at tone 1)"""
+    h, w = tone.shape
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    xs += off[0]
+    ys += off[1]
+    c, s = np.cos(np.radians(angle)), np.sin(np.radians(angle))
+    u = (xs * c + ys * s) / period
+    v = (-xs * s + ys * c) / period
+    d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+    r = 0.7071 * np.sqrt(np.clip(tone, 0, 1))
+    return np.clip((r - d) * period + 0.5, 0, 1) * (tone > 0.02)
+
+
+def two_ink(img, cobalt='#2C4C9A', orange='#F08A3C', paper='#EDE3CF', over='#292924', period=8.0, ang_c=15.0,
+            ang_o=75.0, mis=(2.0, -1.0), gain=1.0, solid=0.93):
+    """re-print any frame in two inks: each pixel is unmixed into cobalt / orange coverage (4-primary Neugebauer
+    model fitted in Lab through a 32^3 LUT), then each plate gets its own halftone screen (15 / 75 degrees) with
+    a slight misregistration. Near-solid areas print solid so flats stay flat."""
+    key = (cobalt, orange, paper, over)
+    if key not in _TWO:
+        P_, C_, O_, X_ = [hexc(h) for h in (paper, cobalt, orange, over)]
+        cs = np.linspace(0, 1, 33).astype(np.float32)
+        cc, oo = [a.ravel() for a in np.meshgrid(cs, cs, indexing='ij')]
+        cols = (P_[None] * ((1 - cc) * (1 - oo))[:, None] + C_[None] * (cc * (1 - oo))[:, None]
+                + O_[None] * (oo * (1 - cc))[:, None] + X_[None] * (cc * oo)[:, None])
+        lab_g = _lab(cols[None].astype(np.float32))[0]
+        q = ((np.arange(32) + 0.5) / 32).astype(np.float32)
+        bins = np.stack(np.meshgrid(q, q, q, indexing='ij'), -1).reshape(-1, 3)
+        lab_b = _lab(bins[None])[0]
+        best = np.empty(len(bins), np.int64)
+        for i in range(0, len(bins), 2048):
+            best[i:i + 2048] = ((lab_b[i:i + 2048, None, :] - lab_g[None]) ** 2).sum(-1).argmin(1)
+        _TWO[key] = (cc[best].reshape(32, 32, 32), oo[best].reshape(32, 32, 32), P_, C_, O_, X_)
+    lc, lo, P_, C_, O_, X_ = _TWO[key]
+    idx = np.clip((np.clip(img, 0, 1) * 31.999).astype(np.int32), 0, 31)
+    c = lc[idx[..., 0], idx[..., 1], idx[..., 2]]
+    o = lo[idx[..., 0], idx[..., 1], idx[..., 2]]
+    c = cv2.GaussianBlur(c, (0, 0), 0.9) * gain
+    o = cv2.GaussianBlur(o, (0, 0), 0.9) * gain
+    cd = np.where(c > solid, 1.0, _screen(c, period, ang_c)).astype(np.float32)
+    od = np.where(o > solid, 1.0, _screen(o, period, ang_o, mis)).astype(np.float32)
+    if mis != (0.0, 0.0):      # the orange plate's solids are misregistered too
+        M = np.float32([[1, 0, mis[0]], [0, 1, mis[1]]])
+        od = np.maximum(od * (o <= solid), cv2.warpAffine((o > solid).astype(np.float32), M, (od.shape[1], od.shape[0])))
+    cd, od = cd[..., None], od[..., None]
+    return (P_ * (1 - cd) * (1 - od) + C_ * cd * (1 - od) + O_ * od * (1 - cd) + X_ * cd * od).astype(np.float32)

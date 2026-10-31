@@ -1068,6 +1068,16 @@ def chorus3_08(s, t, local, fi):
         drip = cv2.GaussianBlur(fm, (1, 21), 0) * 0.5
         img = img + (H('#F5C842')[None, None] - img) * drip[..., None]
         img = img + (H('#EDE3CF')[None, None] - img) * fm[..., None]
+    # 円リレー 5: one last spark hangs on, drifts to the vanishing point and turns heat-orange (-> headlight)
+    if t > 134.6:
+        k = clamp((t - 134.6) / 0.85)
+        e = 1 - (1 - k) ** 3
+        x, y = 1180 + (954 - 1180) * e, 300 + (570 - 300) * e + 40 * np.sin(k * np.pi)
+        col = H('#F5C842') + (H('#F08A3C') - H('#F5C842')) * k
+        kit.halo(img, x, y, 40 + 10 * k, '#F5C842' if k < 0.5 else '#F08A3C', 0.9)
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (int(x), int(y)), 7, 1.0, -1, cv2.LINE_AA)
+        img = img + (col[None, None] - img) * m[..., None]
     a = clamp((t - 132.7) / 0.3)
     gl, _ = text.layout_h(lyrics.ZH[45], 960, 1010, 30, 'zh', tracking=0.2, align='center')
     f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a))
@@ -1375,3 +1385,151 @@ def chorus4_01(s, t, local, fi):
 R['B-chorus4-01'] = chorus4_01
 tl.OWN_TYPE.add('B-chorus4-01')
 
+
+
+# ---- B-bridge2-01: the dream train comes in (二色夢刷り two-ink riso world) ------------------------------------------
+def _quad_sorted(pts):
+    """projected quad -> TL, TR, BR, BL (screen space), robust to the mirrored scene"""
+    p = sorted([q[:2] for q in pts], key=lambda q: q[1])
+    top = sorted(p[:2], key=lambda q: q[0])
+    bot = sorted(p[2:], key=lambda q: q[0])
+    return np.float32([top[0], top[1], bot[1], bot[0]])
+
+
+def led_on_quad(img, quad, rgb_board, alpha=1.0):
+    """warp a flat LED board image onto a projected quad (perspective)"""
+    import cv2
+    h, w = rgb_board.shape[:2]
+    src = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+    M = cv2.getPerspectiveTransform(src, quad)
+    warped = cv2.warpPerspective(rgb_board, M, (1920, 1080), flags=cv2.INTER_LINEAR)
+    m = cv2.warpPerspective(np.ones((h, w), np.float32), M, (1920, 1080), flags=cv2.INTER_LINEAR) * alpha
+    return img + (warped - img) * m[..., None]
+
+
+def _b201_plate():
+    s = tl.BY_ID['B-bridge2-01']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [-0.4, 0.76, 37.0], 'look': [-0.3, 3.4, -40.0], 'fov': 44},
+            {'t': d, 'pos': [-0.4, 0.76, 36.65], 'look': [-0.3, 3.4, -40.0], 'fov': 43.6, 'ease': 'linear'}]
+    return plate('B-bridge2-01', 's4_station', {
+        'world': 'dream', 'path': path, 'trackL': 1400, 'endBoard': True,
+        'train': {'zStop': 20.5, 'D': 520.0, 'T': 2.5, 'p': 3, 't0': 0.0},
+        'trainOpts': {'bigBoard': True, 'boardSize': [2.4, 0.75, 3.0], 'body': '#EDE3CF', 'band': '#F08A3C',
+                      'headColor': '#F08A3C', 'headSize': 4.5},
+        'stationName': '潮見', 'stationRoman': 'SHIOMI'}, 0.0, d, fps=24)
+
+
+def bridge2_01(s, t, local, fi):
+    import math
+    from mv.core import clamp
+    from . import print_fx
+    pl = once('b201', _b201_plate)
+    img = pl.frame(local).copy()
+    bq = pl.anchor(local, 'board')
+    hd = pl.anchor(local, 'head')
+    scale = 0.0
+    if bq and all(0 < q[2] < 1 for q in bq):
+        quad = _quad_sorted(bq)
+        scale = float(quad[1][0] - quad[0][0]) / 600.0
+        if quad[1][0] - quad[0][0] > 6:
+            if t < 136.24:
+                brd, _ = print_fx.led_board(' 夢 行', cols=51, rows=16, dot=12, on='#F08A3C', off='#3A2A20', bg='#1A1416')
+            else:
+                sc = math.floor((t - 136.24) * 24) * 3 - 51
+                brd, _ = print_fx.led_board('君はどんな夢のなかに', cols=51, rows=16, dot=12, on='#F08A3C', off='#3A2A20',
+                                            bg='#1A1416', scroll=sc)
+            img = led_on_quad(img, quad, brd)
+    # headlight: AM halftone glow, breathing on beats (and with distance)
+    if hd and 0 < hd[0][2] < 1:
+        ph = ((t - 0.682) / BEAT) % 1.0
+        breath = 1.0 + 0.22 * math.exp(-ph * 5.0) + (0.25 * clamp((t - 136.98) / 0.3) * math.exp(-((t - 136.98) % BEAT) * 3.0))
+        r = (46 + 520 * min(1.0, scale)) * breath
+        kit.halo(img, hd[0][0], hd[0][1], r, '#F08A3C', 1.0, period=12.0)
+    img = print_fx.two_ink(img, mis=(2.0 + 0.6 * math.sin(t * 1.3), -1.0))
+    ly = once('b201_ly', lambda: VLyric(46, x=1832, color='#2C4C9A', accent='#F08A3C'))
+    return ly.draw(img, t)
+
+
+R['B-bridge2-01'] = bridge2_01
+tl.OWN_TYPE.add('B-bridge2-01')
+
+
+# ---- B-chorus4-05: the build -- the headlight runs the rails at us, glow doubling on every beat ----------------------
+def _c405_plate():
+    s = tl.BY_ID['B-chorus4-05']
+    d = s['end'] - s['start']
+    # camera low between the rails, aimed at where the headlight ends (15 m out): the light climbs from the
+    # horizon to the centre of frame as it comes -- the sunrise in miniature
+    path = [{'t': 0.0, 'pos': [0.0, 0.45, 40.0], 'look': [0.0, 1.4, 25.0], 'fov': 40},
+            {'t': d, 'pos': [0.0, 0.45, 40.0], 'look': [0.0, 1.4, 25.0], 'fov': 40, 'ease': 'linear'}]
+    return plate('B-chorus4-05', 's4_station', {
+        'world': 'predawn', 'path': path, 'trackL': 1400, 'noStation': True, 'poles': True,
+        'train': {'zStop': 16.0, 'D': 385.0, 'T': d, 'p': 1.6, 't0': 0.0},
+        'trainOpts': {'bigBoard': True, 'boardSize': [2.4, 0.75, 3.0], 'body': '#C9D3DC', 'band': '#F08A3C',
+                      'headColor': '#F5C842', 'headSize': 4.0}}, 0.0, d, fps=24)
+
+
+def chorus4_05(s, t, local, fi):
+    import math
+    import cv2
+    from mv.core import clamp
+    from . import print_fx
+    pl = once('c405', _c405_plate)
+    img = pl.frame(local).copy()
+    bq = pl.anchor(local, 'board')
+    hd = pl.anchor(local, 'head')
+    nb = (t - s['start']) / BEAT
+    r = 42.0 * 2.0 ** min(nb, 3.0)                 # AM glow radius doubles on 159.94 / 160.68 / 161.42
+    if nb > 3.0:
+        r *= 1.0 + 9.0 * (nb - 3.0) ** 2.2         # ...then floods the frame by 162.17 (relay to the sun)
+    r *= 1.0 + 0.18 * math.exp(-(nb % 1.0) * 6.0)
+    x = y = None
+    lamp = 5.0
+    if bq and all(0 < q[2] < 1.001 for q in bq):
+        lamp = max(5.0, abs(bq[0][0] - bq[1][0]) * 0.067 * 2.2)      # lamp disc ~ 0.16 m, bloomed
+    if hd and 0 < hd[0][2] < 1.001:
+        x, y = hd[0][0], hd[0][1]
+        kit.halo(img, x, y, r * 1.25, '#F08A3C', 0.9, period=max(8.0, min(26.0, r / 18)))
+        kit.halo(img, x, y, r * 0.7, '#F5C842', 1.0, period=max(8.0, min(24.0, r / 22)))
+    if bq and all(0 < q[2] < 1.001 for q in bq):
+        quad = _quad_sorted(bq)
+        bw = float(quad[1][0] - quad[0][0])
+        if bw > 4:
+            # the car's front printed as a flat night-ink silhouette over the glow (extrapolated from the board quad)
+            TL, TR, BR, BL = quad
+            def at(u, v):      # u: -1..1 across the board, v: +1 top .. -1 bottom of the board
+                top = TL + (TR - TL) * (u + 1) / 2
+                bot = BL + (BR - BL) * (u + 1) / 2
+                return top + (bot - top) * (1 - v) / 2
+            fr = np.float32([at(-1.167, 1.333), at(1.167, 1.333), at(1.167, -5.867), at(-1.167, -5.867)])
+            m = np.zeros((1080, 1920), np.float32)
+            cv2.fillConvexPoly(m, fr.astype(np.int32), 1.0, cv2.LINE_AA)
+            fade = clamp((bw - 6) / 30) * (1 - clamp((nb - 3.55) / 0.35))
+            img += (print_fx.hexc('#141A33')[None, None] - img) * (m * fade)[..., None]
+            for u0, u1 in ((-0.95, -0.07), (0.07, 0.95)):       # windshield panes catching the dawn
+                wq = np.float32([at(u0, -1.25), at(u1, -1.25), at(u1, -2.75), at(u0, -2.75)])
+                m = np.zeros((1080, 1920), np.float32)
+                cv2.fillConvexPoly(m, wq.astype(np.int32), 1.0, cv2.LINE_AA)
+                img += (print_fx.hexc('#5A6AA8')[None, None] - img) * (m * fade)[..., None]
+            if t < 159.94:
+                brd, _ = print_fx.led_board('  夢  ', cols=51, rows=16, dot=12, on='#F08A3C', off='#3A2A20', bg='#141018')
+            else:
+                top, _ = print_fx.led_board('日の出', cols=51, rows=16, dot=12, on='#F5C842', off='#3A3420', bg='#141018')
+                sc = math.floor((t - 159.94) * 24)
+                bot, _ = print_fx.led_board('SUNRISE  SUNRISE  ', cols=51, rows=8, dot=12, on='#F08A3C', off='#3A2A20',
+                                            bg='#141018', font='silk', scroll=sc % 120)
+                brd = np.concatenate([top, bot], 0)
+            img = led_on_quad(img, quad, brd, alpha=fade if bw > 10 else 1.0)
+    if x is not None:
+        m = np.zeros((1080, 1920), np.float32)
+        sun = clamp((nb - 3.35) / 0.65) ** 1.6          # the lamp becomes the sun disc in the last half-beat
+        cv2.circle(m, (int(x), int(y)), int(lamp + (400 - lamp) * sun), 1.0, -1, cv2.LINE_AA)
+        img += (print_fx.hexc('#FFF2C8')[None, None] - img) * m[..., None]
+    ly = once('c405_ly', lambda: VLyric(54, x=1720, accent='#F08A3C',
+                                        snap=lambda tc: 3.0 - 2.0 * clamp((tc - 159.3) / (161.42 - 159.3))))
+    return ly.draw(img, t)
+
+
+R['B-chorus4-05'] = chorus4_05
+tl.OWN_TYPE.add('B-chorus4-05')
