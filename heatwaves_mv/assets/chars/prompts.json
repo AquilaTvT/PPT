@@ -1,0 +1,76 @@
+{
+ "model": "circlestone-labs/Anima — anima-turbo-v1.1.safetensors (+ qwen_3_06b_base text encoder, qwen_image_vae)",
+ "sampler": "euler / simple, CFG 1.0, 8–10 steps, ComfyUI on CPU",
+ "positive_prefix": "masterpiece, best quality, score_7, safe, ",
+ "negative": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, artist name, signature, watermark, text, logo, twitter username, patreon username, nsfw, bad hands, extra fingers, deformed",
+ "images": {
+  "kimi_fireworks_profile": {
+   "prompt": "1girl, solo, from side, profile, upper body, short hair, black hair, bob cut, yukata, dark blue yukata, looking up, parted lips, fireworks, night sky, face lit by fireworks, colorful light on face, wonder",
+   "seed": 117237275378856,
+   "steps": 8,
+   "w": 1152,
+   "h": 640
+  },
+  "kimi_portrait_smile": {
+   "prompt": "1girl, solo, upper body, short hair, black hair, bob cut, straw hat, red ribbon, white sundress, gentle smile, looking at viewer, one hand holding hat brim, summer, blue sky, cumulonimbus, strong sunlight, wind, hair blowing, cinematic angle, wide shot",
+   "seed": 130294882544011,
+   "steps": 8,
+   "w": 1152,
+   "h": 640,
+   "asset": "kimi_portrait"
+  },
+  "kimi_yukata_turn": {
+   "prompt": "1girl, solo, upper body, short hair, black hair, bob cut, hair flower, yukata, dark blue yukata, goldfish print, red obi, looking back over shoulder, smile, summer festival, night, paper lanterns, string lights, bokeh, warm light",
+   "seed": 263197017185450,
+   "steps": 8,
+   "w": 1152,
+   "h": 640,
+   "asset": "kimi_yukata"
+  },
+  "kimi_busstop": {
+   "prompt": "1girl, solo, sitting on wooden bench, rural bus stop shelter, wooden bus stop hut, short hair, black hair, bob cut, dark brown eyes, white sundress, straw hat with red ribbon, holding ramune bottle, legs swinging, looking at viewer, smile, summer, countryside, rice field, cumulonimbus, blue sky, from side, wide shot",
+   "seed": 50269345903466,
+   "steps": 8,
+   "w": 1152,
+   "h": 640
+  },
+  "kimi_road_back": {
+   "prompt": "1girl, solo, from behind, full body, standing, short hair, black hair, bob cut, straw hat, hat ribbon, red ribbon, white sundress, sleeveless dress, sandals, looking back over shoulder, slight smile, wind, dress fluttering, simple background, white background",
+   "seed": 153640449684103,
+   "steps": 10,
+   "w": 768,
+   "h": 1024,
+   "asset": "kimi_back"
+  },
+  "kimi_crying": {
+   "prompt": "1girl, solo, close-up, portrait, crying, tears, tears streaming down face, sad smile, short hair, black hair, bob cut, looking at viewer, night, blue lighting, dark background, emotional",
+   "seed": 243771207693455,
+   "steps": 8,
+   "w": 1152,
+   "h": 640
+  },
+  "kimi_front_cutout": {
+   "prompt": "1girl, solo, full body, standing, facing viewer, short hair, black hair, bob cut, dark brown eyes, straw hat, red ribbon, white sundress, sandals, holding hat brim with one hand, gentle smile, wind, simple background, white background",
+   "seed": 257684040139138,
+   "steps": 8,
+   "w": 768,
+   "h": 1024
+  },
+  "kimi_sleep_train": {
+   "prompt": "1girl, solo, sleeping, closed eyes, peaceful smile, sitting on train seat, head leaning against window, short hair, black hair, bob cut, dark brown eyes, white sundress, straw hat on lap, sunlight through window, light rays, train interior, summer, ocean visible outside window, quiet",
+   "seed": 39430607558924,
+   "steps": 8,
+   "w": 1152,
+   "h": 640,
+   "note": "hat ribbon recoloured to red before stylising"
+  },
+  "kimi_platform": {
+   "prompt": "1girl, solo, standing in train doorway, short hair, black hair, bob cut, dark brown eyes, white sundress, straw hat, sad expression, looking at viewer, train station platform, dusk, orange sky, evening light",
+   "seed": 254122551446001,
+   "steps": 8,
+   "w": 1152,
+   "h": 640,
+   "note": "hat ribbon recoloured to red before stylising"
+  }
+ }
+}
