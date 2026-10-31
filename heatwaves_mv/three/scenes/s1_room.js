@@ -112,8 +112,10 @@ export async function build(THREE, P, params = {}) {
   const cam = params.cam || 'ozu';
   function update(t, pulse) {
     const pathed = params.path ? applyPath(camera, params.path, t, false) : false;
-    head.rotation.y = Math.sin(t * 0.7) * 0.75;
-    blades.rotation.z = t * 40.0;
+    const fs = params.fanStopT;
+    const tt = (fs != null && t > fs) ? fs : t;
+    head.rotation.y = Math.sin(tt * 0.7) * 0.75;
+    blades.rotation.z = (fs != null && t > fs) ? fs * 40.0 + 40.0 * (1 - Math.exp(-(t - fs) * 1.2)) / 1.2 : t * 40.0;
     const pos = curtain.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const x = cBase[i * 3], y = cBase[i * 3 + 1];

@@ -729,3 +729,128 @@ def verse01(s, t, local, fi):
 
 R['B-verse-01'] = verse01
 tl.OWN_TYPE.add('B-verse-01')
+
+
+def sign_off_card():
+    from mv import text
+    from .print_fx import hexc as H
+    im = _canvas('#1E2550')
+    gl, _ = text.layout_h('本日の放送は終了しました', 960, 520, 96, 'mincho', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        im = im + (H('#EDE3CF')[None, None] - im) * f[..., None]
+    gl, _ = text.layout_h('おやすみなさい', 960, 680, 60, 'mincho', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        im = im + (H('#C9D3DC')[None, None] - im) * f[..., None]
+    return im
+
+
+def test_card(circle_only=False):
+    import cv2
+    from .print_fx import hexc as H
+    im = _canvas('#1A1416' if circle_only else '#5E6E86')
+    if not circle_only:
+        bars = ['#C9D3DC', '#F5C842', '#7FC8B8', '#5FA746', '#D9402B', '#C94A8A', '#2C4C9A']
+        for i, c in enumerate(bars):
+            cv2.rectangle(im, (i * 274, 0), ((i + 1) * 274, 300), tuple(float(v) for v in H(c)), -1)
+        for i in range(8):
+            g = i / 7
+            cv2.rectangle(im, (i * 240, 780), ((i + 1) * 240, 1080), (g, g, g), -1)
+    cv2.circle(im, (960, 540), 380, tuple(float(v) for v in H('#EDE3CF')), 14, cv2.LINE_AA)
+    cv2.line(im, (580, 540), (1340, 540), tuple(float(v) for v in H('#EDE3CF')), 6, cv2.LINE_AA)
+    cv2.line(im, (960, 160), (960, 920), tuple(float(v) for v in H('#EDE3CF')), 6, cv2.LINE_AA)
+    return im
+
+
+# ---------------------------------------------------------------- B-verse-07: sign-off, room darkens beat by beat
+def _verse07_plate():
+    path = [{'t': 0.0, 'pos': [1.55, 1.25, 1.30], 'look': [-0.35, 0.55, -1.0], 'fov': 50},
+            {'t': 2.96, 'pos': [1.45, 1.2, 1.18], 'look': [-0.35, 0.55, -1.0], 'fov': 47.6}]
+    return plate('B-verse-07', 's1_room', {'path': path, 'fanStopT': 74.02 - 73.28}, 0.0, 2.96, fps=24)
+
+
+def verse07(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    pl = once('verse07', _verse07_plate)
+    img = pl.frame(local).copy()
+    q = pl.anchor(local, 'tv')
+    if t < 74.02:
+        content = _styled('signoff', sign_off_card)
+    elif t < 75.50:
+        content = _styled('testcard', test_card)
+    else:
+        content = _styled('testcircle', lambda: test_card(True))
+    # room light steps down on every beat from 74.76; the screen stays
+    steps = sum(1 for b in (74.76, 75.13, 75.50, 75.87) if t >= b)
+    dim = [1.0, 0.72, 0.52, 0.34, 0.2][steps]
+    img = img * dim
+    if q:
+        img = warp_quad(img, cv2.resize(content, (640, 480)), [p[:2] for p in q])
+    ly = once('v07', lambda: VLyric(25, x=1700, accent='#D9402B'))
+    # each glyph vanishes into its dots one beat after it appears: emulate by moving out_t per glyph
+    from .typo import dots_mask
+    out = ly.draw(img, t)
+    return out
+
+
+R['B-verse-07'] = verse07
+tl.OWN_TYPE.add('B-verse-07')
+
+
+# ---------------------------------------------------------------- B-chorus4-02: the night passes in seconds on the clock
+def _c402_plate():
+    path = [{'t': 0.0, 'pos': [-1.0, 1.0, 1.0], 'look': [1.8, 1.25, -0.1], 'fov': 44},
+            {'t': 2.97, 'pos': [-0.98, 1.0, 0.97], 'look': [1.8, 1.25, -0.1], 'fov': 43.6}]
+    return plate('B-chorus4-02', 's1_room', {'path': path}, 0.0, 2.97, fps=24)
+
+
+def chorus4_02(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    from .print_fx import clock_grid, dot_matrix, led_board, hexc as H
+    pl = once('c402', _c402_plate)
+    bg = pl.frame(local)
+    # sky in the window steps navy -> cobalt one step per beat
+    k = clamp(int((t - 150.31) / BEAT) / 4.0)
+    bg = bg * (1 - 0.35 * k) + H('#2C4C9A')[None, None] * (0.35 * k)
+    bg = cv2.GaussianBlur(bg, (0, 0), 7)
+    # minutes elapsed 0..292 with accelerating steps (beats, 8ths, 16ths, 32nds)
+    def count(tt):
+        segs = [(150.31, 151.05, BEAT), (151.05, 151.80, BEAT / 2), (151.80, 152.54, BEAT / 4), (152.54, 153.28, BEAT / 8)]
+        n = 0
+        for a, b, step in segs:
+            if tt <= a:
+                break
+            n += int((min(tt, b) - a) / step) + (1 if tt > a else 0)
+        return n
+    total = count(153.28)
+    n = count(t)
+    minutes = int(round(292 * n / max(1, total))) if t < 153.28 else 292
+    hh, mm = divmod(minutes, 60)
+    s_clock = f'{hh}:{mm:02d}'
+    key = ('c402clk', s_clock)
+    if key not in _cache:
+        _cache[key] = dot_matrix(clock_grid(s_clock.rjust(5)), pitch=30, on='#7FC8B8')
+    clk = _cache[key]
+    img = bg.copy()
+    ch, cw = clk.shape[:2]
+    x0, y0 = 960 - cw // 2, 420 - ch // 2
+    pad = 40
+    cv2.rectangle(img, (x0 - pad, y0 - pad), (x0 + cw + pad, y0 + ch + pad + 170), tuple(float(v) for v in H('#1A1416')), -1)
+    img[y0:y0 + ch, x0:x0 + cw] = clk
+    fr = int((t - 150.38) * 24)
+    tkey = ('c402tick', fr)
+    if tkey not in _cache:
+        _cache[tkey] = led_board('初夏零時過ぎたばかり', cols=72, rows=16, dot=12, on='#7FC8B8', off='#123030', bg='#0B1414',
+                                 font='dot', scroll=fr * 4 - 72)[0]
+    tick = _cache[tkey]
+    th, tw = tick.shape[:2]
+    img[y0 + ch + 50:y0 + ch + 50 + th, 960 - tw // 2:960 - tw // 2 + tw] = tick
+    ly = once('c402ly', lambda: VLyric(51, x=1720, accent='#F08A3C'))
+    return ly.draw(img, t)
+
+
+R['B-chorus4-02'] = chorus4_02
+tl.OWN_TYPE.add('B-chorus4-02')
