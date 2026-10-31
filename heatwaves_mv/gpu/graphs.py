@@ -267,10 +267,14 @@ def i2v_wan22_gguf(start_image, prompt, neg=NEG_WAN, w=832, h=480, frames=81, se
 
 
 def ti2v_wan22_5b(start_image, prompt, neg=NEG_WAN, w=1280, h=704, frames=121, seed=0, steps=20, cfg=5.0,
-                  shift=8.0, te='umt5_xxl_fp16.safetensors', prefix='wan5b'):
+                  shift=8.0, te='umt5_xxl_fp16.safetensors', prefix='wan5b',
+                  unet_name='wan2.2_ti2v_5B_fp16.safetensors'):
     """Wan 2.2 TI2V 5B (fp16, 720p, 24 fps) — the template settings: uni_pc 20 steps cfg 5 shift 8"""
     g = G()
-    unet = g.add('UNETLoader', unet_name='wan2.2_ti2v_5B_fp16.safetensors', weight_dtype='default')
+    if unet_name.endswith('.gguf'):
+        unet = g.add('UnetLoaderGGUF', unet_name=unet_name)
+    else:
+        unet = g.add('UNETLoader', unet_name=unet_name, weight_dtype='default')
     m = g.add('ModelSamplingSD3', model=unet, shift=shift)
     if te.endswith('.gguf'):
         clip = g.add('CLIPLoaderGGUF', clip_name=te, type='wan')

@@ -95,8 +95,11 @@ MAC = [
      'HighNoise/Wan2.2-I2V-A14B-HighNoise-{q}.gguf', 0, 0),
     ('wan22_gguf_low', 'video14b', 'diffusion_models', 'QuantStack/Wan2.2-I2V-A14B-GGUF',
      'LowNoise/Wan2.2-I2V-A14B-LowNoise-{q}.gguf', 0, 0),
-    ('wan22_ti2v_5b', 'video5b', 'diffusion_models', 'Comfy-Org/Wan-2.2',
-     'split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors', 10.0, 0),
+    ('wan22_ti2v_5b_gguf', 'video5b', 'diffusion_models', 'QuantStack/Wan2.2-TI2V-5B-GGUF',
+     'Wan2.2-TI2V-5B-Q6_K.gguf', 4.21, 0),
+    ('umt5_q5_gguf', 'video5b', 'text_encoders', 'city96/umt5-xxl-encoder-gguf', 'umt5-xxl-encoder-Q5_K_M.gguf', 4.15, 0),
+    ('anima_turbo', 'keyframes', 'diffusion_models', 'circlestone-labs/Anima',
+     'split_files/diffusion_models/anima-turbo-v1.1.safetensors', 4.18, 0),
     ('wan22_vae', 'video5b', 'vae', 'Comfy-Org/Wan-2.2', 'split_files/vae/wan2.2_vae.safetensors', 1.41, 0),
     ('rife_426', 'finish', 'frame_interpolation', 'Comfy-Org/frame_interpolation',
      'frame_interpolation/rife_v4.26.safetensors', 0.02, 0),
@@ -110,12 +113,17 @@ GGUF_SIZE = {'Q4_K_M': 9.65, 'Q5_K_M': 10.79, 'Q6_K': 12.0, 'Q8_0': 15.41}
 def plan_mac(ram):
     """unified memory budget: one 14B expert + text encoder + VAE + activations must stay well under RAM"""
     q = 'Q8_0' if ram >= 96 else 'Q6_K' if ram >= 64 else 'Q5_K_M' if ram >= 48 else 'Q4_K_M' if ram >= 32 else None
+    small = ram < 32            # 16/24 GB: 5B video model (GGUF) + smaller umt5; no 14B, no LoRA-training base
     rows = []
     for key, group, folder, repo, path, size, mv in MAC:
         if group == 'video14b':
             if q is None:
                 continue
             rows.append((key, group, folder, repo, path.format(q=q), GGUF_SIZE[q], mv))
+        elif small and key in ('umt5_q8_gguf', 'wan22_lx2v_high', 'wan22_lx2v_low', 'wan21_vae', 'anima_base'):
+            continue
+        elif not small and group == 'video5b':
+            continue
         else:
             rows.append((key, group, folder, repo, path, size, mv))
     return rows, q

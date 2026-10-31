@@ -80,13 +80,17 @@ def main():
     ap.add_argument('--url', default='http://127.0.0.1:8188')
     ap.add_argument('--root', default='')
     ap.add_argument('--with5b', action='store_true')
+    ap.add_argument('--model', choices=['14b', '5b'], default='14b')
+    ap.add_argument('--unet', default='Wan2.2-TI2V-5B-Q6_K.gguf')
     a = ap.parse_args()
     c = Comfy(a.url, a.root or None)
     res = []
     prompt = ('masterpiece, best quality, 1girl, solo, short black bob hair, straw hat with red ribbon, white sundress, '
               'standing on a country road in summer, cumulonimbus, blue sky, wind, looking back over shoulder, '
               'anime screencap, cinematic lighting')
-    outs = timed(c, gr.t2i_anima(prompt, seed=7, prefix='bench_kf'), a.platform, 'anima 1536x864 30 steps', res)
+    outs = timed(c, gr.t2i_anima(prompt, seed=7, prefix='bench_kf', model='anima-turbo-v1.1.safetensors', steps=10,
+                                 cfg=1.0, sampler='euler'), a.platform, 'anima-turbo 1536x864 10 steps', res)
+    timed(c, gr.t2i_anima(prompt, seed=8, prefix='bench_kf_aes'), a.platform, 'anima-aesthetic 1536x864 30 steps', res)
     if not outs:
         return
     kf = os.path.join(ROOT, 'work', 'bench_kf.png')
@@ -96,13 +100,20 @@ def main():
     c.free()
     vp = 'the girl turns her head toward the camera and smiles, her hair and dress move in the warm wind, ' \
          'clouds drift slowly, the camera slowly pushes in'
-    for (w, h) in ((832, 480), (1280, 720)):
-        if a.platform == 'mac':
-            g = gr.i2v_wan22_gguf(up, vp, w=w, h=h, frames=81, seed=3, quant=a.quant, te=a.te, lightning=True,
-                                  prefix='video/bench')
-        else:
-            g = gr.i2v_wan22(up, vp, w=w, h=h, frames=81, seed=3, lightning=True, prefix='video/bench')
-        timed(c, g, a.platform, f'wan2.2 A14B {w}x{h} 81f 4-step', res)
+    if a.model == '5b':
+        for (w, h, steps) in ((640, 352, 20), (832, 480, 20)):
+            g = gr.ti2v_wan22_5b(up, vp, w=w, h=h, frames=121, seed=3, steps=steps, te=a.te, unet_name=a.unet,
+                                 prefix='video/bench5b')
+            timed(c, g, a.platform, f'wan2.2 5B {w}x{h} 121f {steps} steps', res)
+            c.free()
+    else:
+        for (w, h) in ((832, 480), (1280, 720)):
+            if a.platform == 'mac':
+                g = gr.i2v_wan22_gguf(up, vp, w=w, h=h, frames=81, seed=3, quant=a.quant, te=a.te, lightning=True,
+                                      prefix='video/bench')
+            else:
+                g = gr.i2v_wan22(up, vp, w=w, h=h, frames=81, seed=3, lightning=True, prefix='video/bench')
+            timed(c, g, a.platform, f'wan2.2 A14B {w}x{h} 81f 4-step', res)
     if a.with5b:
         timed(c, gr.ti2v_wan22_5b(up, vp, frames=121, seed=3, te=a.te, prefix='video/bench5b'), a.platform,
               'wan2.2 5B 1280x704 121f 20 steps', res)
