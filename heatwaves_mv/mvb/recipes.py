@@ -1,4 +1,5 @@
 """Per-shot MV-B recipes (registered into timeline.RECIPES)."""
+import math
 import numpy as np
 
 from mv.timing import BEAT
@@ -1931,3 +1932,212 @@ def outro_06(s, t, local, fi):
 
 
 R['B-outro-06'] = outro_06
+
+
+# ---- B-outro_hook-03: the end -- the title re-forms in the mirror, then the print runs backwards plate by plate --------
+NOON_INKS = ['#2D6BE0', '#F5C842', '#F6F2E7', '#C9D3DC', '#F08A3C', '#D9402B', '#1A1416', '#EDE3CF']
+LIFTS = [(194.76, ['#F5C842']), (195.50, ['#2D6BE0']), (196.24, ['#F08A3C']), (196.98, ['#C9D3DC', '#1A1416', '#D9402B', '#F6F2E7'])]
+
+
+def _separate(img, inks):
+    """nearest-ink separation of an image already printed in these inks -> {ink: coverage}"""
+    import cv2
+    from .print_fx import hexc as H
+    pal = np.stack([H(c) for c in inks])
+    d = ((img[..., None, :] - pal[None, None]) ** 2).sum(-1)
+    idx = d.argmin(-1)
+    return {c: cv2.GaussianBlur((idx == i).astype(np.float32), (0, 0), 0.6) for i, c in enumerate(inks)}
+
+
+def _plate_lift(cov, p, cx=960, cy=540):
+    """a plate peeling toward camera: scale up, drift up-left, rotate; returns (moved coverage, shadow)"""
+    import cv2
+    e = p * p * (3 - 2 * p)
+    M = cv2.getRotationMatrix2D((cx, cy), 5.0 * e, 1.0 + 0.45 * e)
+    M[0, 2] += -90 * e
+    M[1, 2] += -260 * e - 400 * e * e
+    moved = cv2.warpAffine(cov, M, (1920, 1080), flags=cv2.INTER_LINEAR)
+    sh = cv2.GaussianBlur(cv2.warpAffine(cov, M, (1920, 1080)), (0, 0), 6 + 30 * e)
+    sh = np.roll(sh, (int(24 * e), int(30 * e)), (0, 1)) * 0.35 * (1 - e)
+    return moved * (1 - e ** 3), sh
+
+
+def outro_hook_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text, lyrics
+    from mva import fx
+    from . import card as C
+    from .print_fx import hexc as H
+    plates = {c: np.zeros((1080, 1920), np.float32) for c in NOON_INKS}
+
+    def put(ink, cov):
+        plates[ink] = np.maximum(plates[ink] * (1 - cov), cov) if ink in plates else cov
+        for k in plates:                       # knock-out: an ink covers what is under it
+            if k != ink:
+                plates[k] *= (1 - cov)
+    pull = 1.04 - 0.04 * _ease_io(clamp((t - 191.80) / (194.76 - 191.80)))
+    cx, cy, R = 860, 470, int(400 * pull)
+    # the mirror on its pole, empty noon road inside, mirage moving
+    pole = np.zeros((1080, 1920), np.float32)
+    cv2.rectangle(pole, (cx - 14, cy + R), (cx + 14, 1080), 1.0, -1)
+    put('#F08A3C', pole)
+    pl = once('hook03', _hook03_plate)
+    road = pl.frame(2.2)[:, ::-1].copy()
+    road = kit.mirage_band(road, t, 540, 600, 1320, 30)
+    road = fx.fisheye(cv2.resize(road, (2 * R, 2 * R)), k=0.45)
+    disc = np.zeros((1080, 1920), np.float32)
+    cv2.circle(disc, (cx, cy), R, 1.0, -1, cv2.LINE_AA)
+    full = np.zeros((1080, 1920, 3), np.float32)
+    y0, x0 = cy - R, cx - R
+    ya, yb, xa, xb = max(0, y0), min(1080, y0 + 2 * R), max(0, x0), min(1920, x0 + 2 * R)
+    full[ya:yb, xa:xb] = road[ya - y0:yb - y0, xa - x0:xb - x0]
+    for ink, cov in _separate(full, NOON_INKS).items():
+        put(ink, cov * disc)
+    ring = np.zeros((1080, 1920), np.float32)
+    cv2.circle(ring, (cx, cy), R + 16, 1.0, 30, cv2.LINE_AA)
+    put('#F08A3C', ring)
+    ring = np.zeros((1080, 1920), np.float32)
+    cv2.circle(ring, (cx, cy), R + 32, 1.0, 3, cv2.LINE_AA)
+    put('#1A1416', ring)
+    # title 泳いでくミラー: cream fill (paper), black line, cobalt shadow; forms from the mirage dots 192.54-193.28
+    form = clamp((t - 192.54) / (193.28 - 192.54))
+    if t >= 192.54:
+        reg = 1 - _ease_io(form)
+        fill_all = np.zeros((1080, 1920), np.float32)
+        shadow_all = np.zeros((1080, 1920), np.float32)
+        for word, x, dyw in (('泳いでく', cx + 120, 0), ('ミラー', cx - 120, 90)):
+            gl = text.layout_v(word, x, cy - 380, 220 * 0.8, 'mincho', tracking=0.04)
+            for g in gl:
+                g['cy'] += dyw
+            f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=1.0, dy=reg * 90, dx=reg * 30 * math.sin(t * 9)))
+            sh, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=1.0, dx=10 - reg * 40, dy=10 + reg * 140))
+            if f is not None:
+                fill_all = np.maximum(fill_all, f)
+                shadow_all = np.maximum(shadow_all, sh)
+        if form < 1:                           # still dots: the glyphs are made of the mirage's halftone dots
+            dm = 1.0 - _dots_k(1 - form)
+            fill_all, shadow_all = fill_all * dm, shadow_all * dm
+        line = cv2.dilate(fill_all, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+        put('#2D6BE0', shadow_all)
+        put('#1A1416', line)
+        put('#EDE3CF', fill_all)
+    # HEAT WAVES caps (vermilion) on 194.02
+    if t >= 194.02:
+        n = min(10, int((t - 194.02) / (BEAT / 4)) + 1)
+        gl, _ = text.layout_h('HEAT WAVES'[:n], 1336, 330, 50, 'mincho', tracking=0.36, align='left')
+        f, _ = text.render_glyphs(gl)
+        if f is not None:
+            put('#D9402B', f)
+    # L65 under the mirror, one word per beat from 192.00 (warm black, letter-spaced)
+    gt65 = _map_gt(65)
+    ws = ['ROAD', 'SHIMMER', 'WIGGLIN\'', 'THE', 'VISION']
+    shown = ' '.join(w for w, g in zip(ws, gt65) if t >= g)
+    if shown:
+        gl, _ = text.layout_h(shown, 1010, cy + R + 66, 30, 'mincho', tracking=0.36, align='center')
+        f, _ = text.render_glyphs(gl)
+        if f is not None:
+            put('#1A1416', f)
+    # L66 word by word from 194.70, each word in the ink of the plate it leaves with
+    gt66 = _map_gt(66)
+    w66 = [('HEAT,', '#F5C842'), ('HEAT', '#2D6BE0'), ('WAVES,', '#2D6BE0'), ('I\'M', '#F08A3C'), ('SWIMMIN\'', '#F08A3C'),
+           ('IN', '#C9D3DC'), ('A', '#C9D3DC'), ('MIRROR', '#1A1416')]
+    yy = 460
+    for i, (w, ink) in enumerate(w66):
+        if t < gt66[i]:
+            continue
+        gl, _ = text.layout_h(w, 1336, yy + i * 64, 44, 'mincho', tracking=0.28, align='left')
+        f, _ = text.render_glyphs(gl)
+        if f is not None:
+            put(ink, f)
+    # the completed stamp card, small, lower left (its art separates too; the sun stamp itself never lifts)
+    if 'oh3_card' not in _cache:
+        card = C.render_card(stamp_k=(1, 1, 1, 1, 1), footer_n=0)
+        lay = sun_stamp_layer()
+        card = card * (1 - lay[..., 3:4]) + lay[..., :3] * lay[..., 3:4]
+        small = cv2.resize(card, (336, 189), interpolation=cv2.INTER_AREA)
+        _cache['oh3_card'] = small
+        st = cv2.resize(lay[..., 3], (336, 189), interpolation=cv2.INTER_AREA)
+        _cache['oh3_stamp'] = (cv2.resize(lay[..., :3], (336, 189), interpolation=cv2.INTER_AREA), st)
+    small = _cache['oh3_card']
+    srgb, sa = _cache['oh3_stamp']
+    cardfull = np.zeros((1080, 1920, 3), np.float32)
+    cm = np.zeros((1080, 1920), np.float32)
+    cardfull[800:989, 60:396] = small
+    cm[800:989, 60:396] = 1.0
+    for ink, cov in _separate(cardfull, NOON_INKS + ['#1E2550']).items():
+        put(ink if ink in plates else '#1A1416', cov * cm)
+    # composite: paper, then each plate (lifting ones peel toward camera)
+    img = np.empty((1080, 1920, 3), np.float32)
+    img[:] = H('#EDE3CF')
+    lift_of = {}
+    for tl_, inks in LIFTS:
+        for ink in inks:
+            lift_of[ink] = tl_
+    for ink, cov in plates.items():
+        if ink == '#EDE3CF':
+            continue
+        tl_ = lift_of.get(ink)
+        if tl_ is not None and t >= tl_:
+            p = clamp((t - tl_) / 0.62)
+            if p >= 1:
+                continue
+            cov, sh = _plate_lift(cov, p)
+            img = img * (1 - sh[..., None])
+        img = img + (H(ink)[None, None] - img) * cov[..., None]
+    # exempt: the sun stamp on the small card + its glow, registration marks, colour bar (swatches leave with plates)
+    sfull = np.zeros((1080, 1920), np.float32)
+    sfull[800:989, 60:396] = sa
+    srgbf = np.zeros((1080, 1920, 3), np.float32)
+    srgbf[800:989, 60:396] = srgb
+    x6, y6, _ = C.CIRCLES[5]
+    gx, gy = 60 + x6 * 336 / C.CW, 800 + y6 * 189 / C.CH
+    kit.halo(img, gx, gy, 70 + 8 * math.sin(t * 3), '#F5C842', 0.7 if t < 198.4 else 0.0, period=9.0)
+    img = img + (srgbf - img) * sfull[..., None]
+    k_ = tuple(float(v) for v in H('#1A1416'))
+    for (mx, my) in ((70, 70), (1850, 70), (70, 1010), (1850, 1010)):
+        cv2.circle(img, (mx, my), 18, k_, 2, cv2.LINE_AA)
+        cv2.line(img, (mx - 30, my), (mx + 30, my), k_, 2, cv2.LINE_AA)
+        cv2.line(img, (mx, my - 30), (mx, my + 30), k_, 2, cv2.LINE_AA)
+    for i, c in enumerate(['#2D6BE0', '#F5C842', '#F6F2E7', '#C9D3DC', '#F08A3C', '#D9402B', '#1A1416']):
+        tl_ = lift_of.get(c)
+        if tl_ is not None and t >= tl_ + 0.3:
+            continue
+        cv2.rectangle(img, (560 + i * 90, 1030), (640 + i * 90, 1060), tuple(float(v) for v in H(c)), -1)
+    # the film's first LED dot, blinking bottom right; off on 197.72
+    if t < 197.72:
+        on = (int((t - 0.682) / (BEAT / 2)) % 2 == 0)
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (1790, 960), 9, 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#7FC8B8' if on else '#2B4A44')[None, None] - img) * m[..., None]
+        if on:
+            kit.halo(img, 1790, 960, 26, '#7FC8B8', 0.6, period=6.0)
+    # credit on 196.24
+    if t >= 196.24:
+        a = clamp((t - 196.24) / 0.25)
+        gl, _ = text.layout_h('Heat Waves (Japanese ver., Lime)  /  MV-B', 960, 960, 28, 'zh', tracking=0.12, align='center')
+        f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a))
+        if f is not None:
+            img = img + (H('#1A1416')[None, None] - img) * f[..., None]
+    # Chinese, fixed
+    zl = 65 if t < 194.7 else 66
+    if t < 197.9:
+        img = _zh_fixed(img, t, zl, 192.0 if zl == 65 else 194.7, y=1012, ink='#1A1416', halo_col='#EDE3CF')
+    # 198.40-198.74: 45-degree halftone dot-dissolve to warm black
+    if t >= 198.40:
+        k = clamp((t - 198.40) / 0.34)
+        img = img + (H('#1A1416')[None, None] - img) * _dots_k(k, period=24.0)[..., None]
+    return img
+
+
+def _dots_k(k, period=10.0):
+    """45-degree screen whose dots grow with k (0 = nothing, 1 = solid)"""
+    c, s_ = math.cos(math.radians(45)), math.sin(math.radians(45))
+    u = (kit._XS * c + kit._YS * s_) / period
+    v = (-kit._XS * s_ + kit._YS * c) / period
+    d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+    return np.clip((0.7072 * math.sqrt(max(0.0, min(1.0, k))) - d) * period * 0.8, 0, 1)
+
+
+R['B-outro_hook-03'] = outro_hook_03
+tl.OWN_TYPE.add('B-outro_hook-03')
