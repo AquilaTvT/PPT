@@ -31,9 +31,9 @@ def paper(seed=11):
         l = r.uniform(6, 26)
         cv2.line(fib, (int(x), int(y)), (int(x + np.cos(a) * l), int(y + np.sin(a) * l)), float(r.uniform(0.3, 1.0)), 1, cv2.LINE_AA)
     fib = cv2.GaussianBlur(fib, (0, 0), 0.6)
-    tex = 1.0 - 0.035 * np.clip(n, -2, 2) * 0.5 - 0.05 * fib
+    tex = 1.0 - 0.02 * np.clip(n, -2, 2) * 0.5 - 0.035 * fib
     blot = cv2.resize(r.standard_normal((9, 16)).astype(np.float32), (W, H), interpolation=cv2.INTER_CUBIC)
-    tex *= 1.0 - 0.025 * blot
+    tex *= 1.0 - 0.012 * blot
     return np.clip(tex, 0.85, 1.05).astype(np.float32)
 
 

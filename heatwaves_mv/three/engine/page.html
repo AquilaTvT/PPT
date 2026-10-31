@@ -13,6 +13,9 @@ renderer.setPixelRatio(1);
 renderer.setSize(W, H, false);
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // inks are authored as final sRGB values
 THREE.ColorManagement.enabled = false;
+for (const [fam, file] of [['Shippori', 'ShipporiMincho-ExtraBold.ttf'], ['DotGothic', 'DotGothic16-Regular.ttf'], ['NotoSerifSC', 'NotoSerifSC[wght].ttf']]) {
+  try { const ff = new FontFace(fam, `url(/fonts/${encodeURIComponent(file)})`); await ff.load(); document.fonts.add(ff); } catch (e) { console.warn('font', fam, e); }
+}
 let S;
 try {
   const mod = await import('/scenes/' + q.get('scene') + '.js');

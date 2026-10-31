@@ -33,7 +33,8 @@ export async function build(THREE, P, params = {}) {
 
   // seawall (right) + walkway + sea
   const wallMat = P.ink(Wd.wall, { shade: Wd.wallShade, ambient: 0.35 });
-  const wall = P.outlined(box(1.2, 1.3, L, wallMat), Wd.ink, 0.03); wall.position.set(4.6, 0.45, L / 2 - 20); scene.add(wall);
+  const WH = params.wallH || 1.3;
+  const wall = P.outlined(box(1.2, WH, L, wallMat), Wd.ink, 0.03); wall.position.set(4.6, WH / 2 - 0.2, L / 2 - 20); scene.add(wall);
   const seaMat = new THREE.ShaderMaterial({
     uniforms: { ...P.U, uSea: { value: new THREE.Color(Wd.sea) }, uHi: { value: new THREE.Color(Wd.seaHi) },
                 uMoonX: { value: 0.0 } },
@@ -68,14 +69,15 @@ export async function build(THREE, P, params = {}) {
   // telephone poles + wires + lamps
   const poleMat = P.ink(Wd.pole, { ambient: 0.6 });
   const tops = [];
-  for (let z = -10, i = 0; z < L; z += 30, i++) {
+  const POLE = params.poleSpacing || 30, POLE0 = params.poleZ0 ?? -10;
+  for (let z = POLE0, i = 0; z < L; z += POLE, i++) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 9, 8), poleMat);
     pole.position.set(-5.4, 4.5, z); scene.add(pole);
     const arm = box(2.2, 0.12, 0.12, poleMat); arm.position.set(-5.4, 8.4, z); scene.add(arm);
     const arm2 = box(1.6, 0.1, 0.1, poleMat); arm2.position.set(-5.4, 7.7, z); scene.add(arm2);
     if (i % 3 === 1) { const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.8, 10), poleMat); tr.position.set(-5.0, 6.8, z); scene.add(tr); }
     tops.push([new THREE.Vector3(-6.4, 8.45, z), new THREE.Vector3(-4.4, 8.45, z), new THREE.Vector3(-5.9, 7.75, z), new THREE.Vector3(-4.9, 7.75, z)]);
-    if (i % 2 === 0) {                                 // street lamp on the pole, over the road
+    if (i % 2 === 0 && !(params.day ?? (params.world === 'noon' || params.world === 'morning'))) {   // street lamp (night)
       const la = box(1.6, 0.08, 0.08, poleMat); la.position.set(-4.6, 6.2, z); scene.add(la);
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.24), P.ink(Wd.lamp, { emissive: 1.0 }));
       head.position.set(-3.85, 6.1, z); scene.add(head);
@@ -110,7 +112,8 @@ export async function build(THREE, P, params = {}) {
   const mpMat = P.ink(Wd.mirrorPole, { ambient: 0.55 });
   const mirMat = P.ink(Wd.mirror, { hi: '#FFFFFF', flat: 0.4, shade: Wd.wallShade });
   const mirrors = [];
-  for (const z of (params.mirrors || [70, 250, 430, 610])) {
+  const mirrorZs = params.mirrors || (params.mirrorEvery ? Array.from({ length: Math.floor(L / (POLE * params.mirrorEvery)) }, (_, k) => POLE0 + (k + 1) * POLE * params.mirrorEvery + 2.5) : [70, 250, 430, 610]);
+  for (const z of mirrorZs) {
     const mp = P.outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.9, 8), mpMat), Wd.ink, 0.02);
     mp.position.set(-4.1, 1.45, z); scene.add(mp);
     const disc = P.outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.08, 28), mirMat), Wd.ink, 0.03);
@@ -154,11 +157,24 @@ export async function build(THREE, P, params = {}) {
   const beamPivot = new THREE.Group(); beamPivot.position.set(90, 27, L + 80); beamPivot.add(beam); beam.rotation.x = Math.PI / 2;
   scene.add(beamPivot);
 
+  // road-paint glyph decals (lie flat on the asphalt, read from the camera side); flash when passed
+  const decals = [];
+  for (const d of (params.decals || [])) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+    const g = c.getContext('2d'); g.fillStyle = 'rgba(0,0,0,0)'; g.clearRect(0, 0, 256, 256);
+    g.fillStyle = d.color || '#F6F2E7'; g.font = `210px Shippori, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(d.ch, 128, 136);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(d.size || 2.6, (d.size || 2.6) * (d.stretch || 3.0)), new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.45 }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI; m.scale.x = -1; m.position.set(d.x || 0, 0.02, d.z); scene.add(m);
+    decals.push({ m, d });
+  }
   // camera
   const cam = params.cam || 'fly';
   const speed = params.speed || 11.0;
   const z0 = params.z0 || 0;
   function update(t, pulse) {
+    for (const { m, d } of decals) { const f = d.flashT != null && t >= d.flashT && t < d.flashT + 0.12; m.material.color.setRGB(f ? 1.6 : 1, f ? 1.6 : 1, f ? 1.6 : 1); }
     const pathed = params.path ? applyPath(camera, params.path, t, true) : false;
     beamPivot.rotation.y = t * 0.9;
     if (pathed) {} else if (cam === 'fly') {
@@ -174,5 +190,10 @@ export async function build(THREE, P, params = {}) {
       camera.position.set(...c); camera.lookAt(...l);
     }
   }
-  return { scene: root, camera, update };
+  const anchors = () => {
+    const f = new THREE.Vector3(); camera.getWorldDirection(f);
+    const vp = camera.position.clone().add(new THREE.Vector3(f.x, 0, f.z).normalize().multiplyScalar(800)); vp.y = 0;
+    return { vp: [vp], mirrors: mirrors.map(m => m.getWorldPosition(new THREE.Vector3())) };
+  };
+  return { scene: root, camera, update, anchors };
 }
