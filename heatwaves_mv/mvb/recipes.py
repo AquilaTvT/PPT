@@ -460,3 +460,129 @@ def hook04(s, t, local, fi):
 
 R['B-hook-04'] = hook04
 tl.OWN_TYPE.add('B-hook-04')
+
+
+# ---------------------------------------------------------------- helpers: insert an image into a projected quad
+def warp_quad(dst, src, quad, alpha=1.0):
+    import cv2
+    h, w = src.shape[:2]
+    S = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+    D = np.float32([[p[0], p[1]] for p in quad])
+    M = cv2.getPerspectiveTransform(S, D)
+    warped = cv2.warpPerspective(src, M, (1920, 1080), flags=cv2.INTER_LINEAR)
+    m = cv2.warpPerspective(np.ones((h, w), np.float32), M, (1920, 1080), flags=cv2.INTER_LINEAR)
+    return dst + (warped - dst) * (m * alpha)[..., None]
+
+
+def weather_chart(t):
+    from mv.el import channels
+    from mvb.halftone import PrintStyle
+    if 'wx' not in _cache:
+        img = channels.weather(0.0)
+        img = img.a if hasattr(img, 'a') else img
+        sty = PrintStyle(['#1E2550', '#2C4C9A', '#7FC8B8', '#C9D3DC', '#EDE3CF', '#F08A3C', '#1A1416'], period=8, grain=0.0)
+        _cache['wx'] = sty(np.asarray(img, np.float32))
+    return _cache['wx']
+
+
+# ---------------------------------------------------------------- B-intro-02: room, lateral dolly past the fan, CRT weather + teletext
+def _intro02_plate():
+    path = [{'t': 0.0, 'pos': [1.2, 0.9, 0.9], 'look': [0.2, 0.75, -1.4], 'fov': 40},
+            {'t': 1.48, 'pos': [-0.1, 0.9, 0.85], 'look': [-0.6, 0.78, -1.4], 'fov': 40},
+            {'t': 2.96, 'pos': [-0.25, 0.88, 0.62], 'look': [-0.62, 0.76, -1.4], 'fov': 38}]
+    return plate('B-intro-02', 's1_room', {'path': path}, 0.0, 2.96, fps=24)
+
+
+def intro02(s, t, local, fi):
+    from mv.core import clamp
+    from mv import text, lyrics
+    from .print_fx import led_board, hexc as H
+    pl = once('intro02', _intro02_plate)
+    img = pl.frame(local).copy()
+    q = pl.anchor(local, 'tv')
+    if q:
+        wx = weather_chart(t).copy()
+        # teletext band: one word per 8th from 5.43; WALK flashes orange on 7.35
+        words = "DON'T STOP, BABY, YOU CAN WALK THROUGH".split()
+        n = int(clamp((t - 5.43) / (BEAT / 2)) * 1 + max(0, (t - 5.43) / (BEAT / 2))) if t >= 5.43 else 0
+        shown = ' '.join(words[:min(len(words), n)])
+        flash = 7.35 <= t < 7.35 + 0.25
+        key = ('ttx', shown, flash)
+        if key not in _cache:
+            _cache[key] = led_board(shown or ' ', cols=120, rows=16, dot=8, on='#F08A3C' if flash else '#7FC8B8',
+                                    off='#102020', bg='#081010', font='dot', scroll=-4)[0]
+        band = _cache[key]
+        hh = band.shape[0]
+        wx[-hh - 20:-20, 40:40 + min(band.shape[1], wx.shape[1] - 80)] = band[:, :min(band.shape[1], wx.shape[1] - 80)]
+        flick = 1.0 + 0.15 * np.sin(t * 2 * np.pi * 2 / BEAT)
+        img = warp_quad(img, np.clip(wx * flick, 0, 1), [p[:2] for p in q])
+    a = clamp((t - 5.6) / 0.25)
+    gl, _ = text.layout_h(lyrics.ZH[1], 1500, 930, 32, 'zh', tracking=0.15, align='center')
+    f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a * 0.9))
+    if f is not None:
+        img = img + (H('#EDE3CF')[None, None] - img) * f[..., None]
+    return img
+
+
+R['B-intro-02'] = intro02
+tl.OWN_TYPE.add('B-intro-02')
+
+
+# ---------------------------------------------------------------- B-hook-01: whip-tilt from the sun into the curve mirror
+def _hook01_plate():
+    path = [{'t': 0.0, 'pos': [0.5, 1.6, 0.0], 'look': [-3.2, 40.0, 30.0], 'fov': 46},
+            {'t': 0.74, 'pos': [0.5, 1.6, 0.0], 'look': [-3.9, 2.9, 30.0], 'fov': 46, 'ease': 'out'},
+            {'t': 2.96, 'pos': [-2.6, 2.6, 27.4], 'look': [-4.1, 3.0, 30.0], 'fov': 46, 'ease': 'inout'}]
+    return plate('B-hook-01', 's2_coast', {'world': 'noon', 'wallH': 0.5, 'mirrors': [30.0], 'poleSpacing': 16.3,
+                                           'decals': [{'ch': c, 'z': 9 + i * 3.4, 'x': 0, 'size': 2.0} for i, c in enumerate('光りだすロード')],
+                                           'path': path}, 0.0, 2.96, fps=24)
+
+
+def hook01(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    from mva import fx
+    from .print_fx import hexc as H
+    pl = once('hook01', _hook01_plate)
+    img = pl.frame(local).copy()
+    if local < 0.74:
+        k = 1 - local / 0.74
+        img = kit.dir_blur(img, 0, 60 * k)
+    if t < 16.98 + 6 / 24:
+        img = kit.dot_flash(img, 1 - (t - 16.98) / (6 / 24), '#F5C842', 28)
+    m = pl.anchor(local, 'mirrors')
+    if m and local > 0.5:
+        cx, cy = m[0][0], m[0][1]
+        pl3 = once('hook03', _hook03_plate)
+        road = pl3.frame(min(2.4, local))[:, ::-1].copy()
+        road = kit.dot_person(road, 960, 640, 120, t, colors=('#1E2550', '#F6F2E7', '#D9402B', '#1A1416'))
+        mt = pl.anchor(local, 'mirrorTop')
+        r = int(max(20, abs(mt[0][1] - cy) * 0.95)) if mt else 150
+        inside = fx.fisheye(cv2.resize(road, (2 * r, 2 * r)), 0.4)
+        disc = np.zeros((1080, 1920), np.float32)
+        cv2.circle(disc, (int(cx), int(cy)), r - 4, 1.0, -1, cv2.LINE_AA)
+        canvas = img.copy()
+        x0, y0 = int(cx - r), int(cy - r)
+        xa, ya, xb, yb = max(0, x0), max(0, y0), min(1920, x0 + 2 * r), min(1080, y0 + 2 * r)
+        if xb > xa and yb > ya:
+            canvas[ya:yb, xa:xb] = inside[ya - y0:yb - y0, xa - x0:xb - x0]
+            img = img + (canvas - img) * disc[..., None]
+    ly = once('hook01_l5', lambda: VLyric(5, accent='#2D6BE0'))
+    return ly.draw(img, t)
+
+
+R['B-hook-01'] = hook01
+tl.OWN_TYPE.add('B-hook-01')
+
+
+# ---------------------------------------------------------------- B-hook-02: inside the mirror world (character pending)
+def hook02(s, t, local, fi):
+    pl = once('hook03', _hook03_plate)
+    img = pl.frame(0.6 + 0.25 * local)[:, ::-1].copy()
+    img = kit.haze_lower(img, t, 0.006, 520)
+    a = once('h02_a', lambda: VLyric(6, x=1720, accent='#2D6BE0'))
+    return a.draw(img, t)
+
+
+R['B-hook-02'] = hook02
+tl.OWN_TYPE.add('B-hook-02')

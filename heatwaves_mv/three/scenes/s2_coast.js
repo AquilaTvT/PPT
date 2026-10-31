@@ -193,7 +193,8 @@ export async function build(THREE, P, params = {}) {
   const anchors = () => {
     const f = new THREE.Vector3(); camera.getWorldDirection(f);
     const vp = camera.position.clone().add(new THREE.Vector3(f.x, 0, f.z).normalize().multiplyScalar(800)); vp.y = 0;
-    return { vp: [vp], mirrors: mirrors.map(m => m.getWorldPosition(new THREE.Vector3())) };
+    return { vp: [vp], mirrors: mirrors.map(m => m.getWorldPosition(new THREE.Vector3())),
+             mirrorTop: mirrors.map(m => m.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.55, 0))) };
   };
   return { scene: root, camera, update, anchors };
 }
