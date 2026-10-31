@@ -1845,3 +1845,89 @@ def outro_07(s, t, local, fi):
 
 R['B-outro-07'] = outro_07
 tl.OWN_TYPE.add('B-outro-07')
+
+
+# ---- B-outro-06: the lighthouse at sunrise -- spiral up, the beam fades, he arrives, the sun waits beside the lamp ----
+def _o06_geom():
+    import math
+    s = tl.BY_ID['B-outro-06']
+    d = s['end'] - s['start']
+    R_, h0, h1, ph0, ph1 = 13.0, 5.0, 18.0, -60.0, 60.0
+    E = np.array([R_ * math.sin(math.radians(ph1)), h1, R_ * math.cos(math.radians(ph1))])
+    L = np.array([0.0, 17.3, 0.0])
+    dl = (L - E) / np.linalg.norm(L - E)
+    a = math.radians(17.0)                          # the sun sits 17 degrees beside the lamp room
+    sun_dir = np.array([dl[0] * math.cos(a) + dl[2] * math.sin(a), 0.0, -dl[0] * math.sin(a) + dl[2] * math.cos(a)])
+    sun_dir[1] = math.tan(math.radians(4.0))
+    sun_dir /= np.linalg.norm(sun_dir)
+    dist = 700.0
+    S = E + sun_dir * dist
+    sun_r = dist * (224.0 / 540.0) * math.tan(math.radians(20.0))      # = the stamp card's sixth circle on screen
+    return s, d, R_, h0, h1, ph0, ph1, sun_dir, S, sun_r
+
+
+def _o06_cam(u):
+    """camera on the spiral at progress u: (pos, unit look dir, look height on the tower axis)"""
+    import math
+    s, d, R_, h0, h1, ph0, ph1, sun_dir, S, sun_r = _o06_geom()
+    ph = math.radians(ph0 + (ph1 - ph0) * u)
+    h = h0 + (h1 - h0) * u
+    pos = np.array([R_ * math.sin(ph), h, R_ * math.cos(ph)])
+    k = min(1.0, max(0.0, (u - 0.08) / 0.5))
+    k = k * k * (3 - 2 * k)
+    ly = 1.7 + (h - 1.4 + 1.2 * u - 1.7) * k          # starts looking down at the door, rises with the climb
+    to_t = np.array([0.0, ly, 0.0]) - pos
+    to_t /= np.linalg.norm(to_t)
+    w = max(0.0, min(1.0, (u - 0.42) / 0.58))
+    w = w * w * (3 - 2 * w)
+    dv = to_t * (1 - w) + sun_dir * w
+    return pos, dv / np.linalg.norm(dv), ly
+
+
+def _o06_plate():
+    import math
+    s, d, R_, h0, h1, ph0, ph1, sun_dir, S, sun_r = _o06_geom()
+    path = []
+    n = 24
+    for i in range(n + 1):
+        u = i / n
+        pos, dv, _ = _o06_cam(u)
+        path.append({'t': d * u, 'pos': pos.round(4).tolist(), 'look': (pos + dv * 30).round(4).tolist(), 'fov': 40,
+                     'ease': 'linear'})
+    gt = _map_gt(60)
+    names = ['LATE', 'NIGHTS', 'IN', 'THE', 'MIDDLE', 'OF', 'JUNE']
+    words = []
+    for i, w_ in enumerate(names):
+        t0 = gt[i] - s['start']
+        t1 = (gt[i + 1] - s['start']) if i + 1 < len(names) else d + 1
+        um = min(1.0, (t0 + min(t1, d) ) / 2 / d)
+        _, _, ly = _o06_cam((t0 + 0.15) / d)
+        words.append({'text': w_, 'theta': ph0 + (ph1 - ph0) * um, 'y': round(min(15.2, max(3.0, ly + 0.9)), 3),
+                      't': t0, 't1': t1})
+    return plate('B-outro-06', 's8_lighthouse', {'world': 'dawnprint', 'path': path, 'sun': {'pos': S.round(3).tolist(), 'r': sun_r},
+                                                 'beamFade': [177.72 - s['start'], 179.20 - s['start']], 'words': words,
+                                                 'doorTheta': -48.0}, 0.0, d, fps=24)
+
+
+def outro_06(s, t, local, fi):
+    import math
+    from mv.core import clamp
+    pl = once('o06', _o06_plate)
+    img = pl.frame(local).copy()
+    # him arriving at the door (pedestrian-signal dot figure), stops at 177.72
+    a0, a1 = pl.anchor(local, 'doorFar'), pl.anchor(local, 'door')
+    if a0 and a1:
+        k = clamp((t - s['start']) / (177.72 - s['start']))
+        e = 1 - (1 - k) ** 2
+        x = a0[0][0] + (a1[0][0] - a0[0][0]) * e
+        y = a0[0][1] + (a1[0][1] - a0[0][1]) * e
+        if -50 < x < 1970 and 0 < y < 1150 and a1[0][2] < 1:
+            img = kit.dot_walker(img, x, y, 200, (t - s['start']) * 1.9 if k < 1 else 0.0, pitch=7.0)
+    # gulls crossing the dawn sky
+    for j, (y0, sp, ph, span) in enumerate(((210, 260, 0.0, 70), (300, 210, 0.4, 54), (160, 300, 0.7, 46))):
+        gx = -120 + ((t - s['start']) * sp + j * 620) % 2160
+        kit.gull(img, gx, y0 + 18 * math.sin(t * 1.7 + j), span, t * 2.6 + ph, '#1A1416', 0.8)
+    return img
+
+
+R['B-outro-06'] = outro_06

@@ -135,3 +135,68 @@ def halo(img, x, y, r=40.0, color='#7FC8B8', strength=0.9, period=9.0):
     roi = img[y0:y1, x0:x1]
     roi += (hexc(color)[None, None] - roi) * m[..., None]
     return img
+
+
+def dot_walker(img, x, y, h, phase, colors=('#1A1416', '#F6F2E7', '#1E2550', '#1A1416'), pitch=None, alpha=1.0, run=False):
+    """a pedestrian-signal style figure made of round LED dots, walking (phase in cycles). (x, y) = feet.
+    colors: head, shirt, trousers, shoes. The figure is built from capsules then sampled onto a dot grid."""
+    p = pitch or max(3.0, h / 15.0)
+    s = 4                                          # supersample for the capsule masks
+    W_, H_ = int(h * 1.2), int(h * 1.15)
+    ox, oy = W_ / 2, H_ - h * 0.04
+    layers = {k: np.zeros((H_ * s // 4 * 4 // 4 * 1, W_), np.float32) for k in ()}
+    m = {k: np.zeros((H_, W_), np.uint8) for k in ('head', 'shirt', 'trousers', 'shoes')}
+    a = 2 * np.pi * phase
+    sw = (0.55 if run else 0.38) * np.sin(a)
+    def cap(name, x0, y0, x1, y1, w):
+        cv2.line(m[name], (int(ox + x0 * h), int(oy - y0 * h)), (int(ox + x1 * h), int(oy - y1 * h)), 255, max(1, int(w * h)), cv2.LINE_AA)
+    hip, sh = 0.50, 0.80
+    bob = 0.012 * np.cos(2 * a)
+    # legs (thigh + shin), opposite phase
+    for sg in (1, -1):
+        th = sg * sw
+        kx, ky = np.sin(th) * 0.24, hip - np.cos(th) * 0.24
+        sh_a = th - (0.35 if sg * np.sin(a) < 0 else 0.05)
+        fx, fy = kx + np.sin(sh_a) * 0.24, ky - np.cos(sh_a) * 0.24
+        cap('trousers', 0, hip + bob, kx, ky + bob, 0.14)
+        cap('trousers', kx, ky + bob, fx, max(0.03, fy + bob), 0.12)
+        cap('shoes', fx - 0.01, max(0.03, fy + bob), fx + 0.08, max(0.03, fy + bob), 0.08)
+    cap('shirt', 0, hip + 0.02 + bob, 0, sh + bob, 0.25)
+    for sg in (1, -1):                              # arms swing against the legs
+        th = -sg * sw * 0.9
+        ex, ey = np.sin(th) * 0.16, sh - 0.02 - np.cos(th) * 0.16
+        hx, hy = ex + np.sin(th + 0.3) * 0.15, ey - np.cos(th + 0.3) * 0.15
+        cap('shirt', 0, sh - 0.02 + bob, ex, ey + bob, 0.10)
+        cap('head', ex, ey + bob, hx, hy + bob, 0.075)
+    cv2.circle(m['head'], (int(ox), int(oy - (0.91 + bob) * h)), int(0.105 * h), 255, -1, cv2.LINE_AA)
+    # sample onto a dot grid (screen-locked so the dots don't swim)
+    x0, y0 = int(x - ox), int(y - oy)
+    out = img
+    for name, col in zip(('trousers', 'shoes', 'shirt', 'head'), (colors[2], colors[3], colors[1], colors[0])):
+        mm = m[name].astype(np.float32) / 255.0
+        ys_, xs_ = np.mgrid[0:H_, 0:W_].astype(np.float32)
+        gx, gy = (xs_ + x0) / p, (ys_ + y0) / p
+        cxs, cys = (np.floor(gx) + 0.5) * p - x0, (np.floor(gy) + 0.5) * p - y0
+        cov = cv2.remap(cv2.GaussianBlur(mm, (0, 0), p * 0.35), cxs.astype(np.float32), cys.astype(np.float32), cv2.INTER_LINEAR)
+        d = np.sqrt((gx - np.floor(gx) - 0.5) ** 2 + (gy - np.floor(gy) - 0.5) ** 2)
+        dots = np.clip((0.44 * np.sqrt(np.clip(cov * 1.6, 0, 1)) - d) * p * 0.9, 0, 1) * alpha
+        ax0, ay0, ax1, ay1 = max(0, x0), max(0, y0), min(W, x0 + W_), min(H, y0 + H_)
+        if ax0 >= ax1 or ay0 >= ay1:
+            continue
+        dd = dots[ay0 - y0:ay1 - y0, ax0 - x0:ax1 - x0]
+        roi = out[ay0:ay1, ax0:ax1]
+        roi += (hexc(col)[None, None] - roi) * dd[..., None]
+    return out
+
+
+def gull(img, x, y, span, flap, color='#1A1416', alpha=0.85):
+    """a printed gull: two arcs, wings flapping (flap 0..1)"""
+    m = np.zeros((H, W), np.float32)
+    lift = (0.5 - abs(flap % 1.0 - 0.5)) * 2
+    hy = span * (0.12 + 0.28 * lift)
+    for sg in (-1, 1):
+        pts = np.array([[x, y], [x + sg * span * 0.25, y - hy], [x + sg * span * 0.5, y - hy * 0.4]], np.float32)
+        curve = [(1 - u) ** 2 * pts[0] + 2 * (1 - u) * u * pts[1] + u ** 2 * pts[2] for u in np.linspace(0, 1, 10)]
+        cv2.polylines(m, [np.array(curve, np.int32)], False, 1.0, max(2, int(span * 0.06)), cv2.LINE_AA)
+    img += (hexc(color)[None, None] - img) * (m * alpha)[..., None]
+    return img

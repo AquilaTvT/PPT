@@ -72,4 +72,12 @@ export const WORLDS = {
     mirror: '#C9D3DC', vend: '#EDE3CF', vendGlow: '#7FC8B8', led: '#F08A3C', moon: '#EDE3CF', moonShade: '#C9D3DC',
     rail: '#C9D3DC', ballast: '#2C4C9A', ink: '#141018', light: [0.2, 0.5, -0.8], ambient: 0.36,
   },
+  dawnprint: {   // 夜明け刷り: the town reprinted at sunrise
+    skyTop: '#2C4C9A', skyHor: '#F5C842', skyBand: '#F08A3C', fog: '#F2C58A', stars: 0.0,
+    road: '#8E95A6', roadShade: '#2C4C9A', line: '#EDE3CF', wall: '#EDE3CF', wallShade: '#C9D3DC',
+    sea: '#2C4C9A', seaHi: '#F5C842', house: '#EDE3CF', houseShade: '#8E95A6', roof: '#2C4C9A',
+    window: '#F5C842', lamp: '#FFF2C8', glow: '#F5C842', pole: '#1A1416', mirrorPole: '#F08A3C',
+    mirror: '#C9D3DC', vend: '#D9402B', vendGlow: '#F5C842', led: '#F08A3C', moon: '#FFF2C8', moonShade: '#F5C842',
+    rail: '#C9D3DC', ballast: '#8E95A6', ink: '#1A1416', light: [-0.55, 0.45, 0.7], ambient: 0.45,
+  },
 };
