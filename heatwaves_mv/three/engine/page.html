@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from '/node_modules/three/build/three.module.js';
+import * as P from '/engine/print.js';
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || 1920, H = +q.get('h') || 1080;
+const params = JSON.parse(decodeURIComponent(q.get('params') || '%7B%7D'));
+const canvas = document.getElementById('c');
+canvas.width = W; canvas.height = H;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.get('aa') !== '0', preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // inks are authored as final sRGB values
+THREE.ColorManagement.enabled = false;
+const mod = await import('/scenes/' + q.get('scene') + '.js');
+const S = await mod.build(THREE, P, params, { W, H });
+let jit = [0, 0];
+window.renderAt = (t, beatPulse = 0, frameIdx = 0) => {
+  P.U.uTime.value = t;
+  P.U.uPulse.value = beatPulse;
+  if (frameIdx % 3 === 0) {                     // print jitter: re-registration every 3 frames
+    const h = Math.sin(frameIdx * 12.9898) * 43758.5453;
+    jit = [Math.round((h - Math.floor(h)) * 2 - 1), Math.round(((h * 7.31) % 1 + 1) % 1 * 2 - 1)];
+  }
+  P.U.uJitter.value.set(jit[0], jit[1]);
+  S.update(t, beatPulse);
+  renderer.render(S.scene, S.camera);
+  return canvas.toDataURL('image/png');
+};
+window.ready = true;
+</script></body></html>
