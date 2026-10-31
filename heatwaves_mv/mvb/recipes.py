@@ -931,3 +931,150 @@ def chorus3_01(s, t, local, fi):
 
 R['B-chorus3-01'] = chorus3_01
 tl.OWN_TYPE.add('B-chorus3-01')
+
+
+# ---------------------------------------------------------------- 2D night bay (bridge1-07, chorus3-08): tall canvas, tilt = vertical pan
+def _night_bay_canvas():
+    import cv2, math
+    from .print_fx import hexc as H
+    Hc = 2000
+    img = np.empty((Hc, 1920, 3), np.float32)
+    ys = np.mgrid[0:Hc, 0:1920][0].astype(np.float32)
+    xs = np.mgrid[0:Hc, 0:1920][1].astype(np.float32)
+    horizon = 1480
+    tone = np.clip((ys - 200) / (horizon - 200), 0, 1) ** 1.5
+    per = 10.0
+    c, s_ = math.cos(math.radians(45)), math.sin(math.radians(45))
+    u, v = (xs * c + ys * s_) / per, (-xs * s_ + ys * c) / per
+    d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+    m = np.clip((np.sqrt(tone) * 0.7 - d) * per * 0.6, 0, 1)
+    img[:] = H('#141A33')
+    img = img + (H('#2C4C9A')[None, None] - img) * m[..., None]
+    rng = np.random.default_rng(5)
+    for _ in range(260):
+        x, y = rng.uniform(0, 1920), rng.uniform(0, horizon - 200)
+        cv2.circle(img, (int(x), int(y)), 1 + int(rng.random() * 1.6), tuple(float(q) for q in H('#EDE3CF')), -1, cv2.LINE_AA)
+    # far shore: hills + town silhouette with lit windows, lighthouse on the right
+    pts = [(0, horizon - 40)] + [(x, int(horizon - 60 - 50 * math.sin(x / 260.0) - 30 * math.sin(x / 90.0))) for x in range(0, 1921, 40)] + [(1920, horizon)]
+    cv2.fillPoly(img, [np.array(pts + [(1920, horizon + 4), (0, horizon + 4)], np.int32)], tuple(float(q) for q in H('#1A1416')), cv2.LINE_AA)
+    for _ in range(140):
+        x = rng.uniform(40, 1880)
+        y = horizon - rng.uniform(6, 70)
+        cv2.rectangle(img, (int(x), int(y)), (int(x + 4), int(y + 3)), tuple(float(q) for q in H('#F0B45A')), -1)
+    cv2.rectangle(img, (1700, horizon - 150), (1716, horizon - 40), tuple(float(q) for q in H('#C9D3DC')), -1)
+    # sea
+    img[horizon:] = H('#1E2550')
+    for _ in range(900):
+        x, y = rng.uniform(0, 1920), rng.uniform(horizon + 6, Hc)
+        L = rng.uniform(8, 40) * (0.5 + (y - horizon) / 400)
+        cv2.line(img, (int(x), int(y)), (int(x + L), int(y)), tuple(float(q) for q in H('#2C4C9A')), 2, cv2.LINE_AA)
+    # seawall in the foreground
+    cv2.rectangle(img, (0, Hc - 160), (1920, Hc), tuple(float(q) for q in H('#3F5F8F')), -1)
+    cv2.rectangle(img, (0, Hc - 166), (1920, Hc - 156), tuple(float(q) for q in H('#C9D3DC')), -1)
+    return img, horizon
+
+
+def night_bay(tilt_px):
+    """view of the bay: tilt_px 0 = looking at the horizon (sea + shore), up to ~900 = up into the sky"""
+    can, hor = once('nightbay', _night_bay_canvas)
+    y0 = int(np.clip(can.shape[0] - 1080 - tilt_px, 0, can.shape[0] - 1080))
+    return can[y0:y0 + 1080].copy(), hor - y0
+
+
+def moon_with_halo(img, cx, cy, r, pulse):
+    import cv2
+    from . import fireworks as fw
+    from .print_fx import hexc as H
+    halo = np.zeros((1080, 1920), np.float32)
+    cv2.circle(halo, (int(cx), int(cy)), int(r * (2.2 + 0.6 * pulse)), 1.0, -1, cv2.LINE_AA)
+    halo = cv2.GaussianBlur(halo, (0, 0), r * 0.7) * (0.55 + 0.35 * pulse)
+    img = img + (H('#C9D3DC')[None, None] - img) * (fw.halo_dots(halo) * 0.7)[..., None]
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.circle(m, (int(cx), int(cy)), int(r), 1.0, -1, cv2.LINE_AA)
+    img = img + (H('#EDE3CF')[None, None] - img) * m[..., None]
+    for k, (dx, dy, rr) in enumerate(((-0.3, -0.2, 0.22), (0.25, 0.15, 0.18), (-0.05, 0.35, 0.12))):
+        mm = np.zeros((1080, 1920), np.float32)
+        cv2.circle(mm, (int(cx + dx * r), int(cy + dy * r)), int(rr * r), 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#C9B98F')[None, None] - img) * (mm * fw.halo_dots(np.full((1080, 1920), 0.5, np.float32)))[..., None]
+    return img
+
+
+def bridge1_07(s, t, local, fi):
+    from mv.core import clamp
+    from . import fireworks as fw
+    tilt = 120 + 380 * clamp(local / 2.2) ** 1.2
+    img, hor = night_bay(tilt)
+    # moon pulse: 8ths, then 16ths from 110.31; inhale at 111.05 (halftone coverage shrinks)
+    sub = BEAT / 2 if t < 110.31 else BEAT / 4
+    ph = ((t - 108.83) % sub) / sub
+    pulse = np.exp(-ph * 4) * (0.7 if t < 111.05 else 0.3)
+    can_h = 2000
+    y0 = can_h - 1080 - int(tilt)
+    img = moon_with_halo(img, 1320, 520 - y0 * 0.0 + (tilt - 120) * 0.9, 80, pulse)
+    img = fw.rocket(img, t, 109.57, 111.05, 700, hor + 20, 760, 300 + (tilt - 120) * 0.5, '#F5C842')
+    wall_y = (can_h - 166) - y0
+    if wall_y < 1120:
+        img = kit.dot_person(img, 520, wall_y, 70, t, colors=('#C9D3DC', '#F6F2E7', '#7FC8B8', '#1A1416'), run=False)
+    ly = once('b107', lambda: VLyric(37, x=1720, accent='#D9402B'))
+    return ly.draw(img, t)
+
+
+R['B-bridge1-07'] = bridge1_07
+tl.OWN_TYPE.add('B-bridge1-07')
+
+
+def chorus3_08(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    from mv import text, lyrics
+    from . import fireworks as fw
+    from .print_fx import hexc as H
+    k = clamp(local / (s['end'] - s['start']))
+    e = 4 * k ** 3 if k < 0.5 else 1 - (-2 * k + 2) ** 3 / 2
+    tilt = 900 - 820 * e
+    img, hor = night_bay(tilt)
+    cy = 300 + (900 - tilt)
+    img = fw.burst(img, t, 132.54, 960, cy, 620, 'willow', '#F5C842', '#FFF2C8', seed=21, life=3.0, n=120)
+    # gold reflections on the sea as dotted columns from 134.02
+    if t > 134.02 and hor < 1080:
+        cols = np.zeros((1080, 1920), np.float32)
+        a = clamp((t - 134.02) / 0.5)
+        for x in range(420, 1520, 34):
+            for y in range(max(hor + 8, 0), 1080, 14):
+                cv2.circle(cols, (x + int(6 * np.sin(y * 0.1 + t * 4)), y), 3, a * (1 - (y - hor) / 600), -1, cv2.LINE_AA)
+        img = img + (H('#F5C842')[None, None] - img) * np.clip(cols, 0, 1)[..., None]
+    # L45 glyphs appear at spark tips per mora then droop and drip with the trail
+    gt = once('gt45', lambda: __import__('json').load(open(tl.os.path.join(tl.ROOT, 'assets', 'glyph_times.json')))['45'])
+    word = '君に幸せあげられない'
+    for i, ch in enumerate(word):
+        tg = gt[min(i, len(gt) - 1)]
+        if t < tg:
+            continue
+        dt = t - tg
+        ang = -np.pi / 2 + (i - 4.5) * 0.28
+        x = 960 + np.cos(ang) * 420 + (i - 4.5) * 10
+        y = cy + np.sin(ang) * 260 + 160 * dt * dt + 40 * dt
+        if ch in '幸せ':
+            y += 260 * dt * dt
+        key = ('dripg', ch)
+        if key not in _cache:
+            gl, _ = text.layout_h(ch, 960, 540, 90, 'mincho', align='center')
+            _cache[key], _ = text.render_glyphs(gl)
+        f = _cache[key]
+        if f is None or y > 1180:
+            continue
+        M = np.float32([[1, 0, x - 960], [0, 1, y - 540]])
+        fm = cv2.warpAffine(f, M, (1920, 1080))
+        drip = cv2.GaussianBlur(fm, (1, 21), 0) * 0.5
+        img = img + (H('#F5C842')[None, None] - img) * drip[..., None]
+        img = img + (H('#EDE3CF')[None, None] - img) * fm[..., None]
+    a = clamp((t - 132.7) / 0.3)
+    gl, _ = text.layout_h(lyrics.ZH[45], 960, 1010, 30, 'zh', tracking=0.2, align='center')
+    f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a))
+    if f is not None:
+        img = img + (H('#EDE3CF')[None, None] - img) * f[..., None]
+    return img
+
+
+R['B-chorus3-08'] = chorus3_08
+tl.OWN_TYPE.add('B-chorus3-08')
