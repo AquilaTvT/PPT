@@ -17,7 +17,7 @@ export async function build(THREE, P, params = {}) {
   const camera = new THREE.PerspectiveCamera(params.fov || 38, 16 / 9, 0.1, 2000);
   scene.add(P.sky(Wd.skyTop, Wd.skyHor, { stars: Wd.stars, band: Wd.skyBand }));
   const moon = P.disc(Wd.moon, Wd.moonShade, 26);
-  moon.position.set(260, 150, 720); moon.lookAt(0, 0, 0);
+  moon.position.set(...(params.moonPos || [260, 150, 720])); moon.lookAt(0, 0, 0);
   scene.add(moon);
   const moonGlow = P.glow(Wd.moon, 180, { strength: 0.55 }); moonGlow.position.copy(moon.position).multiplyScalar(0.98);
   scene.add(moonGlow);
@@ -160,12 +160,16 @@ export async function build(THREE, P, params = {}) {
   // road-paint glyph decals (lie flat on the asphalt, read from the camera side); flash when passed
   const decals = [];
   for (const d of (params.decals || [])) {
-    const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-    const g = c.getContext('2d'); g.fillStyle = 'rgba(0,0,0,0)'; g.clearRect(0, 0, 256, 256);
-    g.fillStyle = d.color || '#F6F2E7'; g.font = `210px Shippori, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(d.ch, 128, 136);
+    const txt = d.word || d.ch, n = d.word ? d.word.length : 1;
+    const cw = d.word ? Math.round(256 * n * 0.66) : 256;
+    const c = document.createElement('canvas'); c.width = cw; c.height = 256;
+    const g = c.getContext('2d'); g.fillStyle = 'rgba(0,0,0,0)'; g.clearRect(0, 0, cw, 256);
+    g.fillStyle = d.color || '#F6F2E7'; g.font = d.word ? `800 210px "Shippori Mincho B1", Shippori, serif` : `210px Shippori, serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(txt, cw / 2, 136);
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(d.size || 2.6, (d.size || 2.6) * (d.stretch || 3.0)), new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.45 }));
+    const pw = (d.size || 2.6) * (d.word ? n * 0.66 : 1);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(pw, (d.size || 2.6) * (d.stretch || 3.0)), new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.45 }));
     m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI; m.scale.x = -1; m.position.set(d.x || 0, 0.02, d.z); scene.add(m);
     decals.push({ m, d });
   }
@@ -174,7 +178,8 @@ export async function build(THREE, P, params = {}) {
   const speed = params.speed || 11.0;
   const z0 = params.z0 || 0;
   function update(t, pulse) {
-    for (const { m, d } of decals) { const f = d.flashT != null && t >= d.flashT && t < d.flashT + 0.12; m.material.color.setRGB(f ? 1.6 : 1, f ? 1.6 : 1, f ? 1.6 : 1); }
+    for (const { m, d } of decals) { const f = d.flashT != null && t >= d.flashT && t < d.flashT + 0.12; m.material.color.setRGB(f ? 1.6 : 1, f ? 1.6 : 1, f ? 1.6 : 1);
+      m.visible = d.showT == null || t >= d.showT; }
     const pathed = params.path ? applyPath(camera, params.path, t, true) : false;
     beamPivot.rotation.y = t * 0.9;
     if (pathed) {} else if (cam === 'fly') {

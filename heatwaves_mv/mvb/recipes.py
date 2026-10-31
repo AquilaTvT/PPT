@@ -2523,3 +2523,106 @@ def outro_02(s, t, local, fi):
 
 R['B-outro-02'] = outro_02
 tl.OWN_TYPE.add('B-outro-02')
+
+
+# ---- B-outro_hook-01: the card flies over town; the sky reprints dawn -> morning -> noon, one pass per beat ------------
+def _oh1_common():
+    import math
+    s = tl.BY_ID['B-outro_hook-01']
+    d = s['end'] - s['start']
+    zc = lambda tt: -10.0 + 62.0 * (tt / d)
+    mirror = np.array([-4.1, 3.0, 62.0])
+    path = []
+    for i in range(9):
+        u = i / 8
+        tt = d * u
+        e = u * u * (3 - 2 * u)
+        y = 20.0 + (2.6 - 20.0) * e
+        pos = np.array([-1.3 * e, y, zc(tt)])
+        ahead = np.array([-1.0 * u, 5.0 + (1.95 - 5.0) * e, zc(tt) + 34.0])
+        w = max(0.0, min(1.0, (u - 0.55) / 0.45))
+        w = w * w * (3 - 2 * w)
+        look = ahead * (1 - w) + mirror * w                 # the last beat turns onto the curve mirror
+        path.append({'t': tt, 'pos': pos.round(3).tolist(), 'look': look.round(3).tolist(), 'fov': 38, 'ease': 'linear'})
+    gt = _map_gt(63)
+    words = ['ROAD', 'SHIMMER', 'WIGGLIN\'', 'THE', 'VISION']
+    decals = [{'word': w, 'z': round(zc(min(d, g - s['start'])) + 17.0, 2), 'x': 0.0, 'size': 0.95, 'stretch': 3.0,
+               'color': '#F6F2E7', 'showT': round(g - s['start'], 3)} for w, g in zip(words, gt)]
+    return s, d, path, decals
+
+
+def _oh1_plates():
+    import math
+    s, d, path, decals = _oh1_common()
+    out = []
+    for k, w in enumerate(('dawnprint', 'morning', 'noon')):
+        el = math.radians(6 + 6 * k)
+        common = {'world': w, 'day': True, 'path': path, 'decals': decals, 'mirrors': [62.0], 'wallH': 0.5,
+                  'poleSpacing': 16.3, 'moonPos': [230.0, round(720 * math.tan(el), 1), 720.0]}
+        out.append(plate(f'B-outro_hook-01{w[0]}', 's2_coast', common, 0.0, d, fps=24))
+    return out
+
+
+def outro_hook_01(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import card as C
+    from .print_fx import hexc as H
+    pls = once('oh1', _oh1_plates)
+    # print passes as a time-lapse: dawn, then morning on 186.61, noon on 187.35 (6-frame drum wipe, ragged edge)
+    frames = [p.frame(local) for p in pls]
+    img = frames[0].copy()
+    for k, tp in ((1, 186.61), (2, 187.35)):
+        if t >= tp:
+            w = clamp((t - tp) / (6 / 24))
+            edge = (-60 + 2040 * w) + 14 * np.sin(kit._YS / 23.0 + k)
+            m = np.clip((edge - kit._XS) / 6.0, 0, 1)
+            img = img + (frames[k] - img) * m[..., None]
+    # the mirage band returns on 188.09 (dot-melt on the road near the horizon)
+    vp = pls[2].anchor(local, 'vp')
+    if t >= 188.09 and vp:
+        a = clamp((t - 188.09) / 0.5)
+        img = kit.mirage_band(img, t, float(np.clip(vp[0][1] + 20, 300, 900)), 0, 1920, 26 * a + 1, 3.0 * a, strength=0.85 * a)
+    # the stamp card flying ahead (paper flutter), drawn into the curve mirror at the end
+    if 'oh1_card' not in _cache:
+        card = C.render_card(stamp_k=(1, 1, 1, 1, 1), footer_n=0)
+        lay = sun_stamp_layer()
+        card = card * (1 - lay[..., 3:4]) + lay[..., :3] * lay[..., 3:4]
+        _cache['oh1_card'] = cv2.resize(card, (480, 270), interpolation=cv2.INTER_AREA)
+    cd = _cache['oh1_card']
+    mr = pls[2].anchor(local, 'mirrors')
+    mx, my = (mr[0][0], mr[0][1]) if mr and 0 < mr[0][2] < 1.001 else (960.0, 500.0)
+    k_in = _ease_in(clamp((t - 188.2) / 0.63))
+    cx = 960 + 70 * math.sin(t * 1.3) + (mx - 960) * k_in
+    cy = 600 + 40 * math.sin(t * 2.1) - 60 * clamp(local / 1.5) + (my - 560) * k_in
+    sc = (0.9 - 0.25 * clamp(local / 2.0)) * (1 - 0.9 * k_in)
+    if sc > 0.02:
+        hh, ww = cd.shape[:2]
+        ys, xs = np.mgrid[0:hh, 0:ww].astype(np.float32)
+        wave = 10 * np.sin(xs / 70.0 - t * 9.0) * (xs / ww)
+        warped = cv2.remap(cd, xs, ys + wave, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        am = cv2.remap(np.ones((hh, ww), np.float32), xs, ys + wave, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        shade = (1.0 + 0.012 * np.gradient(wave, axis=1) * 10)[..., None]
+        M = cv2.getRotationMatrix2D((ww / 2, hh / 2), 8 * math.sin(t * 1.7), sc)
+        M[0, 2] += cx - ww / 2
+        M[1, 2] += cy - hh / 2
+        lay = cv2.warpAffine(np.clip(warped * shade, 0, 1), M, (1920, 1080))
+        a = cv2.warpAffine(am, M, (1920, 1080))
+        sh = cv2.GaussianBlur(np.roll(a, (28, 18), (0, 1)), (0, 0), 9) * 0.3
+        img = img * (1 - sh[..., None])
+        img = img + (lay - img) * a[..., None]
+    # ミラー・アイリス on 188.83: the mirror disc grows to fill the frame in the last 5 frames
+    if t >= 188.83 - 5 / 24 and mr:
+        k = clamp((t - (188.83 - 5 / 24)) / (5 / 24))
+        R0 = 60 + 1200 * k ** 2
+        disc = np.zeros((1080, 1920), np.float32)
+        cv2.circle(disc, (int(mx), int(my)), int(R0), 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#C9D3DC')[None, None] - img) * (disc * 0.85 * k)[..., None]
+        ring = np.zeros((1080, 1920), np.float32)
+        cv2.circle(ring, (int(mx), int(my)), int(R0 + 12), 1.0, int(10 + 30 * k), cv2.LINE_AA)
+        img = img + (H('#F08A3C')[None, None] - img) * ring[..., None]
+    return _zh_fixed(img, t, 63, 186.22, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro_hook-01'] = outro_hook_01
+tl.OWN_TYPE.add('B-outro_hook-01')
