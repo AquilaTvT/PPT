@@ -3037,3 +3037,185 @@ def chorus1_03(s, t, local, fi):
 
 R['B-chorus1-03'] = chorus1_03
 tl.OWN_TYPE.add('B-chorus1-03')
+
+
+# ---- B-chorus1-06: the curve-mirror forest -- 90-degree yaws on beats, her in every glass, the line read across mirrors
+C106_YAWS = [47.35, 48.09, 48.83]
+
+
+def _c106_geom():
+    import math
+    s = tl.BY_ID['B-chorus1-06']
+    d = s['end'] - s['start']
+    n = int(round(d * 24))
+    # integrate the flight: 6 m/s, heading turns +90 deg on each beat in 5 frames, last 0.37 s turns into a mirror
+    pos = np.array([0.0, 1.6, -2.0])
+    head = 0.0
+    cam = []
+    for i in range(n + 1):
+        tt = s['start'] + i / 24
+        h = 0.0
+        for yb in C106_YAWS:
+            k = min(1.0, max(0.0, (tt - yb) / (5 / 24)))
+            h += 90.0 * k * k * (3 - 2 * k)
+        cam.append((pos.copy(), h))
+        hr = math.radians(h)
+        pos = pos + np.array([math.sin(hr), 0.0, math.cos(hr)]) * (6.0 / 24)
+    # mirror grid around the flight path (keep 1.3 m clear of it)
+    rng = np.random.default_rng(16)
+    mirrors = []
+    pts = np.array([c[0] for c in cam])
+    for gx in np.arange(-14, 15, 3.4):
+        for gz in np.arange(-6, 26, 3.4):
+            x, z = gx + rng.uniform(-0.8, 0.8), gz + rng.uniform(-0.8, 0.8)
+            if np.min(np.hypot(pts[:, 0] - x, pts[:, 2] - z)) < 1.3:
+                continue
+            mirrors.append({'pos': [round(x, 3), round(2.3 + rng.uniform(0, 1.0), 3), round(z, 3)],
+                            'yaw': round(rng.uniform(-math.pi, math.pi), 3), 'tilt': 0.08, 'r': round(rng.uniform(0.5, 0.65), 3)})
+    # the mirror we fly into at the end: the one most straight ahead at 49.20
+    i20 = int(round((49.20 - s['start']) * 24))
+    p20, h20 = cam[i20]
+    fwd = np.array([math.sin(math.radians(h20)), 0, math.cos(math.radians(h20))])
+    best, bi = -1e9, 0
+    for j, m in enumerate(mirrors):
+        v = np.array(m['pos']) - p20
+        dist = np.linalg.norm(v)
+        score = v.dot(fwd) / dist - 0.04 * dist
+        if score > best and 2.5 < dist < 9:
+            best, bi = score, j
+    target = np.array(mirrors[bi]['pos'])
+    tv = p20 - target
+    mirrors[bi]['yaw'] = round(math.atan2(tv[0], tv[2]), 3)            # make it face the incoming camera
+    mirrors[bi]['tilt'] = 0.0
+    return s, d, cam, mirrors, bi, target
+
+
+def _c106_plate():
+    import math
+    s, d, cam, mirrors, bi, target = _c106_geom()
+    path = []
+    i20 = int(round((49.20 - s['start']) * 24))
+    for i, (p, h) in enumerate(cam):
+        hr = math.radians(h)
+        look = p + np.array([math.sin(hr), -0.02, math.cos(hr)]) * 10
+        if i >= i20:                                   # turn and close in on the chosen mirror
+            k = min(1.0, (i - i20) / max(1, len(cam) - 1 - i20))
+            e = k * k * (3 - 2 * k)
+            look = look * (1 - e) + target * e
+            p = p * (1 - 0.55 * e) + (target + (p - target) * 0.45) * (0.55 * e)
+        path.append({'t': i / 24, 'pos': np.round(p, 4).tolist(), 'look': np.round(look, 4).tolist(), 'fov': 50,
+                     'ease': 'linear'})
+    return plate('B-chorus1-06', 's9_junction', {'world': 'noon', 'path': path, 'mirrors': mirrors, 'fogNear': 30,
+                                                'fogFar': 160}, 0.0, d, fps=24)
+
+
+def chorus1_06(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('c106', _c106_plate)
+    _, _, _, mirrors, bi, _ = once('c106g', _c106_geom)
+    img = pl.frame(local).copy()
+    Cs, Xs, Ys = pl.anchor(local, 'mirrors') or [], pl.anchor(local, 'mirrorX') or [], pl.anchor(local, 'mirrorY') or []
+    bg = once('c101_bg', lambda: cv2.resize(once('hook03', _hook03_plate).frame(1.6)[:, 420:1500], (640, 640)))
+    srcs = ['B-hook-01', 'B-hook-02', 'B-chorus1-01', 'B-chorus1-03']
+    cls = [once(('c106cl', sid), lambda sid=sid: chars.CharLayer(sid)) for sid in srcs]
+    gt = _map_gt(16)
+    word = 'ヒートウェイブに迷うのさ'
+    # glyph i lives in the i-th visible mirror (stable assignment by mirror index, chosen by onset time)
+    sizes = []
+    for j, (C, X, Y) in enumerate(zip(Cs, Xs, Ys)):
+        if not (0 < C[2] < 1.001):
+            sizes.append(0)
+            continue
+        sizes.append(np.hypot(X[0] - C[0], X[1] - C[1]) * np.hypot(Y[0] - C[0], Y[1] - C[1]))
+    order = [j for j in np.argsort(sizes)[::-1] if sizes[j] > 900]
+    near = order[0] if order else -1
+    holder = once(('c106_holder',), lambda: {})
+    for i, tg in enumerate(gt):
+        if t >= tg and i not in holder:
+            free = [j for j in order if j not in holder.values() and -60 < Cs[j][0] < 1980 and 40 < Cs[j][1] < 1040]
+            if free:
+                holder[i] = free[min(len(free) - 1, 1)]
+    for j in sorted(order, key=lambda j: sizes[j]):
+        C, X, Y = Cs[j], Xs[j], Ys[j]
+        r = np.hypot(X[0] - C[0], X[1] - C[1])
+        if r < 12 or r > 520 or not (-r < C[0] < 1920 + r and -r < C[1] < 1080 + r):
+            continue                                   # tiny, off-screen, or brushing past the lens
+        cont = bg.copy()
+        cl = cls[j % len(cls)]
+        if cl.ok:
+            rgb, a = cl.frame((local * 0.8 + 0.4 * j) % 1.6, x=960, y=560, cx=0.5, cy=0.5, height=720)
+            cont = cont + (rgb[220:860, 640:1280] - cont) * a[220:860, 640:1280][..., None]
+        img, m = mirror_insert(img, cont, C, X, Y, sat=1.0 if j == near else 0.72, k=0.4)
+        for i, jj in holder.items():                    # this mirror carries a glyph of L16
+            if jj == j and t < 48.83:
+                kk = clamp((t - gt[i]) / (3 / 24))
+                kit.map_glyph(img, word[i], C[0], C[1], int(min(150, r * 1.2)), 0.0, 0.4 + 0.6 * kk, '#F5C842', '#1A1416', 6.0)
+    # glints on 8ths on the nearest mirror
+    if near >= 0:
+        C, X = Cs[near], Xs[near]
+        ph = ((t - 0.682) / (BEAT / 2)) % 1.0
+        kk = math.exp(-ph * 4)
+        gx, gy = C[0] + 0.6 * (X[0] - C[0]), C[1] - 0.6 * abs(X[0] - C[0])
+        kit.halo(img, gx, gy, 70 * kk + 15, '#F6F2E7', 0.9 * kk, period=7.0)
+    # 48.83: the glyphs fly out of the mirrors and assemble into the column at x~1720
+    if t >= 48.83:
+        k = _ease_io(clamp((t - 48.83) / 0.37))
+        ly = once('c106_ly', lambda: VLyric(16, x=1720, accent='#2D6BE0'))
+        for i, g in enumerate(ly.glyphs):
+            if i not in holder or holder[i] >= len(Cs):
+                continue
+            C = Cs[holder[i]]
+            x = C[0] + (g['cx'] - C[0]) * k
+            y = C[1] + (g['cy'] - C[1]) * k
+            if k < 1:
+                kit.map_glyph(img, word[i], x, y, int(ly.size), 0.0, 1.0, '#F5C842' if k < 0.5 else '#EDE3CF', '#1A1416', 6.0)
+        if k >= 1:
+            img = ly.draw(img, t)
+    # 49.20-49.57 reverse mirror iris: into the chosen mirror, which shrinks to the stamp card's dashed circle
+    if t >= 49.38:
+        from mva import fx
+        k = _ease_io(clamp((t - 49.38) / 0.19))
+        tx, ty, tr = once('c107_target', _c107_circle)
+        cx, cy = 960 + (tx - 960) * k, 540 + (ty - 540) * k
+        R_ = 1150 * (1 - k) + tr * k
+        cont = bg.copy()
+        cl = cls[bi % len(cls)]
+        if cl.ok:
+            rgb, a = cl.frame((local * 0.8 + 0.4 * bi) % 1.6, x=960, y=560, cx=0.5, cy=0.5, height=720)
+            cont = cont + (rgb[220:860, 640:1280] - cont) * a[220:860, 640:1280][..., None]
+        cont = fx.fisheye(cont, k=0.4)
+        S = int(2 * R_)
+        big = cv2.resize(cont, (S, S), interpolation=cv2.INTER_AREA if S < 640 else cv2.INTER_LINEAR)
+        out = np.empty_like(img)
+        out[:] = H('#1A1E3A')
+        disc = np.zeros((S, S), np.float32)
+        cv2.circle(disc, (S // 2, S // 2), S // 2 - 1, 1.0, -1, cv2.LINE_AA)
+        x0, y0 = int(cx - S / 2), int(cy - S / 2)
+        xa, ya, xb, yb = max(0, x0), max(0, y0), min(1920, x0 + S), min(1080, y0 + S)
+        if xa < xb and ya < yb:
+            sub = big[ya - y0:yb - y0, xa - x0:xb - x0]
+            dm = disc[ya - y0:yb - y0, xa - x0:xb - x0][..., None]
+            out[ya:yb, xa:xb] = out[ya:yb, xa:xb] * (1 - dm) + sub * dm
+        img = out
+    return img
+
+
+def _c107_circle():
+    """screen position and radius of the sixth circle in chorus1-07's first frame (for the reverse iris)"""
+    from . import card as C
+    s7 = tl.BY_ID['B-chorus1-07']
+    zoom = 1.45
+    cx, cy = 2330, 820
+    _, to_s = card_on_table(np.zeros((C.CH, C.CW, 3), np.float32), cx, cy, zoom, tilt=0.28)
+    x6, y6, _ = C.CIRCLES[5]
+    sx, sy = to_s(x6, y6)
+    ex, _ = to_s(x6 + C.R0, y6)
+    return sx, sy, abs(ex - sx)
+
+
+R['B-chorus1-06'] = chorus1_06
+tl.OWN_TYPE.add('B-chorus1-06')
