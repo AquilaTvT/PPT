@@ -1539,7 +1539,7 @@ tl.OWN_TYPE.add('B-chorus4-05')
 TABLE_PAD = (700, 520)          # table margin around the card, in card px
 
 
-def card_on_table(card, cx, cy, zoom, tilt=0.30, table='#1A1E3A', wood='#232B57'):
+def card_on_table(card, cx, cy, zoom, tilt=0.30, table='#1A1E3A', wood='#232B57', with_mask=False):
     """flat top-down view of the card on the dark table, then a keystone so the far edge recedes (high angle).
     cx, cy, zoom in card coordinates as card.view; tilt = how much narrower the far edge is (fraction)."""
     import cv2
@@ -1569,6 +1569,13 @@ def card_on_table(card, cx, cy, zoom, tilt=0.30, table='#1A1E3A', wood='#232B57'
     src = np.float32([[0, 0], [ow, 0], [ow - m, oh], [m, oh]])
     Hm = cv2.getPerspectiveTransform(scr, src)
     out = cv2.warpPerspective(flat, Hm, (1920, 1080), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+    if with_mask:
+        cm = np.zeros(full.shape[:2], np.float32)
+        cm[TABLE_PAD[1]:TABLE_PAD[1] + C.CH, TABLE_PAD[0]:TABLE_PAD[0] + C.CW] = 1
+        cmf = cv2.warpAffine(cm, M, (ow, oh), flags=cv2.INTER_LINEAR)
+        tf = cv2.warpAffine(tab, M, (ow, oh), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+        mask = cv2.warpPerspective(cmf, Hm, (1920, 1080), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+        table_img = cv2.warpPerspective(tf, Hm, (1920, 1080), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
 
     def to_screen(px, py):        # card px -> screen px (for overlays that must sit on the card)
         fx_ = (px + TABLE_PAD[0] - (cx + TABLE_PAD[0])) * s + ow / 2
@@ -1576,6 +1583,8 @@ def card_on_table(card, cx, cy, zoom, tilt=0.30, table='#1A1E3A', wood='#232B57'
         Hinv = np.linalg.inv(Hm)
         v = Hinv @ np.array([fx_, fy_, 1.0])
         return v[0] / v[2], v[1] / v[2]
+    if with_mask:
+        return out, to_screen, mask, table_img
     return out, to_screen
 
 
@@ -1706,3 +1715,133 @@ def chorus1_07(s, t, local, fi):
 
 R['B-chorus1-07'] = chorus1_07
 tl.OWN_TYPE.add('B-chorus1-07')
+
+
+# ---- B-outro-07: the sun lands in the sixth circle like a hanko; the card is complete ---------------------------------
+def sun_stamp_layer():
+    """the sixth stamp: vermilion double ring, yellow core, short rays; rubber speckle (RGBA card layer)"""
+    import cv2, math
+    from . import card as C
+    if 'sun_stamp' in _cache:
+        return _cache['sun_stamp']
+    x, y, _ = C.CIRCLES[5]
+    r = C.R0 * 0.93
+
+    def draw(c):
+        c.drawCircle(x, y, r * 0.98, C._paint(C.VERM, 1.0, stroke=16))
+        c.drawCircle(x, y, r * 0.82, C._paint(C.VERM, 1.0, stroke=6))
+        c.drawCircle(x, y, r * 0.46, C._paint(C.SUN, 1.0))
+        c.drawCircle(x, y, r * 0.46, C._paint(C.VERM, 1.0, stroke=7))
+        for k in range(12):
+            a = k * math.pi / 6
+            c.drawLine(x + math.cos(a) * r * 0.56, y + math.sin(a) * r * 0.56, x + math.cos(a) * r * 0.72,
+                       y + math.sin(a) * r * 0.72, C._paint(C.VERM, 1.0, stroke=12))
+    lay = C._layer(draw)
+    rng = np.random.default_rng(66)
+    sp = (rng.random((C.CH // 3, C.CW // 3)) > 0.12).astype(np.float32)
+    lay[..., 3] *= cv2.resize(sp, (C.CW, C.CH), interpolation=cv2.INTER_NEAREST)
+    _cache['sun_stamp'] = lay
+    return lay
+
+
+def outro_07(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import card as C
+    from .print_fx import hexc as H
+    x6, y6, _ = C.CIRCLES[5]
+    # card art: five full stamps + the sun stamp (slam: ink spread for the first frames) + footers
+    slam = clamp(local / (3 / 24))
+    old = 'YOU KNOW THAT I\'M NEVER GONNA LOSE'
+    words = ['HEAT', 'WAVES', 'BEEN', 'FAKIN\'', 'ME', 'OUT']
+    gt = _map_gt(61)
+    new = ''
+    for i, w_ in enumerate(words):
+        if t >= gt[i]:
+            nl = min(len(w_), int((t - gt[i]) / (BEAT / 8)) + 1)      # letters within a word on 32nds
+            new += (' ' if new else '') + w_[:nl]
+    old_a = 1.0 - clamp((t - 180.15) / (181.6 - 180.15))
+    key = ('o07card', round(slam, 2), new, round(old_a, 2))
+    if key not in _cache:
+        for k in [k for k in _cache if isinstance(k, tuple) and k[0] == 'o07card']:
+            del _cache[k]
+        card = C.render_card(stamp_k=(1, 1, 1, 1, 1), footer_n=0)
+        lay = sun_stamp_layer()
+        a0 = lay[..., 3]
+        card = card * (1 - a0[..., None]) + lay[..., :3] * a0[..., None]
+        if slam < 1:                       # ink spread on impact: a fatter, wetter stamp that settles
+            a1 = cv2.dilate(a0, np.ones((9, 9), np.uint8), iterations=int(round(3 * (1 - slam))))
+            spread = np.clip(a1 - a0, 0, 1) * 0.85
+            card = card + (H(C.VERM)[None, None] - card) * spread[..., None]
+        L = C._layer(lambda c: (C._text(c, old, 1600, 1440, 64, C.NAVY, 'mincho', tracking=0.4, alpha=old_a * 0.9)))
+        card = card * (1 - L[..., 3:4]) + L[..., :3] * L[..., 3:4]
+        if new:
+            # letterpress: dark bite on the lower-right, light on the upper-left, then the ink
+            for dx, dy, col, al in ((3, 3, '#B9A98C', 0.9), (-2, -2, '#FFF8EA', 0.8), (0, 0, C.VERM, 1.0)):
+                L = C._layer(lambda c, dx=dx, dy=dy, col=col, al=al: C._text(c, new, 1600 + dx, 1440 + dy, 64, col,
+                                                                              'mincho', tracking=0.4, alpha=al))
+                card = card * (1 - L[..., 3:4]) + L[..., :3] * L[..., 3:4]
+        _cache[key] = card
+    card = _cache[key]
+    # camera: hold on the sixth circle at x2.2 (relay landing), pull back from 180.68 to the whole card
+    k = _ease_io(clamp((t - 180.68) / (181.95 - 180.68)))
+    zoom = 2.2 + (0.92 - 2.2) * k
+    cx, cy = x6 + (1600 - x6) * k, y6 + (900 - y6) * k
+    if slam < 1:                           # the hanko press: a little overshoot of scale on impact
+        zoom *= 1.0 + 0.06 * (1 - slam)
+    img, to_s, cm, table = card_on_table(card, cx, cy, zoom, tilt=0.0, table='#8A4A26', wood='#B8632F', with_mask=True)
+    # paper flutter on the free edge (right), lifting on 182.17
+    lift = clamp((t - 182.17) / 0.5)
+    lx, _ = to_s(0, 0)
+    rx, _ = to_s(C.CW, 0)
+    u = np.clip((kit._XS - lx) / max(1.0, rx - lx), 0, 1)
+    wgt = np.clip((u - 0.62) / 0.38, 0, 1) ** 2
+    amp = (5.0 + 30.0 * lift) * wgt
+    dy = amp * np.sin(2 * np.pi * (u * 1.7 - 2.4 * t)) - 26.0 * lift * wgt
+    mapy = (kit._YS - dy).astype(np.float32)
+    cardimg = cv2.remap(img, kit._XS, mapy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    cmw = cv2.remap(cm, kit._XS, mapy, cv2.INTER_LINEAR)
+    shade = 1.0 + 0.010 * np.gradient(dy, axis=1) * 8 * wgt
+    cardimg = cardimg * np.clip(shade, 0.8, 1.15)[..., None]
+    shadow = cv2.GaussianBlur(np.roll(cmw, (int(8 + 18 * lift), int(10 + 12 * lift)), (0, 1)), (0, 0), 6 + 10 * lift) * 0.45
+    base = table * (1 - shadow[..., None])
+    img = base * (1 - cmw[..., None]) + cardimg * cmw[..., None]
+    # warm dawn light from the upper right + halftone glare
+    xs, ys = kit._XS / 1920, kit._YS / 1080
+    warm = np.clip(0.55 + 0.6 * xs - 0.35 * ys, 0, 1.15)[..., None]
+    img = img * (0.72 + 0.32 * warm) * np.array([1.04, 0.98, 0.90], np.float32)
+    kit.halo(img, 1980, -60, 760, '#F5C842', 0.45, period=14.0)
+    # impact: a dot burst out of the circle (vermilion + sun yellow), 10 frames
+    sx, sy = to_s(x6, y6)
+    ex, _ = to_s(x6 + C.R0, y6)
+    rp = abs(ex - sx)
+    if local < 0.5:
+        kb = local / 0.5
+        rng = np.random.default_rng(7)
+        m1 = np.zeros((1080, 1920), np.float32)
+        m2 = np.zeros((1080, 1920), np.float32)
+        for j in range(70):
+            a = rng.uniform(0, 2 * np.pi)
+            d = rp * (1.0 + rng.uniform(0.15, 1.3) * (1 - (1 - kb) ** 3))
+            rr = max(1, int(rng.uniform(5, 15) * (1 - kb)))
+            cv2.circle(m1 if j % 3 else m2, (int(sx + np.cos(a) * d), int(sy + np.sin(a) * d)), rr, 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#D9402B')[None, None] - img) * m1[..., None]
+        img = img + (H('#F5C842')[None, None] - img) * m2[..., None]
+    # the relay arrival: the sun (outro-06's) is still there for 2 frames, pressing into the circle
+    if local < 2 / 24:
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (int(sx), int(sy)), int(rp * 0.98), 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#FFF2C8')[None, None] - img) * (m * (1 - local * 12))[..., None]
+    # all six stamps pulse once on 181.43
+    if 181.43 <= t < 181.85:
+        pk = (t - 181.43) / 0.42
+        m = np.zeros((1080, 1920), np.float32)
+        for (x, y, _) in C.CIRCLES:
+            px, py = to_s(x, y)
+            cv2.circle(m, (int(px), int(py)), int(rp * (1.0 + 0.35 * pk)), 1.0, max(1, int(6 * (1 - pk))), cv2.LINE_AA)
+        img = img + (H('#D9402B')[None, None] - img) * (m * (1 - pk))[..., None]
+    return _zh_fixed(img, t, 61, 180.15, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro-07'] = outro_07
+tl.OWN_TYPE.add('B-outro-07')
