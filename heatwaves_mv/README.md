@@ -3,7 +3,10 @@
 A non-commercial fan music video for **Glass Animals「Heat Waves」(Japanese cover & lyrics by Lime)**,
 3:18, 1920×1080, 30 fps.
 
-- `HeatWaves_MV_1080p.mp4`: the finished MV (H.264 + AAC)
+![key frames](poster.jpg)
+
+- `HeatWaves_MV_1080p.mp4`: the finished MV (H.264 3.5 Mbps + AAC 192k, sized to stay under GitHub's 100 MB limit)
+- `poster.jpg`: 20 key frames
 - `STORYBOARD.md`: concept, palette and the full 64-shot list with timings
 - `mv/`: the renderer (every frame is drawn by this code)
 - `tools/`: character stylisation, chunked renderer, checks
@@ -39,8 +42,9 @@ story and staging are new.
 ```bash
 pip install numpy opencv-python-headless skia-python pillow librosa
 tools/fetch_fonts.sh
-HW_AUDIO=/path/to/heat_waves_japanese_version.wav python -m mv.render sheet --times 18,30,84 --res 960
-HW_AUDIO=/path/to/heat_waves_japanese_version.wav python tools/render_chunks.py --workers 4
+python -m mv.render sheet --times 18,30,84 --res 960          # stills -> out/sheet.jpg
+python tools/render_chunks.py --workers 4                      # 1080p30 chunks -> out/
+python tools/assemble.py --audio heat_waves_jp.wav --out HeatWaves_MV_1080p.mp4 --mb 92
 ```
 
 `python tools/check.py` renders the whole timeline at 320×180 and reports any shot that throws.

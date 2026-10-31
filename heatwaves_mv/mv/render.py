@@ -12,8 +12,8 @@ import time
 
 import numpy as np
 
-AUDIO = os.environ.get('HW_AUDIO', '/tmp/claude-0/song/hw.wav')
-OUT_DIR = os.environ.get('HW_OUT', '/tmp/claude-0/out')
+AUDIO = os.environ.get('HW_AUDIO', '')          # the song (wav/m4a); needed only for muxing
+OUT_DIR = os.environ.get('HW_OUT', os.path.join(os.path.dirname(__file__), '..', 'out'))
 
 
 def _setup(res):
@@ -103,7 +103,7 @@ def render_range(t0, t1, fps, res, out, workers=1, chunk_s=4.0, crf=14, tag='seg
             fl.write(f"file '{pth}'\n")
     silent = out + '.silent.mp4'
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', lst, '-c', 'copy', silent], check=True)
-    if audio:
+    if audio and AUDIO:
         subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', silent, '-ss', str(t0), '-t', str(t1 - t0), '-i', AUDIO,
                         '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-shortest', out],
                        check=True)

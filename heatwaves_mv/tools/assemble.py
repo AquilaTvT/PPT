@@ -29,6 +29,10 @@ def main():
     ap.add_argument('--hq', default='', help='optional extra high-quality encode path (CRF)')
     ap.add_argument('--hq_crf', type=int, default=18)
     a = ap.parse_args()
+    if not a.audio:
+        sys.exit('pass --audio (or set HW_AUDIO) to the song file')
+    a.audio, a.out = os.path.abspath(a.audio), os.path.abspath(a.out)
+    a.hq = os.path.abspath(a.hq) if a.hq else ''
     js = jobs([])
     missing = [j[4] for j in js if not os.path.exists(j[4] + '.done')]
     if missing:
