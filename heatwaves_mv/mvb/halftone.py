@@ -24,13 +24,14 @@ def to_lab(rgb):
 
 class PrintStyle:
     def __init__(self, inks, ink_line='#1E1A22', paper='#EDE3CF', period=10.0, angle=45.0, line_w=1.0,
-                 dot_gain=1.0, shade_strength=0.85, grain=0.025, seed=0):
+                 dot_gain=1.0, shade_strength=0.85, grain=0.025, seed=0, dead=0.0):
         self.inks = np.stack([hexc(h) for h in inks]).astype(np.float32)
         self.inks_lab = to_lab(self.inks[None])[0]
         self.line = hexc(ink_line)
         self.paper = hexc(paper)
         self.period, self.angle, self.line_w = period, np.deg2rad(angle), line_w
         self.dot_gain, self.shade, self.grain = dot_gain, shade_strength, grain
+        self.dead = dead          # tone dead zone: small darkenings stay flat ink (dots only in real shadow)
         self.rng = np.random.default_rng(seed)
         self._grid = {}
 
@@ -62,7 +63,7 @@ class PrintStyle:
         # tone inside each region: luminance relative to the ink's own luminance -> halftone dots of a darker ink
         lum = lab[:, :, 0] / 100.0
         ink_l = self.inks_lab[idx][:, :, 0] / 100.0
-        dark = np.clip((ink_l - lum) * 2.2 * self.dot_gain, 0, 1)        # how much darker than the ink
+        dark = np.clip(((ink_l - lum) - self.dead) * 2.2 * self.dot_gain, 0, 1)        # how much darker than the ink
         r = np.sqrt(dark) * 0.62                                           # dot radius in cell units (area ~ tone)
         g = self.grid(h, w)
         aa = 1.0 / self.period
