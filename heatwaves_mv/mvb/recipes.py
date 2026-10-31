@@ -2967,3 +2967,73 @@ def chorus1_02(s, t, local, fi):
 
 R['B-chorus1-02'] = chorus1_02
 tl.OWN_TYPE.add('B-chorus1-02')
+
+
+# ---- B-chorus1-03: lost in the heat haze -- dolly-zoom on the noon road, she stays the same size ----------------------
+def _c103_plate():
+    import math
+    s = tl.BY_ID['B-chorus1-03']
+    d = s['end'] - s['start']
+    zh, D0, D1 = 40.0, 10.2, 2.8
+    K = D0 * math.tan(math.radians(8.0))
+    path = []
+    for i in range(int(round(d * 24)) + 1):
+        tt = i / 24
+        u = tt / d
+        e = u * u * (3 - 2 * u)
+        D = D0 + (D1 - D0) * e
+        fov = 2 * math.degrees(math.atan(K / D))
+        bank = 2.0 * math.sin(2 * math.pi * (s['start'] + tt - 0.682) / (BEAT / 2))
+        path.append({'t': tt, 'pos': [0.3, 1.45, round(zh - D, 4)], 'look': [0.3, 1.0, zh], 'fov': round(fov, 4),
+                     'bank': round(bank, 3), 'ease': 'linear'})
+    return plate('B-chorus1-03', 's2_coast', {'world': 'noon', 'day': True, 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3,
+                                             'mirrors': [52.0, 140.0], 'fogNear': 120, 'fogFar': 900}, 0.0, d, fps=24)
+
+
+def chorus1_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('c103', _c103_plate)
+    img = pl.frame(local).copy()
+    vp = pl.anchor(local, 'vp')
+    hy = float(np.clip(vp[0][1], 300, 800)) if vp else 520.0
+    # heat haze below the horizon (1.5%) and the mirage pool spreading on the road
+    dx = np.sin(kit._YS / 9.0 + t * 9.0) * 16 * np.clip((kit._YS - hy) / 300.0, 0, 1)
+    img = cv2.remap(img, (kit._XS + dx).astype(np.float32), kit._YS, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    img = kit.mirage_band(img, t, hy + 4, 0, 1920, 46 + 30 * clamp(local / 2.0), 4.0)
+    # her, centre, constant size, inverted mirage reflection under her feet
+    cl = once('c103_char', lambda: chars.CharLayer('B-chorus1-03', rim_w=(2.0, 4.0, 0.0)))
+    feet = 540 + 310
+    if cl.ok:
+        rgb, a = cl.frame(local, x=960, y=feet, cx=0.5, cy=0.96, height=650)
+        img = chars.over(img, rgb, a, shadow='#2D6BE0', shadow_amt=0.35)
+        rr, ra = cv2.flip(rgb, 0), cv2.flip(a, 0)
+        sh_ = int(2 * feet - 1080)
+        rr, ra = np.roll(rr, sh_, 0), np.roll(ra, sh_, 0) * 0.4 * (kit._YS > feet)
+        wob = (kit._XS + 7 * np.sin(kit._YS / 6.0 + t * 10)).astype(np.float32)
+        rr = cv2.remap(rr, wob, kit._YS, cv2.INTER_LINEAR)
+        ra = cv2.remap(ra.astype(np.float32), wob, kit._YS, cv2.INTER_LINEAR)
+        img = chars.over(img, rr * 0.8 + H('#C9D3DC')[None, None] * 0.2, ra)
+    # L12 column; 迷 turns one slow full rotation 35.50-36.98
+    ly = once('c103_ly', lambda: VLyric(12, x=1720, accent='#2D6BE0', hide=lambda i, tt: i == 8))
+    drift = 6 * math.sin(t * 2.3)
+    img = ly.draw(img, t)
+    t_mei = ly.times[8] if len(ly.times) > 8 else 35.5
+    if t >= t_mei and len(ly.glyphs) > 8 and t <= ly.out_t + 0.2:
+        g = ly.glyphs[8]
+        r0 = max(35.50, t_mei)
+        ang = -360.0 * _ease_io(clamp((t - r0) / max(0.3, 36.98 - r0)))
+        kit.map_glyph(img, '迷', g['cx'] + drift, g['cy'], int(ly.size), ang, 1.0, '#EDE3CF', '#1A1416', 6.0)
+    # 37.35-37.72 版ずれ: the cobalt plate slides 40 px left, the yellow plate 40 px right
+    if t >= 37.35:
+        k = clamp((t - 37.35) / 0.37)
+        sh = int(40 * k)
+        L, Rr = np.roll(img, -sh, 1), np.roll(img, sh, 1)
+        img = np.stack([Rr[..., 0], (L[..., 1] + Rr[..., 1]) * 0.5, L[..., 2]], -1)
+    return img
+
+
+R['B-chorus1-03'] = chorus1_03
+tl.OWN_TYPE.add('B-chorus1-03')
