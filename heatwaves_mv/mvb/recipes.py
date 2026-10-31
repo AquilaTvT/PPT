@@ -3219,3 +3219,110 @@ def _c107_circle():
 
 R['B-chorus1-06'] = chorus1_06
 tl.OWN_TYPE.add('B-chorus1-06')
+
+
+# ---- shared: 8-lane scoreboard (lane no. + 16-dot name field + time) with a race clock and a top ticker ------------
+def scoreboard8_img(t, filled=0, ticker='', t0=0.0, clock='0:00.00', on='#F5C842'):
+    from . import print_fx
+    key = ('sb8', filled, on)
+    if key not in _cache:
+        cols_ = []
+        for c in range(2):                                 # two columns of four lanes (landscape board)
+            rows = []
+            for r in range(4):
+                i = c * 4 + r
+                name = '君' if i < filled else '  '
+                b, _ = print_fx.led_board(f'{i + 1} {name}', cols=40, rows=16, dot=10, on=on, off='#2A2418', bg='#141018',
+                                          glow=0.45)
+                tm, _ = print_fx.led_board('-:--.--' if i >= filled else '0:00.00', cols=50, rows=16, dot=10, on=on,
+                                           off='#2A2418', bg='#141018', font='silk', glow=0.3)
+                rows.append(np.concatenate([b, tm], 1))
+            cols_.append(np.concatenate(rows, 0))
+        for k in [k for k in _cache if isinstance(k, tuple) and k[0] == 'sb8']:
+            del _cache[k]
+        _cache[key] = np.concatenate(cols_, 1)
+    body = _cache[key]
+    sc = int(max(0.0, t - t0) * 24) * 2 - 180
+    top, _ = print_fx.led_board(ticker or ' ', cols=180, rows=12, dot=10, on=on, off='#2A2418', bg='#141018', font='dot',
+                                scroll=sc if ticker else 0)
+    clk, _ = print_fx.led_board('     ' + clock, cols=180, rows=16, dot=10, on=on, off='#2A2418', bg='#141018', font='silk',
+                                glow=0.6)
+    return np.concatenate([clk, top, body], 0)
+
+
+# ---- B-chorus1-05: one take -- noon pool, every lane says 君, push into the race clock, which melts into his 0:00 ------
+def _c105_plates():
+    s = tl.BY_ID['B-chorus1-05']
+    d = s['end'] - s['start']
+    tA, tB = 43.65 - s['start'], 45.13 - s['start']
+    path = [{'t': 0.0, 'pos': [6.5, 5.2, -1.6], 'look': [12.5, 2.4, -0.6], 'fov': 44},
+            {'t': tA, 'pos': [7.2, 1.2, -1.9], 'look': [12.5, 1.9, -0.4], 'fov': 46, 'ease': 'inout'},
+            {'t': tB, 'pos': [10.2, 1.7, -0.6], 'look': [17.25, 6.75, 0.6], 'fov': 22, 'ease': 'inout'},
+            {'t': d, 'pos': [10.25, 1.72, -0.6], 'look': [17.25, 6.75, 0.6], 'fov': 21.5, 'ease': 'linear'}]
+    pool = plate('B-chorus1-05', 's7_pool', {'world': 'noon', 'path': path}, 0.0, d, fps=24)
+    tc = d - tB
+    rpath = [{'t': 0.0, 'pos': [0.02, 0.12, -0.45], 'look': [0.1, 0.07, -0.6], 'fov': 40},
+             {'t': tc, 'pos': [-0.25, 0.42, 0.35], 'look': [0.1, 0.07, -0.6], 'fov': 40, 'ease': 'out'}]
+    room = plate('B-chorus1-05r', 's1_room', {'path': rpath, 'fanStopT': None}, 0.0, tc, fps=24)
+    return pool, room, tA, tB
+
+
+def chorus1_05(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import clock_grid, dot_matrix, hexc as H
+    pool, room, tA, tB = once('c105', _c105_plates)
+    lanes = [41.42, 42.16, 42.90, 43.65]
+    filled = 2 * sum(1 for x in lanes if t >= x)
+    if local < tB + 0.74:
+        img = pool.frame(min(local, tB + 0.74)).copy()
+        q = pool.anchor(min(local, tB + 0.74), 'scoreboard')
+        if q and all(0 < p[2] < 1.001 for p in q):
+            brd = scoreboard8_img(t, filled, '初夏零時過ぎたばかり' if t >= 43.65 else '', 43.65,
+                                  '0:00.00' if t >= 44.39 else '0:59.98')
+            img = led_on_quad(img, _quad_sorted(q), brd)
+        # her on the pool edge, screen-left third, feet in the water; splash rings on each forward swing
+        cl = once('c105_char', lambda: chars.CharLayer('B-chorus1-05'))
+        if cl.ok and local < tA + 0.6:
+            out = clamp((local - tA) / 0.6)                       # she leaves frame as the camera tilts up
+            rgb, a = cl.frame(local, x=560, y=1000 + 700 * out, cx=0.5, cy=0.9, height=900)
+            img = chars.over(img, rgb, a, shadow='#2C4C9A', shadow_amt=0.3)
+            for b in lanes + [40.68]:
+                k = (t - b) / 0.6
+                if 0 <= k < 1:
+                    m = np.zeros((1080, 1920), np.float32)
+                    cv2.ellipse(m, (600, int(1010 + 700 * out)), (int(60 + 160 * k), int(14 + 40 * k)), 0, 0, 360, 1.0, 3,
+                                cv2.LINE_AA)
+                    img = img + (H('#F6F2E7')[None, None] - img) * (m * (1 - k))[..., None]
+        if local >= tB:                                          # 陽炎ドット溶け: the amber LEDs ripple and grow
+            k = clamp((local - tB) / 0.74)
+            img = led_dots(img, pitch=10 + 26 * k, ripple=8 * k, t=t, gap='#141018')
+            img = img * (1 - 0.25 * k) + (img.mean(-1, keepdims=True) * H('#7FC8B8')[None, None] * 1.6) * (0.25 * k)
+    if local >= tB + 0.74 - 1e-6 or local >= tB + 0.5:
+        lr = max(0.0, local - tB)
+        rimg = room.frame(lr).copy()
+        cq = room.anchor(lr, 'clock')
+        if cq and all(0 < p[2] < 1.001 for p in cq):
+            colon = int((t - 0.682) / BEAT) % 2 == 0
+            brd = dot_matrix(clock_grid('0:00', colon_on=colon), pitch=10, on='#7FC8B8', bg='#0B1414')
+            rimg = led_on_quad(rimg, _quad_sorted(cq), np.asarray(brd, np.float32))
+        # the fan's shadow passes over the clock
+        ang = t * 2.0
+        th = np.arctan2(kit._YS - 300, kit._XS - 1500)
+        blades = (np.cos(3 * (th - ang)) > 0.6).astype(np.float32)
+        rimg = rimg * (1 - cv2.GaussianBlur(blades, (0, 0), 25)[..., None] * 0.25)
+        k = clamp((local - (tB + 0.5)) / 0.4)
+        re = led_dots(rimg, pitch=36 * (1 - k) + 6, ripple=6 * (1 - k), t=t, gap='#0B1414')
+        rimg = re * (1 - k) + rimg * k if k < 1 else rimg
+        if local < tB + 0.74:
+            img = img + (rimg - img) * clamp((local - (tB + 0.5)) / 0.24)
+        else:
+            img = rimg
+    ly = once('c105_ly', lambda: VLyric(14, x=1720, accent='#2D6BE0'))
+    img = ly.draw(img, t)
+    return img
+
+
+R['B-chorus1-05'] = chorus1_05
+tl.OWN_TYPE.add('B-chorus1-05')
