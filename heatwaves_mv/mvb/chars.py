@@ -132,6 +132,8 @@ class CharLayer:
                  line_w=1.0, max_cov=None, src=None, dead=0.07):
         self.sid = sid
         self.kind, self.path = (('video', src) if src and src.endswith('.mp4') else ('still', src)) if src else media_path(sid)
+        if self.kind is None and os.environ.get('HW_CHAR_STANDIN'):      # preview only: a stand-in figure
+            self.kind, self.path = 'still', os.environ['HW_CHAR_STANDIN']
         self.ok = self.kind is not None
         self.inks = inks or world_inks(sid)
         self.in_t, self.speed, self.loop, self.pingpong = in_t, speed, loop, pingpong

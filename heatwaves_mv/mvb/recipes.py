@@ -2760,3 +2760,122 @@ def verse_06(s, t, local, fi):
 
 R['B-verse-06'] = verse_06
 tl.OWN_TYPE.add('B-verse-06')
+
+
+# ---- shared: convex mirror content composited into a projected mirror disc ---------------------------------------------
+def mirror_insert(img, content, C, X, Y, sat=1.0, k=0.38, tint='#C9D3DC', sheen_t=None):
+    """content (square float image) -> fisheye -> affine onto the mirror disc given projected centre C and rim points
+    X (local +x) and Y (local +y). sat < 1 desaturates toward silver (mirrors not facing camera)."""
+    import cv2
+    from mva import fx
+    from .print_fx import hexc as H
+    S = content.shape[0]
+    cont = fx.fisheye(content, k=k)
+    if sat < 1.0:
+        g = cont.mean(-1, keepdims=True)
+        cont = g + (cont - g) * sat
+        cont = cont * (0.8 + 0.2 * sat) + H(tint)[None, None] * (0.2 * (1 - sat))
+    src = np.float32([[S / 2, S / 2], [S, S / 2], [S / 2, 0]])
+    dst = np.float32([[C[0], C[1]], [X[0], X[1]], [Y[0], Y[1]]])
+    M = cv2.getAffineTransform(src, dst)
+    warped = cv2.warpAffine(cont, M, (1920, 1080), flags=cv2.INTER_LINEAR)
+    disc = np.zeros((S, S), np.float32)
+    cv2.circle(disc, (S // 2, S // 2), S // 2 - 2, 1.0, -1, cv2.LINE_AA)
+    m = cv2.warpAffine(disc, M, (1920, 1080), flags=cv2.INTER_LINEAR)
+    out = img + (warped - img) * m[..., None]
+    if sheen_t is not None:                       # a silver sheen band sweeping the glass
+        band = np.exp(-((kit._XS - kit._YS - (C[0] - C[1]) - 300 * np.sin(sheen_t)) / 40.0) ** 2) * m
+        out = out + (H('#F6F2E7')[None, None] - out) * (band * 0.5)[..., None]
+    return out, m
+
+
+# ---- B-chorus1-01: three curve mirrors at the junction, all full of her; the camera clicks round 10 degrees a beat -----
+C101_BEATS = [28.83, 29.57, 30.31, 31.05]
+
+
+def _c101_geom():
+    import math
+    A = np.array([-4.0, 2.75, 3.6])
+    mirrors = [{'pos': A.tolist(), 'yaw': math.radians(15), 'r': 0.6},
+               {'pos': [-3.55, 2.75, 3.2], 'yaw': math.radians(78), 'r': 0.6, 'pole': False},
+               {'pos': [4.9, 2.65, 9.5], 'yaw': math.radians(-112), 'r': 0.6}]
+    return A, mirrors
+
+
+def _c101_theta(t):
+    from mv.core import clamp
+    th = 55.0
+    for b in C101_BEATS:
+        if t >= b:
+            k = clamp((t - b) / (4 / 24))
+            th -= 10.0 * k * k * (3 - 2 * k)
+    return th
+
+
+def _c101_plate():
+    import math
+    s = tl.BY_ID['B-chorus1-01']
+    d = s['end'] - s['start']
+    A, mirrors = _c101_geom()
+    path = []
+    for i in range(int(round(d * 24)) + 1):
+        tt = i / 24
+        th = math.radians(_c101_theta(s['start'] + tt))
+        pos = A + 3.0 * np.array([math.sin(th), 0.0, math.cos(th)])
+        pos[1] = 1.95
+        look = A + np.array([0.0, 0.0, 0.0])
+        path.append({'t': tt, 'pos': pos.round(4).tolist(), 'look': look.round(4).tolist(), 'fov': 40, 'ease': 'linear'})
+    return plate('B-chorus1-01', 's9_junction', {'world': 'noon', 'path': path, 'mirrors': mirrors}, 0.0, d, fps=24)
+
+
+def chorus1_01(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('c101', _c101_plate)
+    img = pl.frame(local).copy()
+    Cs, Xs, Ys = pl.anchor(local, 'mirrors') or [], pl.anchor(local, 'mirrorX') or [], pl.anchor(local, 'mirrorY') or []
+    # the reflected world behind the camera: the noon road (hook-03 plate), her cut-out in front of it
+    bg = once('c101_bg', lambda: cv2.resize(once('hook03', _hook03_plate).frame(1.6)[:, 420:1500], (640, 640)))
+    cl = once('c101_char', lambda: chars.CharLayer('B-chorus1-01'))
+    beat_i = max(i for i, b in enumerate(C101_BEATS) if t >= b) if t >= C101_BEATS[0] else 0
+    # which mirror faces the camera: the one whose projected disc is roundest / biggest
+    areas = []
+    for C, X, Y in zip(Cs, Xs, Ys):
+        ax = np.hypot(X[0] - C[0], X[1] - C[1])
+        ay = np.hypot(Y[0] - C[0], Y[1] - C[1])
+        areas.append(ax * ay)
+    face = int(np.argmax(areas)) if areas else 0
+    for j, (C, X, Y) in enumerate(zip(Cs, Xs, Ys)):
+        if not (0 < C[2] < 1.001):
+            continue
+        cont = bg.copy()
+        if cl.ok:
+            rgb, a = cl.frame(local + 0.37 * j, x=960, y=560, cx=0.5, cy=0.5, height=720)   # whole clip frame in the glass
+            rgb, a = rgb[220:860, 640:1280], a[220:860, 640:1280]
+            cont = cont + (rgb - cont) * a[..., None]
+        img, m = mirror_insert(img, cont, C, X, Y, sat=1.0 if j == face else 0.7, k=0.4, sheen_t=t * 0.8 + j)
+        # 君 leaves the column on 30.31 and prints at 200 px in sun yellow in the mirror facing camera
+        if j == face and 30.31 <= t < 31.05:
+            kk = clamp((t - 30.31) / (3 / 24))
+            kit.map_glyph(img, '君', C[0], C[1], 200, 0.0, 0.4 + 0.6 * kk, '#F5C842', '#1A1416', 9.0)
+    # the sun glint jumps to the facing mirror's rim on every beat (AM halftone star)
+    if Cs:
+        C, X, Y = Cs[face], Xs[face], Ys[face]
+        gx, gy = C[0] + 0.55 * (X[0] - C[0]) + 0.55 * (Y[0] - C[0]), C[1] + 0.55 * (X[1] - C[1]) + 0.55 * (Y[1] - C[1])
+        ph = (t - C101_BEATS[beat_i]) if t >= C101_BEATS[0] else 1.0
+        kk = math.exp(-ph * 2.5)
+        kit.halo(img, gx, gy, 120 * kk + 30, '#F6F2E7', 0.95 * kk + 0.2, period=8.0)
+        m = np.zeros((1080, 1920), np.float32)
+        L = int(90 * kk + 20)
+        cv2.line(m, (int(gx - L), int(gy)), (int(gx + L), int(gy)), 1.0, 3, cv2.LINE_AA)
+        cv2.line(m, (int(gx), int(gy - L)), (int(gx), int(gy + L)), 1.0, 3, cv2.LINE_AA)
+        img = img + (H('#F6F2E7')[None, None] - img) * m[..., None]
+    ly = once('c101_ly', lambda: VLyric(10, x=1720, accent='#2D6BE0', hide=lambda i, tt: i == 6 and 30.31 <= tt < 31.05))
+    return ly.draw(img, t)
+
+
+R['B-chorus1-01'] = chorus1_01
+tl.OWN_TYPE.add('B-chorus1-01')
