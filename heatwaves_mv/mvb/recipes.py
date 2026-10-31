@@ -3024,7 +3024,7 @@ def chorus1_03(s, t, local, fi):
     if t >= t_mei and len(ly.glyphs) > 8 and t <= ly.out_t + 0.2:
         g = ly.glyphs[8]
         r0 = max(35.50, t_mei)
-        ang = -360.0 * _ease_io(clamp((t - r0) / max(0.3, 36.98 - r0)))
+        ang = -360.0 * _ease_io(clamp((t - r0) / max(0.9, 36.98 - r0)))
         kit.map_glyph(img, '迷', g['cx'] + drift, g['cy'], int(ly.size), ang, 1.0, '#EDE3CF', '#1A1416', 6.0)
     # 37.35-37.72 版ずれ: the cobalt plate slides 40 px left, the yellow plate 40 px right
     if t >= 37.35:
