@@ -39,6 +39,7 @@ def main():
     f0, f1 = int(round(a.t0 * FPS)), int(round(a.t1 * FPS))
     n = a.workers * 2
     step = max(1, (f1 - f0 + n - 1) // n)
+    a.out = os.path.abspath(a.out)
     tmpd = a.out + '.parts'
     os.makedirs(tmpd, exist_ok=True)
     jobs = [(s, min(f1, s + step), os.path.join(tmpd, f'p{i:03d}.mp4')) for i, s in enumerate(range(f0, f1, step))]

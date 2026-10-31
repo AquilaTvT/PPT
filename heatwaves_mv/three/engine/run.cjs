@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, '..');
 const W = +(args.w || 1920), H = +(args.h || 1080), fps = +(args.fps || 24);
 const t0 = +(args.t0 || 0), t1 = +(args.t1 || 2);
 const out = args.out || '/tmp/frames';
+const FMT = args.format || 'jpg';
 const [beat0, beatLen] = (args.beats || '0.682,0.74075').split(',').map(Number);
 fs.mkdirSync(out, { recursive: true });
 const srv = http.createServer((req, res) => {
@@ -31,7 +32,9 @@ const srv = http.createServer((req, res) => {
   const pg = await b.newPage({ viewport: { width: W, height: H } });
   pg.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log('page:', m.text()); });
   pg.on('pageerror', e => console.log('pageerror:', e.message));
-  const q = `scene=${args.scene}&w=${W}&h=${H}&aa=${args.aa || '1'}&params=${encodeURIComponent(args.params || '{}')}`;
+  // params go in through an init script (long camera paths overflow the URL / request-header limit)
+  await pg.addInitScript((p) => { window.__PARAMS = p; }, args.params || '{}');
+  const q = `scene=${args.scene}&w=${W}&h=${H}&aa=${args.aa || '1'}`;
   await pg.goto(`http://127.0.0.1:${port}/engine/page.html?${q}`);
   await pg.waitForFunction('window.ready === true || window.buildError', null, { timeout: 120000 });
   const be = await pg.evaluate(() => window.buildError || null);
@@ -43,8 +46,8 @@ const srv = http.createServer((req, res) => {
     const t = t0 + i / fps;
     const sinceBeat = ((t - beat0) % beatLen + beatLen) % beatLen;
     const pulse = Math.exp(-sinceBeat / 0.12);
-    const url = await pg.evaluate(([t, p, i]) => window.renderAt(t, p, i), [t, pulse, Math.round(t * fps)]);
-    fs.writeFileSync(path.join(out, `f_${String(i).padStart(5, '0')}.png`), Buffer.from(url.split(',')[1], 'base64'));
+    const url = await pg.evaluate(([t, p, i, fmt]) => window.renderAt(t, p, i, fmt), [t, pulse, Math.round(t * fps), FMT]);
+    fs.writeFileSync(path.join(out, `f_${String(i).padStart(5, '0')}.${FMT === 'png' ? 'png' : 'jpg'}`), Buffer.from(url.split(',')[1], 'base64'));
     anchors.push(await pg.evaluate(() => (window.anchors ? window.anchors() : null)));
   }
   if (anchors.some(a => a)) fs.writeFileSync(path.join(out, 'anchors.json'), JSON.stringify(anchors));

@@ -34,7 +34,10 @@ class Plate:
         if i not in self._cache:
             if len(self._cache) > 6:
                 self._cache.clear()
-            im = cv2.imread(os.path.join(self.d, f'f_{i:05d}.png'))
+            fp = os.path.join(self.d, f'f_{i:05d}.jpg')
+            if not os.path.exists(fp):
+                fp = os.path.join(self.d, f'f_{i:05d}.png')
+            im = cv2.imread(fp)
             self._cache[i] = cv2.cvtColor(im, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
         return self._cache[i]
 

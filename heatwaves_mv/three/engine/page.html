@@ -5,7 +5,7 @@ import * as THREE from '/node_modules/three/build/three.module.js';
 import * as P from '/engine/print.js';
 const q = new URLSearchParams(location.search);
 const W = +q.get('w') || 1920, H = +q.get('h') || 1080;
-const params = JSON.parse(decodeURIComponent(q.get('params') || '%7B%7D'));
+const params = JSON.parse(window.__PARAMS || decodeURIComponent(q.get('params') || '%7B%7D'));
 const canvas = document.getElementById('c');
 canvas.width = W; canvas.height = H;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.get('aa') !== '0', preserveDrawingBuffer: true });
@@ -22,7 +22,7 @@ try {
   S = await mod.build(THREE, P, params, { W, H });
 } catch (e) { window.buildError = String(e && e.stack || e); throw e; }
 let jit = [0, 0];
-window.renderAt = (t, beatPulse = 0, frameIdx = 0) => {
+window.renderAt = (t, beatPulse = 0, frameIdx = 0, fmt = 'png') => {
   P.U.uTime.value = t;
   P.U.uPulse.value = beatPulse;
   if (frameIdx % 3 === 0) {                     // print jitter: re-registration every 3 frames
@@ -32,7 +32,7 @@ window.renderAt = (t, beatPulse = 0, frameIdx = 0) => {
   P.U.uJitter.value.set(jit[0], jit[1]);
   S.update(t, beatPulse);
   renderer.render(S.scene, S.camera);
-  return canvas.toDataURL('image/png');
+  return fmt === 'png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.96);
 };
 // projected screen-space points of named 3D anchors (for 2D inserts in the compositor)
 window.anchors = () => {

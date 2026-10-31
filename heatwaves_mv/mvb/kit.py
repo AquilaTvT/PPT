@@ -81,3 +81,57 @@ def dot_flash(img, k, color='#F5C842', period=24.0):
     d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
     m = np.clip((0.7 * k - d) * period * 0.5, 0, 1)
     return img + (hexc(color)[None, None] - img) * m[..., None]
+
+
+_GP = {}
+
+
+def glyph_patch(ch, size=70, font='mincho', stroke=7.0):
+    """rasterised single glyph (fill, stroke) coverage patches, (2*size)^2, glyph centred"""
+    key = (ch, size, font, stroke)
+    if key not in _GP:
+        from mv import text
+        n = int(size * 2)
+        g = dict(ch=ch, cx=n / 2, cy=n / 2, rot=90.0 if ch in text.ROTATE_V else 0.0, size=size, font=font, i=0, col=0)
+        f, s = text.render_glyphs([g], stroke=stroke)
+        _GP[key] = (f[:n, :n].copy(), s[:n, :n].copy())
+    return _GP[key]
+
+
+def map_glyph(img, ch, x, y, size=70, angle=0.0, scale=1.0, fill='#F6F2E7', stroke='#1E2550', sw=7.0, font='mincho', alpha=1.0):
+    """map-label glyph (cream fill, ink outline) centred at (x, y), rotated by angle degrees (ccw). Draws in place."""
+    if scale <= 0.01 or alpha <= 0.003:
+        return img
+    f, s = glyph_patch(ch, size, font, sw)
+    n = f.shape[0]
+    m = int(n * max(1.0, scale) * 1.5) + 2
+    xi, yi = int(round(x)), int(round(y))
+    x0, y0 = xi - m // 2, yi - m // 2
+    M = cv2.getRotationMatrix2D((n / 2, n / 2), angle, scale)
+    M[0, 2] += m / 2 - n / 2 + (x - xi) - (m / 2 - m // 2)
+    M[1, 2] += m / 2 - n / 2 + (y - yi) - (m / 2 - m // 2)
+    ax0, ay0, ax1, ay1 = max(0, x0), max(0, y0), min(W, x0 + m), min(H, y0 + m)
+    if ax0 >= ax1 or ay0 >= ay1:
+        return img
+    for cov, col in ((s, stroke), (f, fill)):
+        w = cv2.warpAffine(cov, M, (m, m))[ay0 - y0: ay1 - y0, ax0 - x0: ax1 - x0] * alpha
+        roi = img[ay0:ay1, ax0:ax1]
+        roi += (hexc(col)[None, None] - roi) * w[..., None]
+    return img
+
+
+def halo(img, x, y, r=40.0, color='#7FC8B8', strength=0.9, period=9.0):
+    """printed halftone halo around (x, y): dots shrink with distance (screen-locked 45 deg screen)"""
+    x0, y0, x1, y1 = int(max(0, x - r - 2)), int(max(0, y - r - 2)), int(min(W, x + r + 3)), int(min(H, y + r + 3))
+    if x0 >= x1 or y0 >= y1:
+        return img
+    ys, xs = _YS[y0:y1, x0:x1], _XS[y0:y1, x0:x1]
+    tone = np.clip(1.0 - np.sqrt((xs - x) ** 2 + (ys - y) ** 2) / r, 0, 1) ** 1.3 * strength
+    c, s = math.cos(math.radians(45)), math.sin(math.radians(45))
+    u = (xs * c + ys * s) / period
+    v = (-xs * s + ys * c) / period
+    d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+    m = np.clip((np.sqrt(tone) * 0.62 - d) * period * 0.7, 0, 1)
+    roi = img[y0:y1, x0:x1]
+    roi += (hexc(color)[None, None] - roi) * m[..., None]
+    return img

@@ -1180,3 +1180,198 @@ def bridge1_01(s, t, local, fi):
 
 R['B-bridge1-01'] = bridge1_01
 tl.OWN_TYPE.add('B-bridge1-01')
+
+
+# ---------------------------------------------------------------- map shots (S5)
+def _coast(z):
+    import math
+    return 120 + 40 * math.sin(z / 140) + 18 * math.sin(z / 47 + 1)
+
+
+def _map_gt(line):
+    return once(f'gt{line}', lambda: __import__('json').load(open(tl.os.path.join(tl.ROOT, 'assets', 'glyph_times.json')))[str(line)])
+
+
+def _zh_fixed(img, t, line, t_in, y=1012, size=30, ink='#1A1416', halo_col='#EDE3CF'):
+    """Chinese line fixed to screen, with a paper-coloured halo so it reads over the map"""
+    from mv.core import clamp
+    from mv import text, lyrics
+    from .print_fx import hexc as H
+    a = clamp((t - t_in) / 0.3)
+    if a <= 0:
+        return img
+    gl, _ = text.layout_h(lyrics.ZH[line], 960, y, size, 'zh', tracking=0.2, align='center')
+    f, s = text.render_glyphs(gl, stroke=6.0, anim=lambda g: dict(alpha=a))
+    if s is not None:
+        img = img + (H(halo_col)[None, None] - img) * s[..., None]
+    if f is not None:
+        img = img + (H(ink)[None, None] - img) * f[..., None]
+    return img
+
+
+def _him_dot(img, x, y, t, k=1.0):
+    """him on the map: a tiny printed dot-person inside a mint halftone halo with a lit core (reads at a glance)"""
+    import cv2
+    from .print_fx import hexc as H
+    kit.halo(img, x, y - 10 * k, 66 * k, '#7FC8B8', 1.0)
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.circle(m, (int(x), int(y - 10 * k)), int(17 * k), 1.0, -1, cv2.LINE_AA)
+    img += (H('#0E1226')[None, None] - img) * (m * 0.85)[..., None]
+    return kit.dot_person(img, x, y + 4 * k, 30 * k, t, colors=('#7FC8B8', '#F6F2E7', '#F08A3C', '#EDE3CF'))
+
+
+# ---- B-chorus2-03: the town as a maze, top-down, turning a notch on every beat --------------------------------
+C203_J = [(-30, 14), (-30, 50), (-30, 86), (6, 86), (42, 86), (42, 50), (6, 50), (6, 14), (-30, 14)]
+C203_MARKS = [(-30, 86), (6, 122), (42, 86), (78, 50), (42, 14), (6, -22), (-30, 14), (-66, 50), (6, 50), (-30, -22),
+              (42, 122), (-66, 86)]
+C203_MIRRORS = [(-66, 14), (78, 86), (-30, 122), (42, -22), (78, 14)]
+
+
+def _c203_angle(tt):
+    import math
+    from mv.core import clamp
+    nb = tt / BEAT
+    whole = math.floor(nb + 1e-6)
+    if whole < 1:
+        return 0.0
+    frac = clamp((tt - whole * BEAT) / (5 / 24))
+    return 22.5 * (whole - 1 + frac * frac * (3 - 2 * frac))
+
+
+def _c203_plate():
+    import math
+    s = tl.BY_ID['B-chorus2-03']
+    d = s['end'] - s['start']
+    cx, cz = 6.0, 50.0
+    path = []
+    for i in range(int(round(d * 24)) + 1):
+        tt = i / 24
+        a = math.radians(_c203_angle(tt))
+        h = 170 - 42 * min(1.0, tt / d)
+        path.append({'t': tt, 'pos': [cx, h, cz], 'look': [cx + 0.4 * math.sin(a), 0.0, cz + 0.4 * math.cos(a)], 'fov': 62,
+                     'ease': 'linear'})
+    pts, times = [list(C203_J[0])], [0.0]
+    for b in range(4):
+        tb = b * BEAT
+        pts += [list(C203_J[2 * b]), list(C203_J[2 * b + 1]), list(C203_J[2 * b + 2])]
+        times += [tb + 0.14, tb + 0.44, tb + 0.74]
+    params = {'world': 'night', 'path': path, 'route': [[0, 0], [3, 0]], 'land': '#141A33', 'sea': '#1E2550',
+              'seaShade': '#0E1226', 'road': '#C9D3DC', 'blocks': ['#1E2550', '#2C4C9A', '#232B57'], 'blockShade': '#0E1226',
+              'window': '#F08A3C', 'litP': 0.012, 'vend': 160, 'routeColor': '#EDE3CF', 'routeOff': '#EDE3CF', 'rings': True,
+              'moonPath': {'z': 50, 'len': 800, 'w': 70, 'color': '#C9D3DC', 'str': 0.9},
+              'beam': {'speed': 25, 'len': 900, 'width': 160, 'color': '#C9D3DC', 'str': 0.55, 'phase': 64.5},
+              'reroute': {'beats': [0.0, BEAT, 2 * BEAT, 3 * BEAT], 'frac': 0.17, 'seed': 3},
+              'walker': {'pts': pts, 'times': times},
+              'marks': [list(m) for m in C203_MARKS + C203_MIRRORS], 'fogNear': 2000, 'fogFar': 4000}
+    return plate('B-chorus2-03', 's5_map', params, 0.0, d, fps=24)
+
+
+def chorus2_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp, back_out
+    pl = once('c203', _c203_plate)
+    img = pl.frame(local).copy()
+    # streets ripple like water (gentle, whole print)
+    dx = np.sin(kit._YS / 60.0 + t * 3.0) * 4.0
+    dy = np.cos(kit._XS / 70.0 + t * 2.6) * 4.0
+    img = cv2.remap(img, kit._XS + dx, kit._YS + dy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    mk, mn = pl.anchor(local, 'marks') or [], pl.anchor(local, 'marksN') or []
+    # noon flashes in the corner mirrors on the off-beats
+    ob = (local - BEAT / 2) % BEAT
+    if local > BEAT / 2 and ob < 4 / 24:
+        k = 1.0 - ob / (4 / 24)
+        for p in mk[len(C203_MARKS):]:
+            kit.halo(img, p[0], p[1], 46 * (0.6 + 0.4 * k), '#F5C842', 0.95 * k)
+            m = np.zeros((1080, 1920), np.float32)
+            cv2.circle(m, (int(p[0]), int(p[1])), int(9 + 5 * k), 1.0, -1, cv2.LINE_AA)
+            img += (np.array([0.96, 0.78, 0.26], np.float32)[None, None] - img) * (m * k)[..., None]
+    # map rotation on screen, measured from the projected north of the first junction
+    rot = 0.0
+    if mk and mn:
+        v = (mn[0][0] - mk[0][0], mn[0][1] - mk[0][1])
+        rot = -math.degrees(math.atan2(v[0], -v[1]))
+    # him: a dot-person with a mint halo walking the loop
+    w = pl.anchor(local, 'walker')
+    if w:
+        img = _him_dot(img, w[0][0], w[0][1], t, 1.0)
+    # L28 as map labels popping at junctions per mora; 迷 at the centre stays upright while the map turns
+    gt = _map_gt(28)
+    for i, ch in enumerate('ヒートウェイブに迷うのさ'):
+        if i >= len(mk) or t < gt[i]:
+            continue
+        k = clamp((t - gt[i]) / (4 / 24))
+        sc = 0.35 + 0.65 * back_out(k, 2.2)
+        ang = 0.0 if ch == '迷' else rot
+        kit.map_glyph(img, ch, mk[i][0], mk[i][1], 86 if ch != '迷' else 118, ang, sc, '#F6F2E7', '#1E2550', 10.0)
+    return _zh_fixed(img, t, 28, s['start'] + 0.3, ink='#EDE3CF', halo_col='#141A33')
+
+
+R['B-chorus2-03'] = chorus2_03
+tl.OWN_TYPE.add('B-chorus2-03')
+
+
+# ---- B-chorus4-01: blue-hour map, the headlight running the coast line to the lighthouse -------------------------
+def _c401_plate():
+    s = tl.BY_ID['B-chorus4-01']
+    d = s['end'] - s['start']
+    k0, k1 = 0.58, 0.97
+    path = []
+    for i in range(5):
+        u = i / 4
+        k = k0 + (k1 - k0) * u
+        z = -800 + 1600 * (0.05 + 0.85 * k)
+        x = _coast(z) - 22
+        h = 210 - 21 * u
+        path.append({'t': d * u, 'pos': [x - 170, h, z - 190], 'look': [x, 0, z + 40], 'fov': 40, 'ease': 'linear'})
+    gt = _map_gt(50)
+    lt = [g - s['start'] for g in gt[:6]]
+    wz = [548, 572, 596]
+    params = {'world': 'dawn', 'path': path, 'route': [[0, k0], [d, k1]], 'headDot': True, 'headColor': '#F08A3C',
+              'headSize': 60, 'land': '#22346C', 'sea': '#1E2550', 'seaShade': '#141A33', 'road': '#41558F',
+              'blocks': ['#2C4C9A', '#1E2550', '#2A3F80'], 'blockShade': '#141A33', 'window': '#F08A3C', 'litP': 0.4,
+              'windowsOffSteps': [BEAT, 2 * BEAT, 3 * BEAT], 'routeColor': '#EDE3CF', 'routeOff': '#C9D3DC', 'rings': True,
+              'ringColor': '#EDE3CF', 'fogColor': '#7C86BE', 'fogNear': 260, 'fogFar': 1300, 'lampColor': '#F7E3C2',
+              'beam': {'speed': 38, 'len': 650, 'width': 150, 'color': '#F7E3C2', 'str': 0.75, 'phase': 140},
+              'labelT': lt, 'walker': {'pts': [[_coast(z) - 5, z] for z in wz], 'times': [0.0, d / 2, d]}}
+    return plate('B-chorus4-01', 's5_map', params, 0.0, d, fps=24)
+
+
+def chorus4_01(s, t, local, fi):
+    import cv2
+    from mv.core import clamp, back_out
+    pl = once('c401', _c401_plate)
+    img = pl.frame(local).copy()
+    gt = _map_gt(50)
+    # his dot-person on the seawall, walking toward the lighthouse
+    w = pl.anchor(local, 'walker')
+    if w and 0 < w[0][2] < 1:
+        img = _him_dot(img, w[0][0], w[0][1], t, 0.75)
+    # 思い浮かぶの: one label per mora, pinned to the railway where the headlight is when it is sung
+    lab = pl.anchor(local, 'labels') or []
+    for i, ch in enumerate('思い浮かぶの'):
+        if i >= len(lab) or t < gt[i] or not (0 < lab[i][2] < 1):
+            continue
+        x, y = lab[i][0], lab[i][1]
+        k = clamp((t - gt[i]) / (4 / 24))
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.line(m, (int(x), int(y)), (int(x + 18), int(y - 46 * k)), 1.0, 3, cv2.LINE_AA)
+        img += (np.array([0.10, 0.08, 0.09], np.float32)[None, None] - img) * m[..., None]
+        kit.halo(img, x, y, 16, '#F08A3C', 0.9 * (1 - 0.5 * k))
+        kit.map_glyph(img, ch, x + 22, y - 46 * k - 40, 70, 0.0, 0.35 + 0.65 * back_out(k, 2.2), '#F6F2E7', '#1E2550', 7.0)
+    # 君ばかり: a vertical label that pops at the lighthouse
+    lh = pl.anchor(local, 'lighthouse')
+    if lh and 0 < lh[0][2] < 1:
+        x, y = lh[0][0], lh[0][1]
+        for j, ch in enumerate('君ばかり'):
+            i = 6 + j
+            if t < gt[i]:
+                continue
+            k = clamp((t - gt[i]) / (4 / 24))
+            kit.map_glyph(img, ch, x + 70, y - 30 + j * 74, 70 if j else 84, 0.0, 0.35 + 0.65 * back_out(k, 2.2),
+                          '#F6F2E7', '#D9402B' if j == 0 else '#1E2550', 7.0)
+    return _zh_fixed(img, t, 50, 147.5, ink='#EDE3CF', halo_col='#141A33')
+
+
+R['B-chorus4-01'] = chorus4_01
+tl.OWN_TYPE.add('B-chorus4-01')
+
