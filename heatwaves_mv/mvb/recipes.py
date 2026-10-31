@@ -2879,3 +2879,91 @@ def chorus1_01(s, t, local, fi):
 
 R['B-chorus1-01'] = chorus1_01
 tl.OWN_TYPE.add('B-chorus1-01')
+
+
+# ---- B-chorus1-02: relay mirror -> CRT; pull back into his room at night; the clock turns 0:00 -----------------------
+def _c102_plate():
+    s = tl.BY_ID['B-chorus1-02']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [-0.62, 0.73, 0.16], 'look': [-0.62, 0.73, -0.79], 'fov': 42},
+            {'t': 1.48, 'pos': [-0.15, 0.98, 1.28], 'look': [0.12, 0.52, -0.92], 'fov': 54, 'ease': 'inout'},
+            {'t': d, 'pos': [-0.12, 0.98, 1.24], 'look': [0.15, 0.52, -0.92], 'fov': 53.5, 'ease': 'linear'}]
+    return plate('B-chorus1-02', 's1_room', {'path': path}, 0.0, d, fps=24)
+
+
+def tv_content_her(local, sid='B-chorus1-01', size=(640, 480), in_t=0.0):
+    """what the CRT shows: her clip (printed cut-out) over a noon-blue field, CRT Glow tinted"""
+    import cv2
+    from . import chars
+    from .print_fx import hexc as H
+    cl = once(('tvher', sid), lambda: chars.CharLayer(sid))
+    w, h = size
+    bg = np.empty((h, w, 3), np.float32)
+    bg[:] = H('#2D6BE0')
+    bg = bg * (0.75 + 0.25 * np.linspace(1, 0, h)[:, None, None])
+    if cl.ok:
+        rgb, a = cl.frame(in_t + local, x=960, y=540, cx=0.5, cy=0.45, height=1080)
+        rgb = cv2.resize(rgb[60:1020, 240:1680], (w, h), interpolation=cv2.INTER_AREA)
+        a = cv2.resize(a[60:1020, 240:1680], (w, h), interpolation=cv2.INTER_AREA)
+        bg = bg + (rgb - bg) * a[..., None]
+    return np.clip(bg * 0.85 + H('#7FC8B8')[None, None] * 0.18, 0, 1)
+
+
+def chorus1_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mva import fx
+    from . import chars
+    from .print_fx import clock_grid, dot_matrix, hexc as H
+    pl = once('c102', _c102_plate)
+    img = pl.frame(local).copy()
+    # the CRT: her laughing face, barrel glass, mint light into the room
+    q = pl.anchor(local, 'tv')
+    flick = 1.0 - 0.25 * (1 if 34.02 <= t < 34.02 + 2 / 24 else 0)
+    if q:
+        cont = fx.barrel(cv2.resize(tv_content_her(local + 0.6), (1920, 1080)), 0.10)
+        img = warp_quad(img, cv2.resize(cont, (640, 480)) * flick, [p[:2] for p in q])
+        cx = sum(p[0] for p in q) / 4
+        cy = sum(p[1] for p in q) / 4
+        kit.halo(img, cx, cy, 900, '#7FC8B8', 0.22 * flick, period=12.0)
+    # the boy on the tatami, screen right, lit by the TV on his left side
+    b = pl.anchor(local, 'boy')
+    cl = once('c102_char', lambda: chars.CharLayer('B-chorus1-02'))
+    if cl.ok and b and 0 < b[0][2] < 1.001:
+        ppm = abs(b[0][1] - b[1][1])                      # pixels per metre at his spot
+        rgb, a = cl.frame(local, x=b[0][0], y=b[0][1], cx=0.5, cy=0.95, height=ppm * 1.25)
+        side = np.clip((b[0][0] + ppm * 0.2 - kit._XS) / (ppm * 0.6), 0, 1) * a
+        rgb = rgb + (H('#7FC8B8')[None, None] - rgb) * (side * 0.35 * _dots_k(0.45, 8.0))[..., None]
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    # the LED clock: 23:59 -> 0:00 on 32.53, colon blinking on beats
+    cq = pl.anchor(local, 'clock')
+    if cq and all(0 < p[2] < 1.001 for p in cq):
+        colon = int((t - 0.682) / BEAT) % 2 == 0
+        txt = '23:59' if t < 32.53 else '0:00'
+        brd = dot_matrix(clock_grid(txt, colon_on=colon), pitch=10, on='#7FC8B8', bg='#0B1414')
+        img = led_on_quad(img, _quad_sorted(cq), np.asarray(brd, np.float32))
+    # 32.53: 0:00 fills the frame as giant LED dots for 4 frames + mint dot flash
+    if 32.53 <= t < 32.53 + 4 / 24:
+        big = np.asarray(dot_matrix(clock_grid('0:00'), pitch=44, on='#7FC8B8', bg='#0B1414'), np.float32)
+        sc = min(1840 / big.shape[1], 1000 / big.shape[0])
+        big = cv2.resize(big, (int(big.shape[1] * sc), int(big.shape[0] * sc)), interpolation=cv2.INTER_AREA)
+        img = np.empty((1080, 1920, 3), np.float32)
+        img[:] = H('#0B1414')
+        y0, x0 = (1080 - big.shape[0]) // 2, (1920 - big.shape[1]) // 2
+        img[y0:y0 + big.shape[0], x0:x0 + big.shape[1]] = big
+        img = kit.dot_flash(img, 0.45 * (1 - (t - 32.53) / (4 / 24)), '#7FC8B8', 20)
+    # 34.40-34.76: the room's dots ripple and grow into silver mirage dots that re-form as the noon road
+    if t >= 34.40:
+        k = clamp((t - 34.40) / 0.36)
+        dots = led_dots(img, pitch=8 + 16 * k, ripple=6 * k, t=t, gap='#5A6478')
+        road = once('hook03', _hook03_plate).frame(0.2)
+        img = img + (dots - img) * clamp(k * 2)
+        img = img + (led_dots(road, pitch=8 + 16 * (1 - k), ripple=6 * (1 - k), t=t, gap='#7A8498') - img) * clamp(k * 2 - 1)
+    ly1 = once('c102_ly1', lambda: VLyric(11, x=1720, accent='#D9402B', hide=lambda i, tt: i in (2, 3)))
+    ly2 = once('c102_ly2', lambda: VLyric(11, x=1720, accent='#D9402B', color='#7FC8B8', zh=False,
+                                          hide=lambda i, tt: i not in (2, 3)))
+    return ly2.draw(ly1.draw(img, t), t)
+
+
+R['B-chorus1-02'] = chorus1_02
+tl.OWN_TYPE.add('B-chorus1-02')

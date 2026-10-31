@@ -130,6 +130,11 @@ export async function build(THREE, P, params = {}) {
     else if (cam === 'window') { camera.position.set(-1.2, 1.0, 1.2); camera.lookAt(1.8, 1.2, -0.2); }
   }
   const sc = (x, y, z) => new THREE.Vector3(x, y, z);
-  const anchors = () => ({ tv: [sc(-0.89, 0.93, -RD / 2 + 0.556), sc(-0.35, 0.93, -RD / 2 + 0.556), sc(-0.35, 0.53, -RD / 2 + 0.556), sc(-0.89, 0.53, -RD / 2 + 0.556)] });
+  const anchors = () => {
+    clock.updateMatrixWorld(true);
+    const cq = [[-0.1, 0.0375], [0.1, 0.0375], [0.1, -0.0375], [-0.1, -0.0375]].map(([x, y]) => clock.localToWorld(new THREE.Vector3(x, y, 0.001)));
+    return { tv: [sc(-0.89, 0.93, -RD / 2 + 0.556), sc(-0.35, 0.93, -RD / 2 + 0.556), sc(-0.35, 0.53, -RD / 2 + 0.556), sc(-0.89, 0.53, -RD / 2 + 0.556)],
+             clock: cq, boy: [sc(0.62, 0.0, -0.05), sc(0.62, 1.0, -0.05)] };
+  };
   return { scene: root, camera, update, anchors };
 }
