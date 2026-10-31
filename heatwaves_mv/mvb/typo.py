@@ -44,7 +44,7 @@ def dots_mask(k, period=8.0, angle=45.0):
 
 class VLyric:
     def __init__(self, idx, x=1720, y=160, size=100, accent='#D9402B', style='A', out_t=None, zh=True,
-                 times=None, color=None, en_led=False):
+                 times=None, color=None, en_led=False, max_glyphs=None):
         self.ln = LYRICS[idx]
         self.idx = idx
         self.size, self.accent, self.style = size, accent, style
@@ -52,6 +52,8 @@ class VLyric:
         self.times = times or GT[str(idx)]
         self.out_t = out_t if out_t is not None else self.ln['end']
         s = self.ln['text'].replace(' ', '　')
+        if max_glyphs:
+            s = ''.join([c for c in s if not c.isspace()][:max_glyphs])
         n = len([c for c in s if not c.isspace()])
         size = min(size, (H - y - 60) / max(1, n * 1.08))
         self.size = size
