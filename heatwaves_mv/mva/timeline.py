@@ -1,0 +1,220 @@
+"""MV-A timeline: shots.json + per-shot recipes -> frames at 24 fps (1920x1080).
+
+Media per shot (best available): work/A/<id>/final.mp4 (upscaled + retimed) > v_*_up.mp4 > keyframe
+(kf picked) > a labelled card. Recipes in mva/recipes.py may override any shot; the default recipe plays
+the clip per the spec's `use` field, grades it, adds haze/letterbox/typography from the spec text.
+"""
+import json
+import math
+import os
+import re
+
+import cv2
+import numpy as np
+
+from mv.clip import Clip
+from mv import text
+from . import fx
+from .typo import Lyric
+
+ROOT = os.path.join(os.path.dirname(__file__), '..')
+SPEC = os.path.join(ROOT, 'design', 'mv_a', 'shots.json')
+WORK = os.environ.get('HW_WORK_A', os.path.join(ROOT, 'work', 'A'))
+FPS = 24
+DUR = 198.74
+
+
+def load_spec():
+    d = json.load(open(SPEC))
+    return d['shots']
+
+
+SHOTS = load_spec()
+BY_ID = {s['id']: s for s in SHOTS}
+
+
+# ------------------------------------------------------------------ media
+_clip_cache = {}
+_still_cache = {}
+
+
+def media_path(sid):
+    d = os.path.join(WORK, sid)
+    for name in ('final.mp4', 'v_0_24.mp4', 'v_0_up.mp4', 'v_0.mp4'):
+        p = os.path.join(d, name)
+        if os.path.exists(p):
+            return 'video', p
+    man = os.path.join(WORK, 'manifest.json')
+    if os.path.exists(man):
+        st = json.load(open(man)).get(sid, {})
+        kf = (st.get('pick') or {}).get('kf')
+        if kf:
+            p = os.path.join(d, os.path.basename(kf))
+            if os.path.exists(p):
+                return 'still', p
+    for name in ('kf_0.png', 'kf_1.png'):
+        p = os.path.join(d, name)
+        if os.path.exists(p):
+            return 'still', p
+    return None, None
+
+
+def clip(sid):
+    if sid not in _clip_cache:
+        kind, p = media_path(sid)
+        _clip_cache[sid] = (kind, Clip(p) if kind == 'video' else p)
+    return _clip_cache[sid]
+
+
+def card(sid, t):
+    img = np.zeros((fx.H, fx.W, 3), np.float32)
+    img[:] = fx.hexc('#20263A')
+    s = BY_ID.get(sid, {})
+    gl, _ = text.layout_h(sid, 960, 470, 64, 'kaku', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        img = fx.over(img, np.broadcast_to(fx.hexc('#F2EDE4'), img.shape), f)
+    gl, _ = text.layout_h((s.get('beat') or '')[:40], 960, 560, 30, 'zh', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        img = fx.over(img, np.broadcast_to(fx.hexc('#AEB7C8'), img.shape), f)
+    return img
+
+
+def frame_of(sid, local_t, in_t=0.2, speed=1.0, zoom=1.0, cx=0.5, cy=0.5, pingpong=False, still_push=0.03, dur=3.0):
+    """footage of shot `sid` at local time; stills (no video yet) get a slow push so timing can be judged"""
+    kind, m = clip(sid)
+    if kind == 'video':
+        c = m
+        tt = in_t + local_t * speed
+        if pingpong and c.duration > 0:
+            per = c.duration * 2
+            tt = tt % per
+            tt = per - tt if tt > c.duration else tt
+        tt = min(max(0.0, tt), max(0.0, c.duration - 1.0 / FPS))
+        raw = c.raw(tt)
+        return fx.fit(raw, zoom=zoom, cx=cx, cy=cy)
+    if kind == 'still':
+        if m not in _still_cache:
+            _still_cache[m] = cv2.cvtColor(cv2.imread(m), cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        k = local_t / max(0.1, dur)
+        return fx.fit(_still_cache[m], zoom=zoom * (1 + still_push * k), cx=cx, cy=cy)
+    return card(sid, local_t)
+
+
+# ------------------------------------------------------------------ spec parsing
+def parse_use(s):
+    """'0.20-3.16 s at 1.0x' -> (in, speed); 'retimed to 0.85x' etc."""
+    u = s.get('use', '')
+    m = re.search(r'(\d+\.\d+)\s*-\s*(\d+\.\d+)\s*s', u)
+    sp = re.search(r'(\d+(?:\.\d+)?)x', u)
+    t_in = float(m.group(1)) if m else 0.2
+    speed = float(sp.group(1)) if sp else 1.0
+    if 'All 121 frames' in u or 'one long held take' in u.lower():
+        t_in = 0.0
+    return t_in, speed
+
+
+def is_present(s):
+    return '2.39 letterbox' in (s.get('composite', '') + s.get('use', '')) or 'letterbox (present' in s.get('composite', '')
+
+
+def lyric_for(s, idx):
+    ty = s.get('typography', '') or ''
+    low = ty.lower()
+    slot = 'right'
+    if 'left third' in low:
+        slot = 'left'
+    elif 'high center' in low or 'centred' in low or 'centered' in low:
+        slot = 'center'
+    font = 'hina' if 'hina' in low else 'mincho'
+    world = 'memory'
+    if 'moon white' in low or (is_present(s) and 'silver' not in low):
+        world = 'present'
+    if 'silver' in low:
+        world = 'mirror'
+    if s['section'] in ('outro', 'outro_hook', 'chorus4') and world == 'memory':
+        world = 'dawn'
+    if s['id'] in ('A-verse-03',):
+        world = 'film'
+    special = []
+    if 'led red' in low:
+        special.append('led_zero')
+    if 'mirror-reversed' in low or '鏡文字' in ty:
+        special.append('mirror_flip')
+    if '君' in ty and ('warm' in low or 'bright' in low):
+        special.append('warm_kimi')
+    if 'completes' in low:
+        special.append('complete70')
+    lb = is_present(s)
+    zh = 'bar' if lb else 'foot'
+    return Lyric(idx, slot=slot, world=world, font=font, letterboxed=lb, zh=zh, special=special)
+
+
+# ------------------------------------------------------------------ default recipe
+def default_recipe(s, t, local_t, frame_idx):
+    t_in, speed = parse_use(s)
+    img = frame_of(s['id'], local_t, in_t=t_in, speed=speed, dur=s['end'] - s['start'])
+    comp = (s.get('composite') or '').lower()
+    m = re.search(r'haze at (\d+(?:\.\d+)?)%', comp) or re.search(r'(\d+(?:\.\d+)?)% heat haze', comp)
+    if m:
+        img = fx.heat_haze(img, t, amp=float(m.group(1)) / 100.0)
+    if 'halation' in comp:
+        img = fx.halation(img, 0.25)
+    if 'bloom' in comp:
+        img = fx.bloom(img, 0.78, 14, 0.25)
+    return img
+
+
+RECIPES = {}       # filled by mva.recipes (shot id -> fn(s, t, local_t, frame_idx) -> img)
+
+
+def shot_at(t):
+    for s in SHOTS:
+        if s['start'] <= t < s['end']:
+            return s
+    return SHOTS[-1]
+
+
+def letterbox_open(t):
+    """present scenes are 2.39 until the bars slide open 171.05-172.54"""
+    if t < 171.05:
+        return 0.0
+    return min(1.0, (t - 171.05) / (172.54 - 171.05))
+
+
+LYRICS_CACHE = {}
+
+
+def lyrics_at(t):
+    out = []
+    for s in SHOTS:
+        for idx in s.get('lyric', []):
+            key = (s['id'], idx)
+            from mv.timing import LYRICS
+            ln = LYRICS[idx]
+            if ln['t'] - 0.1 <= t <= ln['end'] + 0.5 and s['start'] - 0.3 <= t < s['end'] + 0.6:
+                if key not in LYRICS_CACHE:
+                    LYRICS_CACHE[key] = lyric_for(s, idx)
+                out.append((s, LYRICS_CACHE[key]))
+    # a line sung across a cut is drawn by the shot it started in only
+    seen, res = set(), []
+    for s, ly in out:
+        if ly.idx in seen:
+            continue
+        seen.add(ly.idx)
+        res.append(ly)
+    return res
+
+
+def render(t, frame_idx):
+    s = shot_at(t)
+    local = t - s['start']
+    fn = RECIPES.get(s['id'], default_recipe)
+    img = fn(s, t, local, frame_idx)
+    if is_present(s):
+        img = fx.letterbox(img, open_k=letterbox_open(t))
+    for ly in lyrics_at(t):
+        img = ly.draw(img, t)
+    img = fx.grain(img, frame_idx, 0.022)
+    return np.clip(img, 0, 1)
