@@ -1,6 +1,6 @@
 """Shot generation runner (runs on the GPU machine next to ComfyUI).
 
-  python gpu/run_shots.py keyframes --shots design/mv_a_shots.json --cfg gpu/config.json [--ids A-hook-01,...] [--n 4]
+  python gpu/run_shots.py keyframes --shots design/mv_a/shots.json --cfg gpu/config_mac.json [--ids A-hook-01,...] [--n 2]
   python gpu/run_shots.py pick      --shots ... --id A-hook-01 --kf kf_3.png      # choose a keyframe candidate
   python gpu/run_shots.py videos    --shots ... --cfg ... [--ids ...] [--n 1]
   python gpu/run_shots.py finish    --shots ... --cfg ...                         # interpolate (+ optional SR)
@@ -28,7 +28,9 @@ ROOT = os.path.join(os.path.dirname(__file__), '..')
 
 def load_cfg(path):
     cfg = {
-        'comfy_url': 'http://127.0.0.1:8188', 'comfy_root': os.path.expanduser('~/ComfyUI'),
+        'comfy_url': 'http://127.0.0.1:8188',
+        'comfy_root': (os.path.join(ROOT, '.hw', 'ComfyUI') if os.path.isdir(os.path.join(ROOT, '.hw', 'ComfyUI'))
+                       else os.path.expanduser('~/ComfyUI')),
         'keyframe': {'model': 'anima-aesthetic-v1.1.safetensors', 'steps': 30, 'cfg': 4.5, 'sampler': 'er_sde',
                      'w': 1536, 'h': 864, 'loras': []},
         'tokens': {},          # e.g. {"<kimi>": "kimi_hw, 1girl, black hair, bob cut, ...", "<boku>": "..."}
@@ -44,6 +46,11 @@ def load_cfg(path):
             else:
                 cfg[k] = v
     return cfg
+
+
+def load_tokens(path):
+    d = json.load(open(path))
+    return d.get('tokens', {}) if isinstance(d, dict) else {}
 
 
 def load_shots(path):
@@ -138,8 +145,45 @@ def do_keyframes(c, cfg, shots, man, n):
             man.save()
 
 
+def cond_name(sid):
+    return 'c_' + re.sub(r'[^A-Za-z0-9_]+', '_', sid)
+
+
+def encode_prompts(c, cfg, shots, man, n):
+    """5B path, stage 1: run the umt5 encoder alone for every pending video prompt, save the conditionings
+    to models/embeddings, then free it -> the video sampler never shares memory with the 4 GB encoder"""
+    v = cfg['video']
+    emb = os.path.join(c.root, 'models', 'embeddings')
+    todo = [('c_neg_wan', gr.NEG_WAN)] if not os.path.exists(os.path.join(emb, 'c_neg_wan.safetensors')) else []
+    for s in shots:
+        if s.get('video_mode', 'i2v') == 'composite' or len(man.shot(s['id'])['videos']) >= n:
+            continue
+        name = cond_name(s['id'])
+        prompt = expand_tokens(s['video_prompt'], cfg['tokens'])
+        meta = os.path.join(emb, name + '.txt')
+        if os.path.exists(os.path.join(emb, name + '.safetensors')) and os.path.exists(meta) \
+                and open(meta).read() == prompt:
+            continue
+        todo.append((name, prompt))
+    for i in range(0, len(todo), 12):
+        batch = todo[i:i + 12]
+        t0 = time.time()
+        c.run(gr.encode_texts(batch, te=v.get('te', 'umt5-xxl-encoder-Q5_K_M.gguf')))
+        c.stash_conditioning([b[0] for b in batch])
+        for name, prompt in batch:
+            open(os.path.join(emb, name + '.txt'), 'w').write(prompt)
+        log(f'encoded {len(batch)} prompts {time.time() - t0:.0f}s')
+    c.free()
+
+
+def clip_frames(sec, fps=24):
+    return max(25, min(121, int(round(sec * fps)) // 4 * 4 + 1))
+
+
 def do_videos(c, cfg, shots, man, n):
     v = cfg['video']
+    if v['engine'] == 'wan5b':
+        encode_prompts(c, cfg, shots, man, n)
     prev_last = None
     for s in shots:
         st = man.shot(s['id'])
@@ -159,7 +203,13 @@ def do_videos(c, cfg, shots, man, n):
             seed = stable_seed(s['id'], 'v', i)
             up = c.upload(start, f"{s['id']}_start.png")
             upe = c.upload(end, f"{s['id']}_end.png") if end else None
-            if v['engine'] == 'hy15':
+            if v['engine'] == 'wan5b':
+                g = gr.ti2v_wan22_5b(up, None, w=v['w'], h=v['h'], frames=clip_frames(s.get('clip_seconds', 5)),
+                                     seed=seed, steps=v['steps'], cfg=v['cfg'], shift=v['shift'],
+                                     sampler=v.get('sampler', 'euler'), unet_name=v['unet'],
+                                     pos_cond=cond_name(s['id']) + '.safetensors',
+                                     neg_cond='c_neg_wan.safetensors', prefix=f"video/{s['id']}")
+            elif v['engine'] == 'hy15':
                 g = gr.i2v_hy15(up, s['video_prompt'], w=v['w'], h=v['h'], frames=int(frames * 1.5) // 4 * 4 + 1,
                                 seed=seed, prefix=f"video/{s['id']}")
             else:
@@ -217,6 +267,7 @@ def main():
     ap.add_argument('--video', default='')
     a = ap.parse_args()
     cfg = load_cfg(a.cfg)
+    cfg['tokens'] = {**load_tokens(a.shots), **cfg.get('tokens', {})}
     shots = load_shots(a.shots)
     man = Manifest(mv_of(shots))
     if a.mode == 'status':
