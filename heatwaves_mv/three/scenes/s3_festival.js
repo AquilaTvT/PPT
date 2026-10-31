@@ -45,7 +45,8 @@ export async function build(THREE, P, params = {}) {
   // lantern wires across the street every 8 m; 7 lanterns each
   const lanternGeo = new THREE.SphereGeometry(0.32, 12, 10); lanternGeo.scale(1, 1.25, 1);
   const lanterns = [];
-  for (let z = 4, row = 0; z < L; z += 8, row++) {
+  const WS = params.wireSpacing || 8, WZ0 = params.wireZ0 ?? 4;
+  for (let z = WZ0, row = 0; z < L; z += WS, row++) {
     const a = new THREE.Vector3(-SW / 2 - 0.2, 5.6, z), b = new THREE.Vector3(SW / 2 + 0.2, 5.6, z);
     const pts = P.catenary(a, b, 0.7, 14); root.add(P.line(pts, Wd.ink));
     for (let k = 1; k <= 7; k++) {
@@ -66,7 +67,12 @@ export async function build(THREE, P, params = {}) {
     const hm = new THREE.InstancedMesh(headGeo, P.ink('#141018', { ambient: 0.5 }), Math.ceil(N / inks.length));
     bm.count = 0; hm.count = 0; bm.frustumCulled = false; hm.frustumCulled = false; root.add(bm); root.add(hm); crowd.push({ bm, hm, list: [] });
   }
-  for (let i = 0; i < N; i++) crowd[i % inks.length].list.push({ x: (R() - 0.5) * (SW - 0.8), z: R() * L, dir: R() < 0.5 ? 1 : -1, v: 0.6 + R() * 0.6, ph: R() * 6 });
+  const lane = params.crowdLane || 0;
+  for (let i = 0; i < N; i++) {
+    let x = (R() - 0.5) * (SW - 0.8);
+    if (lane && Math.abs(x) < lane) x = Math.sign(x || 1) * (lane + R() * 0.6);
+    crowd[i % inks.length].list.push({ x, z: R() * L, dir: R() < 0.5 ? 1 : -1, v: 0.6 + R() * 0.6, ph: R() * 6 });
+  }
   const camera = new THREE.PerspectiveCamera(params.fov || 42, 16 / 9, 0.05, 2000);
   const m4 = new THREE.Matrix4();
   const heroIdx = [3, 10, 17, 24, 31, 38, 45, 52, 59, 66];          // middle lanterns of rows 0..9
@@ -95,6 +101,7 @@ export async function build(THREE, P, params = {}) {
     }
     if (!(params.path && applyPath(camera, params.path, t))) { camera.position.set(0.5, 1.7, -6); camera.lookAt(0, 3.2, 30); }
   }
-  const anchors = () => ({ hero: heroIdx.map(i => lanterns[i] ? lanterns[i].m.position.clone() : new THREE.Vector3()) });
+  const anchors = () => ({ hero: heroIdx.map(i => lanterns[i] ? lanterns[i].m.position.clone() : new THREE.Vector3()),
+                           heroTop: heroIdx.map(i => lanterns[i] ? lanterns[i].m.position.clone().add(new THREE.Vector3(0, 0.4, 0)) : new THREE.Vector3()) });
   return { scene: root, camera, update, anchors };
 }

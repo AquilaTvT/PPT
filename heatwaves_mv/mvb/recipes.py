@@ -854,3 +854,80 @@ def chorus4_02(s, t, local, fi):
 
 R['B-chorus4-02'] = chorus4_02
 tl.OWN_TYPE.add('B-chorus4-02')
+
+
+# ---------------------------------------------------------------- B-chorus3-01: moon bursts into a firework, the street opens
+def _c301_plate():
+    import json as _j
+    gt = _j.load(open(tl.os.path.join(tl.ROOT, 'assets', 'glyph_times.json')))['38']
+    st = 111.79
+    v, ws = 7.0, 7.0 * BEAT
+    path = [{'t': 0.0, 'pos': [0.0, 30.0, -14.0], 'look': [0.0, 60.0, 20.0], 'fov': 48},
+            {'t': 0.75, 'pos': [0.0, 2.9, 0.0], 'look': [0.0, 4.6, 26.0], 'fov': 54, 'ease': 'in'},
+            {'t': 2.97, 'pos': [0.0, 2.9, v * 2.22], 'look': [0.0, 4.6, v * 2.22 + 26.0], 'fov': 54, 'ease': 'linear'}]
+    hero = [max(0.0, g - st) for g in gt][:10]
+    return plate('B-chorus3-01', 's3_festival', {'world': 'festival', 'shutterT': 0.0, 'litT': 0.0, 'crowdT': 0.0,
+                                                 'heroT': hero, 'wireSpacing': ws, 'wireZ0': 2.0, 'crowd': 900, 'crowdLane': 1.1,
+                                                 'path': path}, 0.0, 2.97, fps=24)
+
+
+def chorus3_01(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    from mv import text, lyrics
+    from . import fireworks as fw
+    from .print_fx import hexc as H
+    pl = once('c301', _c301_plate)
+    img = pl.frame(local).copy()
+    # the burst: a giant chrysanthemum where the moon was, sliding up out of frame as the camera dives
+    dk = clamp(local / 0.75) ** 3
+    by = 420 - 1700 * dk
+    img = fw.burst(img, t, 111.79, 960, by, 900, 'chrysanthemum', '#F5C842', '#FFF2C8', seed=11, life=2.6)
+    if 0.3 < local < 0.75:
+        img = kit.dir_blur(img, 0, 50 * (local - 0.3) / 0.45)
+    # lantern ignition dot flash (vermilion -> orange) on 111.79
+    if local < 5 / 24:
+        img = kit.dot_flash(img, 1 - local / (5 / 24), '#F08A3C', 24)
+    # hero lanterns carry L38 glyphs, one per mora
+    gt = once('gt38', lambda: __import__('json').load(open(tl.os.path.join(tl.ROOT, 'assets', 'glyph_times.json')))['38'])
+    word = '思い浮かぶの君ばかり'
+    hero, top = pl.anchor(local, 'hero'), pl.anchor(local, 'heroTop')
+    if hero and top and local > 0.5:
+        for i, ch in enumerate(word):
+            if i >= len(hero):
+                break
+            x, y, z = hero[i]
+            if z >= 1 or z <= 0:
+                continue
+            r = abs(top[i][1] - y) * 2.0
+            if r < 6 or not (-200 < x < 2120 and -200 < y < 1280):
+                continue
+            lit = t >= gt[min(i, len(gt) - 1)]
+            size = int(r * 1.15)
+            key = ('lg', ch, lit, size // 4)
+            if key not in _cache:
+                gl, _ = text.layout_h(ch, 0, 0, max(8, size), 'mincho', align='center')
+                f, _ = text.render_glyphs([dict(g, cx=g['cx'] + 960, cy=g['cy'] + 540, base=g.get('base', 0) + 540) for g in gl])
+                _cache[key] = f
+            f = _cache[key]
+            if f is None:
+                continue
+            M = np.float32([[1, 0, x - 960], [0, 1, y - 540]])
+            fm = cv2.warpAffine(f, M, (1920, 1080))
+            img = img + (H('#1A1416' if lit else '#5A3A36')[None, None] - img) * (fm * (1.0 if lit else 0.5))[..., None]
+            if lit and t - gt[min(i, len(gt) - 1)] < 6 / 24:
+                k = 1 - (t - gt[min(i, len(gt) - 1)]) / (6 / 24)
+                halo = np.zeros((1080, 1920), np.float32)
+                cv2.circle(halo, (int(x), int(y)), int(r * (1.2 + 1.5 * k)), 1.0, -1, cv2.LINE_AA)
+                halo = cv2.GaussianBlur(halo, (0, 0), r * 0.4 + 2) * k
+                img = img + (H('#F08A3C')[None, None] - img) * (fw.halo_dots(halo * 0.8) * 0.8)[..., None]
+    a = clamp((t - 111.95) / 0.25)
+    gl, _ = text.layout_h(lyrics.ZH[38], 1650, 1010, 30, 'zh', tracking=0.15, align='center')
+    f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a))
+    if f is not None:
+        img = img + (H('#EDE3CF')[None, None] - img) * f[..., None]
+    return img
+
+
+R['B-chorus3-01'] = chorus3_01
+tl.OWN_TYPE.add('B-chorus3-01')
