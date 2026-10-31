@@ -28,5 +28,14 @@ window.renderAt = (t, beatPulse = 0, frameIdx = 0) => {
   renderer.render(S.scene, S.camera);
   return canvas.toDataURL('image/png');
 };
+// projected screen-space points of named 3D anchors (for 2D inserts in the compositor)
+window.anchors = () => {
+  if (!S.anchors) return null;
+  const out = {};
+  for (const [k, pts] of Object.entries(S.anchors())) {
+    out[k] = pts.map(p => { const v = p.clone().project(S.camera); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H, v.z]; });
+  }
+  return out;
+};
 window.ready = true;
 </script></body></html>

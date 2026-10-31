@@ -36,13 +36,16 @@ const srv = http.createServer((req, res) => {
   await pg.waitForFunction('window.ready === true', null, { timeout: 120000 });
   const n = Math.round((t1 - t0) * fps);
   const start = Date.now();
+  const anchors = [];
   for (let i = 0; i < n; i++) {
     const t = t0 + i / fps;
     const sinceBeat = ((t - beat0) % beatLen + beatLen) % beatLen;
     const pulse = Math.exp(-sinceBeat / 0.12);
     const url = await pg.evaluate(([t, p, i]) => window.renderAt(t, p, i), [t, pulse, Math.round(t * fps)]);
     fs.writeFileSync(path.join(out, `f_${String(i).padStart(5, '0')}.png`), Buffer.from(url.split(',')[1], 'base64'));
+    anchors.push(await pg.evaluate(() => (window.anchors ? window.anchors() : null)));
   }
+  if (anchors.some(a => a)) fs.writeFileSync(path.join(out, 'anchors.json'), JSON.stringify(anchors));
   console.log(`${args.scene}: ${n} frames in ${((Date.now() - start) / 1000).toFixed(1)}s -> ${out}`);
   await b.close(); srv.close();
 })().catch(e => { console.error(e); process.exit(1); });
