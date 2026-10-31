@@ -2141,3 +2141,215 @@ def _dots_k(k, period=10.0):
 
 R['B-outro_hook-03'] = outro_hook_03
 tl.OWN_TYPE.add('B-outro_hook-03')
+
+
+# ---- chalk on the seawall concrete (shared by bridge1-02 / bridge1-04) ------------------------------------------------
+def concrete_dusk():
+    """warm dusk-lit seawall concrete, printed: cream/orange base, indigo halftone aggregate, a few seams"""
+    import cv2
+    from .print_fx import hexc as H
+    if 'concrete' in _cache:
+        return _cache['concrete']
+    rng = np.random.default_rng(31)
+    n = cv2.resize(rng.random((135, 240)).astype(np.float32), (1920, 1080), interpolation=cv2.INTER_CUBIC)
+    n2 = cv2.resize(rng.random((540, 960)).astype(np.float32), (1920, 1080), interpolation=cv2.INTER_LINEAR)
+    xs, ys = kit._XS / 1920, kit._YS / 1080
+    light = np.clip(1.05 - 0.45 * xs - 0.35 * ys, 0, 1)
+    base = (H('#EDE3CF')[None, None] * (0.40 + 0.26 * light[..., None]) + H('#F08A3C')[None, None] * (0.30 * light[..., None])
+            + H('#1E2550')[None, None] * (0.20 * (1 - light[..., None])))
+    tone = np.clip(0.18 + 0.35 * (n - 0.5) + 0.25 * (1 - light), 0, 1)
+    c, s_ = math.cos(math.radians(45)), math.sin(math.radians(45))
+    u = (kit._XS * c + kit._YS * s_) / 8.0
+    v = (-kit._XS * s_ + kit._YS * c) / 8.0
+    d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+    dots = np.clip((np.sqrt(tone) * 0.55 - d) * 6, 0, 1)
+    img = base + (H('#1E2550')[None, None] - base) * (dots * 0.55)[..., None]
+    speck = (n2 > 0.985).astype(np.float32)
+    img = img + (H('#1A1416')[None, None] - img) * (speck * 0.5)[..., None]
+    for x in (430, 1490):                       # expansion seams
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.line(m, (x, -10), (x + 14, 1090), 1.0, 3, cv2.LINE_AA)
+        img = img + (H('#1E2550')[None, None] - img) * (m * 0.6)[..., None]
+    _cache['concrete'] = np.clip(img, 0, 1).astype(np.float32)
+    return _cache['concrete']
+
+
+def chalk(mask, seed=0, dry=0.32):
+    """turn a stroke mask into dry chalk: grainy coverage with broken edges"""
+    import cv2
+    key = ('chalkgrain', seed)
+    if key not in _cache:
+        rng = np.random.default_rng(seed + 100)
+        g = rng.random((1080, 1920)).astype(np.float32)
+        g = cv2.GaussianBlur(g, (0, 0), 0.8)
+        _cache[key] = g
+    g = _cache[key]
+    return np.clip((mask * (0.75 + 0.5 * g) - dry) * 2.2, 0, 1)
+
+
+def aiaigasa_masks(cx=900, top=190, w=290, hy=470, bot=900):
+    """相合傘 doodle: umbrella (roof + handle + heart), the sun (her) left, the crescent (him) right. stroke masks"""
+    import cv2
+    if ('aiai', cx) in _cache:
+        return _cache[('aiai', cx)]
+    um = np.zeros((1080, 1920), np.float32)
+    pts = np.array([[cx - w, hy], [cx - w * 0.5, top + (hy - top) * 0.45], [cx, top], [cx + w * 0.5, top + (hy - top) * 0.45],
+                     [cx + w, hy]], np.int32)
+    cv2.polylines(um, [pts], False, 1.0, 9, cv2.LINE_AA)
+    for k in range(-2, 3):                           # scalloped hem
+        x0 = cx + k * w * 0.4
+        cv2.ellipse(um, (int(x0), hy), (int(w * 0.2), 22), 0, 0, 180, 1.0, 7, cv2.LINE_AA)
+    cv2.line(um, (cx, top), (cx, bot), 1.0, 9, cv2.LINE_AA)
+    cv2.ellipse(um, (cx - 26, bot), (26, 26), 0, 0, 180, 1.0, 9, cv2.LINE_AA)
+    hp = np.array([[cx, top - 8], [cx - 20, top - 30], [cx - 10, top - 46], [cx, top - 36], [cx + 10, top - 46],
+                   [cx + 20, top - 30]], np.int32)
+    cv2.polylines(um, [hp], True, 1.0, 6, cv2.LINE_AA)
+    sun = np.zeros((1080, 1920), np.float32)
+    sx, sy = cx - 150, 650
+    cv2.circle(sun, (sx, sy), 50, 1.0, 8, cv2.LINE_AA)
+    for k in range(10):
+        a = k * math.pi / 5
+        cv2.line(sun, (int(sx + 66 * math.cos(a)), int(sy + 66 * math.sin(a))), (int(sx + 92 * math.cos(a)), int(sy + 92 * math.sin(a))),
+                 1.0, 7, cv2.LINE_AA)
+    moon = np.zeros((1080, 1920), np.float32)
+    mx, my = cx + 150, 650
+    cv2.ellipse(moon, (mx, my), (62, 62), 0, 40, 320, 1.0, 8, cv2.LINE_AA)
+    cv2.ellipse(moon, (mx + 26, my - 6), (46, 50), 0, 70, 290, 1.0, 7, cv2.LINE_AA)
+    _cache[('aiai', cx)] = (um, sun, moon, (sx, sy), (mx, my))
+    return _cache[('aiai', cx)]
+
+
+def _dot_targets(mask, pitch=12, thr=0.45, seed=0):
+    """grid points (centres) where a glyph mask is inked: targets for dot-assembly"""
+    ys = np.arange(pitch // 2, 1080, pitch)
+    xs = np.arange(pitch // 2, 1920, pitch)
+    sub = mask[np.ix_(ys, xs)]
+    yy, xx = np.nonzero(sub > thr)
+    pts = np.stack([xs[xx], ys[yy]], 1).astype(np.float32)
+    rng = np.random.default_rng(seed)
+    return pts, rng.permutation(len(pts))
+
+
+# ---- B-bridge1-04: the wave takes his half of the chalk umbrella; a dotted question mark takes its place -------------
+def bridge1_04(s, t, local, fi):
+    import cv2
+    from mv.core import clamp
+    from mv import text
+    from .print_fx import hexc as H
+    img = concrete_dusk().copy()
+    um, sun, moon, (sx, sy), (mx, my) = aiaigasa_masks()
+    gt = _map_gt(33)
+    word = 'ほかの誰かふさわしいよ'
+    colx, coly, gs = 1300, 220, 64
+    # wave tongue (middle band, from the right): in 97.72 -> 98.00 max reach, retreats by 98.46
+    if t < 97.72:
+        front = 2100.0
+    elif t < 98.0:
+        front = 2100 - (2100 - 960) * _ease_io((t - 97.72) / 0.28)
+    else:
+        front = 960 + (2100 - 960) * _ease_in(clamp((t - 98.0) / 0.46)) ** 0.7
+    wob = 40 * np.sin(kit._YS / 37.0 + t * 7.0) + 25 * np.sin(kit._YS / 13.0 - t * 11.0)
+    band = np.sqrt(np.clip(1 - ((kit._YS - 590) / 250.0) ** 2, 0, 1))
+    reach = 2100 - (2100 - front) * band
+    water = np.clip((kit._XS - (reach + wob)) / 10.0, 0, 1) * (band > 0.02)
+    washed = t >= 97.86                               # the crescent and 誰か are gone once the tongue has passed them
+    # chalk (cream): umbrella + sun always; crescent until washed, then a smear
+    ch = chalk(um, 1) + chalk(sun, 2)
+    if not washed:
+        ch = ch + chalk(moon, 3)
+    else:
+        sm = cv2.GaussianBlur(np.roll(moon, 36, axis=1), (61, 9), 0) * 0.35 * (1 - clamp((t - 98.5) / 1.4) * 0.4)
+        ch = ch + sm
+    # L33 chalk column per mora, 誰か washed then re-formed as dots
+    for i, chr_ in enumerate(word):
+        if t < gt[i]:
+            continue
+        if washed and chr_ in '誰' or (washed and i == 4):
+            continue
+        key = ('chalkglyph', i)
+        if key not in _cache:
+            gl = text.layout_v(chr_, colx, coly + i * gs * 1.08, gs, 'mincho', tracking=0.0)
+            f, _ = text.render_glyphs(gl)
+            _cache[key] = f
+        f = _cache[key]
+        if f is not None:
+            k = clamp((t - gt[i]) / (4 / 24))
+            ch = ch + chalk(f * k, 4 + i, 0.25)
+    ch = np.clip(ch, 0, 1)
+    img = img + (H('#F6F2E7')[None, None] - img) * ch[..., None]
+    # wet concrete left behind: darker, glossy dots, slowly drying
+    if t >= 97.72:
+        key = 'wetmask'
+        wet = _cache.get(key)
+        wet = water if wet is None else np.maximum(wet, water)
+        _cache[key] = wet
+        dry = 1 - clamp((t - 98.46) / 3.0) * 0.5
+        img = img * (1 - (wet * 0.22 * dry)[..., None]) + H('#7A2A22')[None, None] * (wet * 0.05 * dry)[..., None]
+        sheen = _dots_k(0.08, 9.0) * wet * np.clip(np.sin(kit._XS / 90.0 + kit._YS / 140.0) * 0.5 + 0.5, 0, 1) * dry
+        img = img + (H('#F6F2E7')[None, None] - img) * (sheen * 0.7)[..., None]
+    else:
+        _cache.pop('wetmask', None)
+    # the water itself: indigo sheet with foam dots at its front
+    if 97.72 <= t < 98.6:
+        img = img * (1 - water[..., None] * 0.30) + H('#2C4C9A')[None, None] * (water * 0.22)[..., None]
+        edge = np.clip(1 - np.abs(kit._XS - (reach + wob) - 30) / 55.0, 0, 1) * (band > 0.05)
+        streak = np.clip(np.sin(kit._YS / 9.0 + np.sin(kit._XS / 60.0) * 2) * 0.5 + 0.2, 0, 1) * water
+        foam = _dots_k(0.85, 12.0) * edge + _dots_k(0.3, 8.0) * streak
+        img = img + (H('#C9D3DC')[None, None] - img) * np.clip(foam, 0, 1)[..., None]
+    # dot assembly 98.46-99.20: the question mark in his slot, and 誰か re-forming, from the same dots
+    if t >= 98.40:
+        if 'qdots' not in _cache:
+            gl, _ = text.layout_h('？', mx, my, 250, 'mincho', align='center')
+            qm, _ = text.render_glyphs(gl)
+            g2 = text.layout_v('誰か', colx, coly + 3 * gs * 1.08, gs, 'mincho', tracking=0.08)
+            dm, _ = text.render_glyphs(g2)
+            pq, oq = _dot_targets(qm, 12, 0.4, 1)
+            pd, od = _dot_targets(dm, 9, 0.5, 2)
+            pts = np.concatenate([pq, pd])
+            order = np.concatenate([oq, od + len(pq)])
+            rng = np.random.default_rng(9)
+            src = np.stack([rng.uniform(1150, 1850, len(pts)), rng.uniform(420, 760, len(pts))], 1).astype(np.float32)
+            rad = np.concatenate([np.full(len(pq), 6.2), np.full(len(pd), 4.2)])
+            _cache['qdots'] = (pts, order, src, rad)
+        pts, order, src, rad = _cache['qdots']
+        m = np.zeros((1080, 1920), np.float32)
+        nd = len(pts)
+        for j in range(nd):
+            i = order[j]
+            st = 98.46 + 0.5 * j / nd
+            k = clamp((t - st) / 0.26)
+            if k <= 0:
+                continue
+            e = 1 - (1 - k) ** 3
+            p = src[i] + (pts[i] - src[i]) * e
+            cv2.circle(m, (int(p[0]), int(p[1])), int(round(rad[i] * (0.6 + 0.4 * e))), 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#F6F2E7')[None, None] - img) * m[..., None]
+    # her shadow falls into frame from the left on 99.20 (soft indigo, long dusk shadow)
+    if t >= 99.20:
+        k = _ease_io(clamp((t - 99.20) / 0.6))
+        sh = np.zeros((1080, 1920), np.float32)
+        x0 = int(-560 + 520 * k)
+        hx = x0 + 520
+        cv2.ellipse(sh, (hx, 600), (70, 64), 0, 0, 360, 1.0, -1, cv2.LINE_AA)            # bob: wider than the head
+        cv2.ellipse(sh, (hx - 40, 600), (60, 78), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        cv2.rectangle(sh, (hx - 120, 586), (hx - 60, 614), 1.0, -1)                      # neck
+        sh_pts = np.array([[hx - 120, 520], [hx - 120, 680], [hx - 330, 700], [hx - 330, 500]], np.int32)
+        cv2.fillConvexPoly(sh, sh_pts, 1.0, cv2.LINE_AA)                                 # shoulders
+        cv2.fillConvexPoly(sh, np.array([[hx - 330, 510], [hx - 330, 690], [-10, 660], [-10, 540]], np.int32), 1.0, cv2.LINE_AA)
+        sh = cv2.GaussianBlur(sh, (0, 0), 9) * 0.5
+        img = img * (1 - sh[..., None]) + H('#1E2550')[None, None] * (sh * 0.5)[..., None]
+    # camera: 1 degree over the bar, 4-frame shake on the hit
+    ang = 1.0 * clamp(local / (s['end'] - s['start']))
+    dx = dy = 0.0
+    if 97.72 <= t < 97.72 + 4 / 24:
+        rng = np.random.default_rng(int(t * 24))
+        dx, dy = rng.uniform(-14, 14), rng.uniform(-10, 10)
+    M = cv2.getRotationMatrix2D((960, 540), ang, 1.02)
+    M[0, 2] += dx
+    M[1, 2] += dy
+    img = cv2.warpAffine(img, M, (1920, 1080), borderMode=cv2.BORDER_REFLECT)
+    return _zh_fixed(img, t, 33, 96.9, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-bridge1-04'] = bridge1_04
+tl.OWN_TYPE.add('B-bridge1-04')
