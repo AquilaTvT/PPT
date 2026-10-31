@@ -290,3 +290,46 @@ if __name__ == '__main__':
     else:
         for sid in ids:
             print('cut', _work(sid), flush=True)
+
+
+def raw_matte(sid, src=None):
+    """(rgb, alpha, parts) of a shot's still at >= 1056 px tall: anime-seg matte (white or green plate), and the
+    connected figures sorted left to right as separate alphas (two-person stills split into print plates)."""
+    kind, path = ('still', src) if src else media_path(sid)
+    if kind is None and os.environ.get('HW_CHAR_STANDIN'):
+        kind, path = 'still', os.environ['HW_CHAR_STANDIN']
+    if kind is None:
+        return None
+    key = hashlib.md5(json.dumps([VERSION, path, os.path.getmtime(path)]).encode()).hexdigest()[:10]
+    d = os.path.join(CUT, f'{sid}_raw_{key}')
+    fp = os.path.join(d, 'rgba.png')
+    if os.path.exists(fp):
+        im = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+        rgb = cv2.cvtColor(im[..., :3], cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        a = im[..., 3].astype(np.float32) / 255.0
+    else:
+        if kind == 'video':
+            cap = cv2.VideoCapture(path)
+            _, im = cap.read()
+            cap.release()
+        else:
+            im = cv2.imread(path)
+        rgb = cv2.cvtColor(im, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        if rgb.shape[0] < 1000:
+            k = 1056 / rgb.shape[0]
+            rgb = np.clip(cv2.resize(rgb, (int(rgb.shape[1] * k), 1056), interpolation=cv2.INTER_LANCZOS4), 0, 1)
+        a, frac = green_key(rgb)
+        if frac < 0.15:
+            a = isnet(rgb)
+        rgb = despill(rgb, a)
+        os.makedirs(d, exist_ok=True)
+        out = np.dstack([cv2.cvtColor((rgb * 255 + 0.5).clip(0, 255).astype(np.uint8), cv2.COLOR_RGB2BGR),
+                         (a * 255 + 0.5).clip(0, 255).astype(np.uint8)])
+        cv2.imwrite(fp, out)
+    n, lab, st, cen = cv2.connectedComponentsWithStats((a > 0.5).astype(np.uint8), 8)
+    comps = sorted([i for i in range(1, n) if st[i, cv2.CC_STAT_AREA] > 0.04 * (a > 0.5).sum()], key=lambda i: cen[i][0])
+    parts = []
+    for i in comps:
+        m = cv2.dilate((lab == i).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(np.float32)
+        parts.append((a * m, tuple(st[i, :4])))
+    return rgb, a, parts

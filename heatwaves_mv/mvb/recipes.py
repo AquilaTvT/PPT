@@ -3326,3 +3326,133 @@ def chorus1_05(s, t, local, fi):
 
 R['B-chorus1-05'] = chorus1_05
 tl.OWN_TYPE.add('B-chorus1-05')
+
+
+# ---- shared: two-plate riso print of a two-person still (cobalt plate / orange plate, overprint) ----------------------
+INK2 = {'P': '#EDE3CF', 'C': '#2C4C9A', 'O': '#F08A3C', 'X': '#292924'}
+
+
+def _fig_plate(rgb, alpha, bbox, t, sway=None, period=8.0, angle=15.0):
+    """one figure as a single-ink plate coverage: solid darks, halftone mids, inked contour; optional mesh sway"""
+    import cv2
+    from . import print_fx
+    lum = rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11
+    tone = np.clip((0.92 - lum) * 1.35, 0, 1)
+    if sway is not None:
+        x, y, w, h = bbox
+        ys = np.arange(rgb.shape[0], dtype=np.float32)[:, None]
+        xs = np.arange(rgb.shape[1], dtype=np.float32)[None, :]
+        dx = sway(xs, ys, x, y, w, h, t)
+        mx = (xs + dx).astype(np.float32) * np.ones_like(ys)
+        my = ys * np.ones_like(xs)
+        tone = cv2.remap(tone, mx, my, cv2.INTER_LINEAR)
+        alpha = cv2.remap(alpha, mx, my, cv2.INTER_LINEAR)
+    edge = np.clip(cv2.dilate(alpha, np.ones((5, 5), np.uint8)) - cv2.erode(alpha, np.ones((5, 5), np.uint8)), 0, 1)
+    return np.clip(tone * alpha, 0, 1), edge
+
+
+def riso_two_person(sid, t, local, plates_off, layout=(960, 1000, 860), bg_extra=None, swap=False, fade_c=1.0, fade_o=1.0):
+    """compose a two-person still as a two-plate print. plates_off = ((dx_c, dy_c), (dx_o, dy_o)) screen shifts.
+    Returns (image, cobalt coverage, orange coverage). Left figure -> cobalt (him), right -> orange (her) unless swap."""
+    import cv2, math
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    raw = once(('raw', sid), lambda: chars.raw_matte(sid))
+    covC = np.zeros((1080, 1920), np.float32)
+    covO = np.zeros((1080, 1920), np.float32)
+    lineC = np.zeros((1080, 1920), np.float32)
+    lineO = np.zeros((1080, 1920), np.float32)
+    if raw is not None:
+        rgb, a, parts = raw
+        if len(parts) == 1:
+            parts = [parts[0], parts[0]]
+        cx, cy, hgt = layout
+        k = hgt / rgb.shape[0]
+        for idx, (pa, bb) in enumerate(parts[:2]):
+            to_c = (idx == 0) != swap
+            def sway(xs, ys, x, y, w, h, tt, her=not to_c):
+                yy = (ys - y) / max(1, h)
+                if her:                                    # legs swing +-8 deg, hair sways at 2 Hz
+                    legs = np.clip((yy - 0.62) / 0.38, 0, 1) ** 1.5 * h * 0.38 * math.tan(math.radians(8)) * math.sin(2 * math.pi * 0.675 * tt)
+                    hair = np.clip((0.25 - yy) / 0.25, 0, 1) * 3.0 * np.sin(2 * math.pi * 2.0 * tt + yy * 6)
+                    return legs + hair
+                return np.clip(1 - np.abs(yy - 0.6) / 0.08, 0, 1) * 2.5 * np.sin(2 * math.pi * 3.1 * tt + xs / 9.0)
+            cov, edge = _fig_plate(rgb, pa, bb, t, sway)
+            M = np.float32([[k, 0, cx - rgb.shape[1] * k / 2], [0, k, cy - rgb.shape[0] * k]])
+            cov = cv2.warpAffine(cov, M, (1920, 1080))
+            edge = cv2.warpAffine(edge, M, (1920, 1080))
+            if to_c:
+                covC, lineC = np.maximum(covC, cov), np.maximum(lineC, edge)
+            else:
+                covO, lineO = np.maximum(covO, cov), np.maximum(lineO, edge)
+    if bg_extra is not None:
+        bc, bo = bg_extra
+        covC, covO = np.maximum(covC, bc), np.maximum(covO, bo)
+    (dxc, dyc), (dxo, dyo) = plates_off
+    covC = np.roll(np.roll(np.maximum(covC, lineC), int(dyc), 0), int(dxc), 1) * fade_c
+    covO = np.roll(np.roll(np.maximum(covO, lineO), int(dyo), 0), int(dxo), 1) * fade_o
+    cd = np.where(covC > 0.9, 1.0, print_fx._screen(covC, 8.0, 15.0))[..., None]
+    od = np.where(covO > 0.9, 1.0, print_fx._screen(covO, 8.0, 75.0))[..., None]
+    P_, C_, O_, X_ = [H(INK2[c]) for c in 'PCOX']
+    img = P_ * (1 - cd) * (1 - od) + C_ * cd * (1 - od) + O_ * od * (1 - cd) + X_ * cd * od
+    return img.astype(np.float32), covC, covO
+
+
+def reg_marks(img, color='#1A1416'):
+    import cv2
+    from .print_fx import hexc as H
+    k_ = tuple(float(v) for v in H(color))
+    for (mx, my) in ((70, 70), (1850, 70), (70, 1010), (1850, 1010)):
+        cv2.circle(img, (mx, my), 18, k_, 2, cv2.LINE_AA)
+        cv2.line(img, (mx - 30, my), (mx + 30, my), k_, 2, cv2.LINE_AA)
+        cv2.line(img, (mx, my - 30), (mx, my + 30), k_, 2, cv2.LINE_AA)
+    return img
+
+
+# ---- B-chorus1-04: the two of them as a two-plate riso print; the plates drift out of register on 幸せ ------------------
+def chorus1_04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from .print_fx import hexc as H
+    d = s['end'] - s['start']
+    u = clamp(local / d)
+    steps = sum(1 for b in (38.46, 39.20, 39.94) if t >= b)
+    stepk = steps + (clamp((t - (38.46 + BEAT * (steps - 1))) / (4 / 24)) - 1 if steps else 0)
+    drift = 14.0 * max(0.0, stepk) * 2 / 2
+    truck = -80.0 * u
+    push = 1.0 + 0.015 * u
+    offC = (truck - drift * 0.5, 0.0)
+    offO = (truck * 1.06 + drift * 0.5 + 4, 0.0)
+    # background plates: cobalt sea band + seawall line; orange sun disc + road
+    key = 'c104_bg'
+    if key not in _cache:
+        bc = np.zeros((1080, 1920), np.float32)
+        bo = np.zeros((1080, 1920), np.float32)
+        ys = kit._YS
+        bc += np.clip((ys - 300) / 60.0, 0, 1) * np.clip((560 - ys) / 20.0, 0, 1) * 0.55
+        cv2.line(bc, (0, 760), (1920, 760), 1.0, 6, cv2.LINE_AA)
+        cv2.rectangle(bc, (0, 760), (1920, 790), 0.35, -1)
+        cv2.circle(bo, (330, 200), 120, 1.0, -1, cv2.LINE_AA)
+        for k in range(5):
+            cv2.line(bo, (0, 860 + k * 40), (1920, 840 + k * 46), 0.5, 3, cv2.LINE_AA)
+        _cache[key] = (bc, bo)
+    img, covC, covO = riso_two_person('B-chorus1-04', t, local, (offC, offO), layout=(900, 900, 640),
+                                      bg_extra=_cache[key])
+    if push != 1.0:
+        M = cv2.getRotationMatrix2D((960, 540), 0, push)
+        img = cv2.warpAffine(img, M, (1920, 1080), borderMode=cv2.BORDER_REFLECT)
+    img = reg_marks(img)
+    # L13: 幸せ printed in both plates (orange fill / cobalt shadow) drifting apart; the rest in register
+    ly = once('c104_ly', lambda: VLyric(13, x=1720, accent='#2C4C9A', color='#EDE3CF', hide=lambda i, tt: i in (2, 3)))
+    img = ly.draw(img, t)
+    for i in (2, 3):
+        if i < len(ly.glyphs) and t >= ly.times[i]:
+            g = ly.glyphs[i]
+            kit.map_glyph(img, g['ch'], g['cx'] + 7 + offC[0] - truck, g['cy'] + 7, int(ly.size), 0.0, 1.0, '#2C4C9A', '#2C4C9A', 0.5)
+            kit.map_glyph(img, g['ch'], g['cx'] + offO[0] - truck, g['cy'], int(ly.size), 0.0, 1.0, '#F08A3C', '#F08A3C', 0.5)
+    return img
+
+
+R['B-chorus1-04'] = chorus1_04
+tl.OWN_TYPE.add('B-chorus1-04')
