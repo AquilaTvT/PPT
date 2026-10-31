@@ -1533,3 +1533,176 @@ def chorus4_05(s, t, local, fi):
 
 R['B-chorus4-05'] = chorus4_05
 tl.OWN_TYPE.add('B-chorus4-05')
+
+
+# ---- shared: the stamp card lying on the chabudai, seen from a high angle --------------------------------------------
+TABLE_PAD = (700, 520)          # table margin around the card, in card px
+
+
+def card_on_table(card, cx, cy, zoom, tilt=0.30, table='#1A1E3A', wood='#232B57'):
+    """flat top-down view of the card on the dark table, then a keystone so the far edge recedes (high angle).
+    cx, cy, zoom in card coordinates as card.view; tilt = how much narrower the far edge is (fraction)."""
+    import cv2
+    from . import card as C
+    from .print_fx import hexc as H
+    key = ('table', table, wood)
+    if key not in _cache:
+        tw, th = C.CW + 2 * TABLE_PAD[0], C.CH + 2 * TABLE_PAD[1]
+        ys, xs = np.mgrid[0:th // 4, 0:tw // 4].astype(np.float32)
+        grain = 0.5 + 0.5 * np.sin(ys / 3.0 + 2.5 * np.sin(xs / 90.0) + 0.6 * np.sin(xs / 23.0))
+        base = H(table)[None, None] + (H(wood) - H(table))[None, None] * (grain[..., None] * 0.6)
+        _cache[key] = cv2.resize(base.astype(np.float32), (tw, th), interpolation=cv2.INTER_LINEAR)
+        sh = np.zeros((th, tw), np.float32)
+        sh[TABLE_PAD[1] + 30:TABLE_PAD[1] + C.CH + 30, TABLE_PAD[0] + 24:TABLE_PAD[0] + C.CW + 24] = 1
+        _cache[key + ('sh',)] = cv2.GaussianBlur(sh, (0, 0), 18) * 0.55
+    tab, sh = _cache[key], _cache[key + ('sh',)]
+    full = tab * (1 - sh[..., None])
+    full[TABLE_PAD[1]:TABLE_PAD[1] + C.CH, TABLE_PAD[0]:TABLE_PAD[0] + C.CW] = card
+    ow, oh = 2400, 1350                             # flat view, bigger than the frame so the keystone has margin
+    s = ow / C.CW * zoom
+    M = cv2.getRotationMatrix2D((cx + TABLE_PAD[0], cy + TABLE_PAD[1]), 0.0, s)
+    M[0, 2] += ow / 2 - (cx + TABLE_PAD[0])
+    M[1, 2] += oh / 2 - (cy + TABLE_PAD[1])
+    flat = cv2.warpAffine(full, M, (ow, oh), flags=cv2.INTER_AREA if s < 1 else cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    m = tilt * ow / 2
+    scr = np.float32([[0, 0], [1920, 0], [1920, 1080], [0, 1080]])
+    src = np.float32([[0, 0], [ow, 0], [ow - m, oh], [m, oh]])
+    Hm = cv2.getPerspectiveTransform(scr, src)
+    out = cv2.warpPerspective(flat, Hm, (1920, 1080), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+
+    def to_screen(px, py):        # card px -> screen px (for overlays that must sit on the card)
+        fx_ = (px + TABLE_PAD[0] - (cx + TABLE_PAD[0])) * s + ow / 2
+        fy_ = (py + TABLE_PAD[1] - (cy + TABLE_PAD[1])) * s + oh / 2
+        Hinv = np.linalg.inv(Hm)
+        v = Hinv @ np.array([fx_, fy_, 1.0])
+        return v[0] / v[2], v[1] / v[2]
+    return out, to_screen
+
+
+def stamp_ring_layer(word, n, center, radius, size=84, dry=(), seed=5, start_deg=-90.0, span=330.0):
+    """rubber-stamped glyphs around a circle (date-stamp ring) as an RGBA card layer; uneven pressure"""
+    import cv2
+    import skia
+    from . import card as C
+    key = ('ring', word, n, center, radius, size, tuple(dry))
+    if key in _cache:
+        return _cache[key]
+    rng = np.random.default_rng(seed)
+    jit = rng.uniform(-4, 4, len(word))
+    press = rng.uniform(0.72, 0.95, len(word))
+
+    def draw(c):
+        for i, ch in enumerate(word[:n]):
+            a = math.radians(start_deg + span * i / max(1, len(word) - 1))
+            x, y = center[0] + radius * math.cos(a), center[1] + radius * math.sin(a)
+            c.save()
+            c.translate(x, y)
+            c.rotate(math.degrees(a) + 90 + jit[i])
+            alpha = 0.25 if ch in dry else press[i]
+            C._text(c, ch, 0, size * 0.36, size, C.VERM, 'mincho', alpha=alpha)
+            c.restore()
+    import math
+    lay = C._layer(draw)
+    sp = (rng.random((C.CH // 3, C.CW // 3)) > 0.22).astype(np.float32)
+    sp = cv2.resize(sp, (C.CW, C.CH), interpolation=cv2.INTER_NEAREST)
+    lay[..., 3] *= sp
+    if len([k for k in _cache if isinstance(k, tuple) and k[0] == 'ring']) > 12:
+        for k in [k for k in _cache if isinstance(k, tuple) and k[0] == 'ring']:
+            del _cache[k]
+    _cache[key] = lay
+    return lay
+
+
+def channel_flip(img, t, t0, t1, seed=0):
+    """チャンネル送り: a 2-frame halftone static band, then the picture rolls up with a black blanking bar"""
+    import cv2
+    if t < t0 or t > t1:
+        return img
+    k = (t - t0) / max(1e-6, t1 - t0)
+    fr = int((t - t0) * 24)
+    out = img
+    if fr < 2 or k > 0.55:
+        st = tv_static(seed * 31 + fr, 1080 // 2, 1920 // 2)
+        st = cv2.resize(st, (1920, 1080), interpolation=cv2.INTER_NEAREST)
+        rng = np.random.default_rng(seed * 7 + fr)
+        y0 = int(rng.uniform(0, 760))
+        band = np.zeros((1080, 1), np.float32)
+        band[y0:y0 + int(rng.uniform(180, 320))] = 1
+        out = out * (1 - band[..., None]) + st * band[..., None]
+    roll = int(1080 * (k ** 1.6))
+    if roll:
+        out = np.roll(out, -roll, axis=0)
+        out[max(0, 1080 - roll - 40):max(0, 1080 - roll), :] *= 0.08
+    return out
+
+
+# ---- B-chorus1-07: back at night -- the stamp card, the empty sixth circle, a sun that cannot rise -------------------
+def chorus1_07(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import card as C
+    from .print_fx import hexc as H
+    # the paper-cut sun tries twice and fails: rises 30% on 50.31 and slips back, again on 51.05, flickers out 51.79
+    def bump(t0, peak, up=0.30, down=0.42):
+        if t < t0:
+            return 0.0
+        if t < t0 + up:
+            return peak * _ease_io((t - t0) / up)
+        return peak * (1 - _ease_io(clamp((t - t0 - up) / down)))
+    sun = max(bump(50.31, 0.42), bump(51.05, 0.47))
+    if 51.79 <= t < 52.05:
+        sun = 0.38 if int((t - 51.79) * 24) % 2 == 0 else 0.0
+    gt = _map_gt(17)
+    n = sum(1 for g in gt if t >= g)
+    key = ('c107card', round(sun, 3), n)
+    if key not in _cache:
+        for k in [k for k in _cache if isinstance(k, tuple) and k[0] == 'c107card']:
+            del _cache[k]
+        card = C.render_card(stamp_k=(1, 1, 1, 1, 1), sun_k=sun, glow_k=0.0, footer_n=0)
+        x6, y6, _ = C.CIRCLES[5]
+        lay = stamp_ring_layer('君に幸せあげられない', n, (x6, y6), C.R0 + 92, 112, dry=('幸', 'せ'), start_deg=-208.0,
+                               span=236.0)
+        a = lay[..., 3:4]
+        card = card * (1 - a) + lay[..., :3] * a
+        _cache[key] = card
+    card = _cache[key]
+    k = clamp(local / (s['end'] - s['start']))
+    zoom = 1.45 * (1 + 0.10 * _ease_io(k))                        # 10% push toward the sixth circle
+    cx, cy = 2330 + 120 * k, 820 - 40 * k
+    img, to_s = card_on_table(card, cx, cy, zoom, tilt=0.28)
+    # night: the room is lit only by the CRT -- navy multiply with a mint key from the left
+    xs, ys = kit._XS / 1920, kit._YS / 1080
+    key_l = np.clip(1.15 - 0.9 * xs - 0.25 * ys, 0, 1)[..., None]
+    img = img * (0.16 + 0.58 * key_l) * (H('#C9D3DC') * 0.5 + H('#7FC8B8') * 0.5)[None, None] * 1.2
+    img = img + (H('#141A33')[None, None] - img) * (0.35 * (1 - key_l))
+    # CRT colour wash: a new channel colour sweeps across the card on every beat
+    cols = ['#7FC8B8', '#D9402B', '#2C4C9A', '#F5C842']
+    nb = (t - 0.682) / BEAT
+    bi, ph = int(math.floor(nb)), nb % 1.0
+    band = np.exp(-((xs - (-0.3 + 1.6 * ph)) / 0.22) ** 2) * 0.32 * (1 - ph * 0.5)
+    img = img + (H(cols[bi % 4])[None, None] - img) * band[..., None]
+    # fan shadow: three blurred blades turning slowly, top-left
+    ang = t * 2.2
+    th = np.arctan2(ys * 1080 + 260, xs * 1920 + 300)
+    blades = (np.cos(3 * (th - ang)) > 0.55).astype(np.float32)
+    rr = np.sqrt((xs * 1920 + 300) ** 2 + (ys * 1080 + 260) ** 2)
+    fan = cv2.GaussianBlur(blades * (rr < 1300), (0, 0), 22) * 0.22
+    img = img * (1 - fan[..., None])
+    # dashed-circle pulse on beats, on the card
+    x6, y6, _ = C.CIRCLES[5]
+    sx, sy = to_s(x6, y6)
+    ex, _ = to_s(x6 + C.R0, y6)
+    rpx = abs(ex - sx)
+    pk = math.exp(-ph * 4.0)
+    m = np.zeros((1080, 1920), np.float32)
+    rr2 = rpx * (1.0 + 0.25 * ph)
+    for j in range(24):
+        a0 = j * 15
+        cv2.ellipse(m, (int(sx), int(sy)), (int(rr2), int(rr2 * 0.86)), 0, a0, a0 + 8, 1.0, 5, cv2.LINE_AA)
+    img = img + (H('#EDE3CF')[None, None] - img) * (m * 0.7 * pk)[..., None]
+    img = _zh_fixed(img, t, 17, 49.66, ink='#EDE3CF', halo_col='#141A33')
+    return channel_flip(img, t, 52.20, 52.53, seed=17)
+
+
+R['B-chorus1-07'] = chorus1_07
+tl.OWN_TYPE.add('B-chorus1-07')
