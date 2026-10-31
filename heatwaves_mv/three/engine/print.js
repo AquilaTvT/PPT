@@ -29,9 +29,14 @@ float htDot(float tone, vec2 frag, float period, float angle) {
 const VERT = /* glsl */`
 varying vec3 vN; varying vec3 vW; varying float vDepth;
 void main() {
+#ifdef USE_INSTANCING
+  vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+  vN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
+#else
   vec4 w = modelMatrix * vec4(position, 1.0);
-  vW = w.xyz;
   vN = normalize(mat3(modelMatrix) * normal);
+#endif
+  vW = w.xyz;
   vec4 mv = viewMatrix * w;
   vDepth = -mv.z;
   gl_Position = projectionMatrix * mv;

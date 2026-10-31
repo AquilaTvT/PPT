@@ -40,6 +40,14 @@ export const WORLDS = {
     mirror: '#E6EEF5', vend: '#D9402B', vendGlow: '#F5C842', led: '#D9402B', moon: '#FFF6DC', moonShade: '#F5C842',
     rail: '#5A6070', ballast: '#8E95A6', ink: '#1A1416', light: [0.6, 0.55, 0.5], ambient: 0.5,
   },
+  underwater: {
+    skyTop: '#0E3A4A', skyHor: '#1F6A78', skyBand: '#3FA2A8', fog: '#0F4250', stars: 0.0,
+    road: '#1A4E5C', roadShade: '#0B2A34', line: '#7FC8B8', wall: '#1F5A68', wallShade: '#0B2A34', house: '#1A4E5C',
+    houseShade: '#0B2A34', roof: '#0A1E26', sea: '#0F4250', seaHi: '#BFF3FF',
+    window: '#3FA2A8', lamp: '#BFF3FF', glow: '#7FC8B8', pole: '#0A1E26', mirrorPole: '#3FA2A8', mirror: '#BFF3FF',
+    vend: '#7FC8B8', vendGlow: '#BFF3FF', led: '#BFF3FF', moon: '#BFF3FF', moonShade: '#3FA2A8', rail: '#7FC8B8',
+    ballast: '#0B2A34', ink: '#06141A', light: [0.1, 1.0, 0.2], ambient: 0.45, lantern: '#7A8E92', lanternOff: '#5E7276',
+  },
   dawn: {
     skyTop: '#3A4A8A', skyHor: '#F2A7A0', skyBand: '#F7E3C2', fog: '#8E7FA8', stars: 0.0,
     road: '#5A5E86', roadShade: '#33365E', line: '#F7E3C2', wall: '#9C95B8', wallShade: '#5A5E86',
