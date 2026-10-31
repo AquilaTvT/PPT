@@ -33,7 +33,7 @@ fi
 git -C "$COMFY" fetch --depth 1 origin "$COMFY_REF" 2>/dev/null || git -C "$COMFY" fetch origin
 git -C "$COMFY" checkout -q "$COMFY_REF"
 "$UV" pip install --python "$PY" -r "$COMFY/requirements.txt"
-"$UV" pip install --python "$PY" gguf numpy opencv-python-headless pillow skia-python librosa soundfile imageio-ffmpeg
+"$UV" pip install --python "$PY" gguf sentencepiece protobuf numpy opencv-python-headless pillow skia-python librosa soundfile imageio-ffmpeg
 
 # --- ComfyUI-GGUF (GGUF loaders; needed for the 14B video experts on MPS) ---------------------
 if [ ! -d "$COMFY/custom_nodes/ComfyUI-GGUF" ]; then

@@ -83,6 +83,7 @@ def main():
     ap.add_argument('--with5b', action='store_true')
     ap.add_argument('--model', choices=['14b', '5b'], default='5b')
     ap.add_argument('--unet', default='Wan2.2-TI2V-5B-Q6_K.gguf')
+    ap.add_argument('--video-only', action='store_true', help='reuse work/bench_kf.png, skip the keyframe timings')
     a = ap.parse_args()
     root = a.root or os.path.join(ROOT, '.hw', 'ComfyUI')
     c = Comfy(a.url, root if os.path.isdir(root) else None)
@@ -91,17 +92,18 @@ def main():
               'standing on a country road in summer, cumulonimbus, blue sky, wind, looking back over shoulder, '
               'anime screencap, cinematic lighting')
     kw, kh = (1280, 704) if a.model == '5b' else (1536, 864)
-    outs = timed(c, gr.t2i_anima(prompt, w=kw, h=kh, seed=7, prefix='bench_kf', model='anima-turbo-v1.1.safetensors',
-                                 steps=10, cfg=1.0, sampler='euler'), a.platform, f'anima-turbo {kw}x{kh} 10 steps', res)
-    c.free()
-    timed(c, gr.t2i_anima(prompt, w=kw, h=kh, seed=8, prefix='bench_kf_aes', steps=24), a.platform,
-          f'anima-aesthetic {kw}x{kh} 24 steps cfg 4.5', res)
-    c.free()
-    if not outs:
-        return
     kf = os.path.join(ROOT, 'work', 'bench_kf.png')
     os.makedirs(os.path.dirname(kf), exist_ok=True)
-    c.fetch(outs[0], kf)
+    if not (a.video_only and os.path.exists(kf)):
+        outs = timed(c, gr.t2i_anima(prompt, w=kw, h=kh, seed=7, prefix='bench_kf', model='anima-turbo-v1.1.safetensors',
+                                     steps=10, cfg=1.0, sampler='euler'), a.platform, f'anima-turbo {kw}x{kh} 10 steps', res)
+        c.free()
+        timed(c, gr.t2i_anima(prompt, w=kw, h=kh, seed=8, prefix='bench_kf_aes', steps=24), a.platform,
+              f'anima-aesthetic {kw}x{kh} 24 steps cfg 4.5', res)
+        c.free()
+        if not outs:
+            return
+        c.fetch(outs[0], kf)
     up = c.upload(kf, 'bench_kf.png')
     vp = 'the girl turns her head toward the camera and smiles, her hair and dress move in the warm wind, ' \
          'clouds drift slowly, the camera slowly pushes in'
@@ -117,7 +119,9 @@ def main():
                                  neg_cond=cond['bench_neg'], prefix=f'video/bench_turbo_{w}x{h}_s{shift:g}')
             timed(c, g, a.platform, f'wan2.2 5B turbo {w}x{h} 121f 4 steps shift {shift:g}', res)
             c.free()
-        json.dump(res, open(os.path.join(ROOT, 'work', 'bench.json'), 'w'), indent=1)
+        out = os.path.join(ROOT, 'work', 'bench.json')
+        prev = json.load(open(out)) if (a.video_only and os.path.exists(out)) else []
+        json.dump(prev + res, open(out, 'w'), indent=1)
         return
     else:
         for (w, h) in ((832, 480), (1280, 720)):
