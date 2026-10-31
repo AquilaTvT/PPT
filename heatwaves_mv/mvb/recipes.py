@@ -1104,3 +1104,79 @@ def chorus3_05(s, t, local, fi):
 
 R['B-chorus3-05'] = chorus3_05
 tl.OWN_TYPE.add('B-chorus3-05')
+
+
+# ---------------------------------------------------------------- B-bridge1-01: the shotengai under the sea
+def _b101_plate():
+    path = [{'t': 0.0, 'pos': [0.0, 9.0, -6.0], 'look': [0.0, 14.0, 10.0], 'fov': 50},
+            {'t': 0.9, 'pos': [0.0, 3.2, 0.0], 'look': [0.0, 3.0, 20.0], 'fov': 50, 'ease': 'out'},
+            {'t': 2.96, 'pos': [0.0, 3.2, 2.1], 'look': [0.1, 3.1, 22.0], 'fov': 50, 'ease': 'linear'}]
+    return plate('B-bridge1-01', 's3_festival', {'world': 'underwater', 'shutterT': 99.0, 'litT': None, 'floatT': 0.0,
+                                                 'crowd': 0, 'path': path}, 0.0, 2.96, fps=24)
+
+
+def bridge1_01(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text, lyrics
+    from mva import fx
+    from .print_fx import hexc as H
+    pl = once('b101', _b101_plate)
+    img = pl.frame(local).copy()
+    # underwater sway + caustics (line-screen) + bubbles
+    img = fx.water_refract(img, t, amp=4.0, scale=120.0, speed=0.6)
+    ca = fx.caustics(t, 160, 0.7, 7.0)
+    scr = (np.mod(kit._YS + kit._XS * 0.0, 7.0) < 2.5).astype(np.float32)
+    img = img + (H('#7FC8B8')[None, None] - img) * (ca * scr * 0.35)[..., None]
+    img = fx.bubbles(img, t, n=60, seed=8, rim='#BFF3FF', speed=140.0, amount=0.8)
+    # surface with the moon above, seen at the start of the sink
+    if local < 0.9:
+        k = 1 - local / 0.9
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.ellipse(m, (980 + int(20 * math.sin(t * 2)), int(160 - 300 * (1 - k))), (90, 70), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        m = fx.water_refract(np.repeat(m[..., None], 3, -1), t, 8.0, 60.0, 1.2)[..., 0]
+        img = img + (H('#BFF3FF')[None, None] - img) * (m * k * 0.9)[..., None]
+    # goldfish (2D, few) weaving between stalls
+    for i in range(7):
+        ph = i * 0.9
+        x = (300 + i * 230 + 120 * math.sin(t * 0.8 + ph)) % 1920
+        y = 640 + 120 * math.sin(t * 1.1 + ph * 2)
+        ang = math.cos(t * 0.8 + ph)
+        body = np.zeros((1080, 1920), np.float32)
+        cv2.ellipse(body, (int(x), int(y)), (26, 12), math.degrees(math.atan2(0.3, ang)), 0, 360, 1.0, -1, cv2.LINE_AA)
+        tail = np.array([[x - 24 * np.sign(ang), y], [x - 50 * np.sign(ang), y - 14], [x - 50 * np.sign(ang), y + 14]], np.int32)
+        cv2.fillPoly(body, [tail], 1.0, cv2.LINE_AA)
+        img = img + (H('#D9402B')[None, None] - img) * body[..., None]
+    # bubble lyrics: one glyph per bubble, popping on the next mora (L30 闘えず息できず)
+    gt = once('gt30', lambda: __import__('json').load(open(tl.os.path.join(tl.ROOT, 'assets', 'glyph_times.json')))['30'])
+    word = '闘えず息できず'
+    for i, ch in enumerate(word):
+        tg = gt[min(i, len(gt) - 1)]
+        tn = gt[i + 1] if i + 1 < len(gt) else tg + 0.6
+        if not (tg <= t < tn + 0.12):
+            continue
+        rise = (t - tg) * 90
+        x, y = 1180 + (i % 3) * 120 - 120, 760 - i * 70 - rise
+        pop = clamp((t - tn) / 0.12)
+        rb = int(64 * (1 + 0.4 * pop))
+        ring = np.zeros((1080, 1920), np.float32)
+        cv2.circle(ring, (int(x), int(y)), rb, 1.0, 3, cv2.LINE_AA)
+        img = img + (H('#BFF3FF')[None, None] - img) * (ring * (1 - pop))[..., None]
+        key = ('bub', ch)
+        if key not in _cache:
+            gl, _ = text.layout_h(ch, 960, 540, 78, 'mincho', align='center')
+            _cache[key], _ = text.render_glyphs(gl)
+        f = _cache[key]
+        if f is not None:
+            fm = cv2.warpAffine(f, np.float32([[1, 0, x - 960], [0, 1, y - 540]]), (1920, 1080))
+            img = img + (H('#EDE3CF')[None, None] - img) * (fm * (1 - pop))[..., None]
+    a = clamp((t - 88.2) / 0.3)
+    gl, _ = text.layout_h(lyrics.ZH[30], 960, 1010, 30, 'zh', tracking=0.2, align='center')
+    f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a))
+    if f is not None:
+        img = img + (H('#BFF3FF')[None, None] - img) * f[..., None]
+    return img
+
+
+R['B-bridge1-01'] = bridge1_01
+tl.OWN_TYPE.add('B-bridge1-01')
