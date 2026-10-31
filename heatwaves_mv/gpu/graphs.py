@@ -286,7 +286,7 @@ TURBO_5B = 'Wan2_2-TI2V-5B-Turbo-Q6_K.gguf'
 def ti2v_wan22_5b(start_image, prompt, neg=NEG_WAN, w=1280, h=704, frames=121, seed=0, steps=20, cfg=5.0,
                   shift=8.0, te='umt5_xxl_fp16.safetensors', prefix='wan5b',
                   unet_name='wan2.2_ti2v_5B_fp16.safetensors', sampler='uni_pc', scheduler='simple',
-                  pos_cond=None, neg_cond=None, tiled=True):
+                  pos_cond=None, neg_cond=None, tiled=True, fps=24):
     """Wan 2.2 TI2V 5B (720p, 24 fps).  Template: uni_pc 20 steps cfg 5 shift 8.
     Turbo distill (unet_name=TURBO_5B): 4 steps, cfg 1, euler.
     pos_cond/neg_cond = names saved by encode_texts() -> no text encoder in memory while sampling.
@@ -317,7 +317,7 @@ def ti2v_wan22_5b(start_image, prompt, neg=NEG_WAN, w=1280, h=704, frames=121, s
                     temporal_overlap=8)
     else:
         img = g.add('VAEDecode', samples=ks, vae=vae)
-    _save_video(g, img, 24, prefix)
+    _save_video(g, img, fps, prefix)
     return g.json()
 
 

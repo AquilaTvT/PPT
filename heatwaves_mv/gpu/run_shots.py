@@ -190,8 +190,17 @@ def encode_prompts(c, cfg, shots, man, n):
     c.free()
 
 
-def clip_frames(sec, fps=24):
-    return max(25, min(121, int(round(sec * fps)) // 4 * 4 + 1))
+def clip_frames(sec, fps=24, cap=121):
+    """frames to sample for `sec` seconds at `fps` (Wan wants 4k+1); the cloud side retimes to 24 fps"""
+    import math
+    return max(33, min(cap, int(math.ceil(sec * fps / 4.0)) * 4 + 1))
+
+
+def shot_seconds(s):
+    """footage actually needed: the shot's on-screen length (plus 0.15 s handle), else clip_seconds"""
+    if 'start' in s and 'end' in s:
+        return float(s['end']) - float(s['start']) + 0.15
+    return float(s.get('clip_seconds', 3))
 
 
 def do_videos(c, cfg, shots, man, n):
@@ -220,7 +229,9 @@ def do_videos(c, cfg, shots, man, n):
             up = c.upload(start, f"{s['id']}_start.png")
             upe = c.upload(end, f"{s['id']}_end.png") if end else None
             if v['engine'] == 'wan5b':
-                g = gr.ti2v_wan22_5b(up, None, w=v['w'], h=v['h'], frames=clip_frames(s.get('clip_seconds', 5)),
+                fps = v.get('fps', 24)
+                g = gr.ti2v_wan22_5b(up, None, w=v['w'], h=v['h'],
+                                     frames=clip_frames(shot_seconds(s), fps, v.get('max_frames', 121)), fps=fps,
                                      seed=seed, steps=v['steps'], cfg=v['cfg'], shift=v['shift'],
                                      sampler=v.get('sampler', 'euler'), unet_name=v['unet'],
                                      pos_cond=cond_name(s['id']) + '.safetensors',
