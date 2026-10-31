@@ -1078,3 +1078,29 @@ def chorus3_08(s, t, local, fi):
 
 R['B-chorus3-08'] = chorus3_08
 tl.OWN_TYPE.add('B-chorus3-08')
+
+
+def _c305_plate():
+    path = [{'t': 0.0, 'pos': [0.5, 2.2, 18.0], 'look': [0.0, 5.0, 40.0], 'fov': 52},
+            {'t': 1.48, 'pos': [0.5, 24.0, 12.0], 'look': [0.0, 18.0, 60.0], 'fov': 52, 'ease': 'inout'},
+            {'t': 2.96, 'pos': [0.5, 32.0, 10.0], 'look': [0.0, 40.0, 70.0], 'fov': 52, 'ease': 'inout'}]
+    return plate('B-chorus3-05', 's3_festival', {'world': 'festival', 'litT': -10.0, 'shutterT': -10.0, 'crowdT': -10.0,
+                                                 'crowd': 900, 'surround': True, 'path': path}, 0.0, 2.96, fps=24)
+
+
+def chorus3_05(s, t, local, fi):
+    from mv.core import clamp
+    from . import fireworks as fw
+    pl = once('c305', _c305_plate)
+    img = pl.frame(local).copy()
+    sky_shift = 260 * clamp(local / 2.96)
+    img = fw.burst(img, t, 123.65, 560, 330 + sky_shift, 360, 'peony', '#D9402B', seed=31)
+    img = fw.burst(img, t, 124.39, 1350, 280 + sky_shift, 460, 'chrysanthemum', '#F5C842', seed=32)
+    img = fw.burst(img, t, 125.13, 820, 220 + sky_shift * 0.6, 300, 'ring', '#7FC8B8', seed=33)
+    img = fw.glyph_burst(img, t, 125.87, 980, 360, 600, '君', '#F5C842')
+    ly = once('c305ly', lambda: VLyric(42, x=1720, accent='#D9402B'))
+    return ly.draw(img, t)
+
+
+R['B-chorus3-05'] = chorus3_05
+tl.OWN_TYPE.add('B-chorus3-05')

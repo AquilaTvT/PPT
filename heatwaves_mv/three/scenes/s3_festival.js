@@ -33,6 +33,20 @@ export async function build(THREE, P, params = {}) {
         banner.position.set(side * (SW / 2 - 0.4), 2.2, z + 2); banner.rotation.y = Math.PI / 2; root.add(banner); }
     }
   }
+  // surrounding town (seen from the crane / aerial shots): blocks with tiled roofs and a few lit windows
+  if (params.surround) {
+    const bM = [P.ink(Wd.house, { shade: Wd.houseShade }), P.ink(Wd.wall, { shade: Wd.wallShade })];
+    const rM = P.ink(Wd.roof, { ambient: 0.5 }), wM = P.ink(Wd.window, { emissive: 1.0 });
+    for (const side of [-1, 1]) for (let x = SW / 2 + 9; x < 70; x += 9) for (let z = -20; z < L + 20; z += 9) {
+      if (R() < 0.15) continue;
+      const w = 6 + R() * 2, d = 6 + R() * 2, h = 4 + R() * 4;
+      const b = box(w, h, d, bM[Math.floor(R() * 2)]); b.position.set(side * (x + R() * 2), h / 2, z + R() * 2); root.add(b);
+      const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.3, 0); sh.lineTo(w / 2 + 0.3, 0); sh.lineTo(0, w * 0.3); sh.closePath();
+      const rg = new THREE.ExtrudeGeometry(sh, { depth: d + 0.4, bevelEnabled: false }); rg.translate(0, 0, -(d + 0.4) / 2);
+      const rf = new THREE.Mesh(rg, rM); rf.position.set(b.position.x, h, b.position.z); rf.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; root.add(rf);
+      if (R() < 0.35) { const wi = box(1.0, 0.8, 0.05, wM); wi.position.set(b.position.x, h * 0.6, b.position.z + d / 2 + 0.03); root.add(wi); }
+    }
+  }
   // yatai stalls on the street edges
   const awnTex = document.createElement('canvas'); awnTex.width = 64; awnTex.height = 16;
   { const g = awnTex.getContext('2d'); for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#EDE3CF' : '#D9402B'; g.fillRect(i * 8, 0, 8, 16); } }
