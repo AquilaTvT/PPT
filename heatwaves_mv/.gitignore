@@ -5,3 +5,4 @@ __pycache__/
 out/
 .hw/
 work/
+three/node_modules/
