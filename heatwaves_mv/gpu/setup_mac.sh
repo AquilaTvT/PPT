@@ -55,5 +55,5 @@ fi
 cat <<EOF
 
 done. start ComfyUI with:
-  PYTORCH_ENABLE_MPS_FALLBACK=1 "$PY" "$COMFY/main.py" --listen 127.0.0.1 --port 8188 --disable-auto-launch
+  bash gpu/start_comfy_mac.sh
 EOF

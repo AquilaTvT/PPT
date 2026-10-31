@@ -89,8 +89,8 @@ class Comfy:
                                                         and any(m[0] == 'execution_error' for m in st['messages'])):
                     msgs = [m for m in st.get('messages', []) if m[0] == 'execution_error']
                     raise RuntimeError('ComfyUI execution error: ' + json.dumps(msgs)[:3000])
-                if h[pid].get('outputs') and st.get('completed', True):
-                    return h[pid]['outputs']
+                if (h[pid].get('outputs') and st.get('completed', True)) or st.get('status_str') == 'success':
+                    return h[pid].get('outputs') or {}
             if on_tick:
                 on_tick(time.time() - t0)
             time.sleep(poll)
@@ -107,6 +107,25 @@ class Comfy:
                     if isinstance(it, dict) and 'filename' in it:
                         files.append(it)
         return files
+
+    def stash_conditioning(self, names):
+        """move output/conditioning/<name>_NNNNN_.safetensors -> models/embeddings/<name>.safetensors
+        (so the video graphs can load prompts without the 4 GB text encoder in memory)"""
+        if not self.root:
+            raise RuntimeError('stash_conditioning needs the ComfyUI root')
+        src_dir = os.path.join(self.root, 'output', 'conditioning')
+        dst_dir = os.path.join(self.root, 'models', 'embeddings')
+        os.makedirs(dst_dir, exist_ok=True)
+        out = {}
+        for n in names:
+            cands = sorted(f for f in os.listdir(src_dir) if f.startswith(n + '_') and f.endswith('.safetensors'))
+            if not cands:
+                raise FileNotFoundError(f'no saved conditioning for {n} in {src_dir}')
+            shutil.move(os.path.join(src_dir, cands[-1]), os.path.join(dst_dir, n + '.safetensors'))
+            for f in cands[:-1]:
+                os.remove(os.path.join(src_dir, f))
+            out[n] = n + '.safetensors'
+        return out
 
     def free(self, unload=True):
         """drop cached models from VRAM/RAM (between model families)"""

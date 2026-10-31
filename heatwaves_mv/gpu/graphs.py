@@ -266,28 +266,57 @@ def i2v_wan22_gguf(start_image, prompt, neg=NEG_WAN, w=832, h=480, frames=81, se
     return g.json()
 
 
+def encode_texts(items, te='umt5-xxl-encoder-Q5_K_M.gguf', te_type='wan'):
+    """stage 1 of the memory-safe video path: run only the text encoder and save each prompt's
+    conditioning (items = [(name, text), ...]); then Comfy.stash_conditioning() + Comfy.free()"""
+    g = G()
+    if te.endswith('.gguf'):
+        clip = g.add('CLIPLoaderGGUF', clip_name=te, type=te_type)
+    else:
+        clip = g.add('CLIPLoader', clip_name=te, type=te_type, device='default')
+    for name, text in items:
+        c = g.add('CLIPTextEncode', text=text, clip=clip)
+        g.add('SaveConditioning', conditioning=c, filename_prefix=f'conditioning/{name}')
+    return g.json()
+
+
+TURBO_5B = 'Wan2_2-TI2V-5B-Turbo-Q6_K.gguf'
+
+
 def ti2v_wan22_5b(start_image, prompt, neg=NEG_WAN, w=1280, h=704, frames=121, seed=0, steps=20, cfg=5.0,
                   shift=8.0, te='umt5_xxl_fp16.safetensors', prefix='wan5b',
-                  unet_name='wan2.2_ti2v_5B_fp16.safetensors'):
-    """Wan 2.2 TI2V 5B (fp16, 720p, 24 fps) — the template settings: uni_pc 20 steps cfg 5 shift 8"""
+                  unet_name='wan2.2_ti2v_5B_fp16.safetensors', sampler='uni_pc', scheduler='simple',
+                  pos_cond=None, neg_cond=None, tiled=True):
+    """Wan 2.2 TI2V 5B (720p, 24 fps).  Template: uni_pc 20 steps cfg 5 shift 8.
+    Turbo distill (unet_name=TURBO_5B): 4 steps, cfg 1, euler.
+    pos_cond/neg_cond = names saved by encode_texts() -> no text encoder in memory while sampling.
+    tiled = tiled VAE decode (caps decode memory on 16 GB machines)."""
     g = G()
     if unet_name.endswith('.gguf'):
         unet = g.add('UnetLoaderGGUF', unet_name=unet_name)
     else:
         unet = g.add('UNETLoader', unet_name=unet_name, weight_dtype='default')
     m = g.add('ModelSamplingSD3', model=unet, shift=shift)
-    if te.endswith('.gguf'):
-        clip = g.add('CLIPLoaderGGUF', clip_name=te, type='wan')
-    else:
-        clip = g.add('CLIPLoader', clip_name=te, type='wan', device='default')
     vae = g.add('VAELoader', vae_name='wan2.2_vae.safetensors')
-    pos = g.add('CLIPTextEncode', text=prompt, clip=clip)
-    ng = g.add('CLIPTextEncode', text=neg, clip=clip)
+    if pos_cond:
+        pos = g.add('ConditioningLoader', conditioning_name=pos_cond)
+        ng = g.add('ConditioningLoader', conditioning_name=neg_cond or pos_cond)
+    else:
+        if te.endswith('.gguf'):
+            clip = g.add('CLIPLoaderGGUF', clip_name=te, type='wan')
+        else:
+            clip = g.add('CLIPLoader', clip_name=te, type='wan', device='default')
+        pos = g.add('CLIPTextEncode', text=prompt, clip=clip)
+        ng = g.add('CLIPTextEncode', text=neg, clip=clip)
     st = g.add('LoadImage', image=start_image)
     lat = g.add('Wan22ImageToVideoLatent', vae=vae, width=w, height=h, length=frames, batch_size=1, start_image=st)
-    ks = g.add('KSampler', model=m, seed=seed, steps=steps, cfg=cfg, sampler_name='uni_pc', scheduler='simple',
+    ks = g.add('KSampler', model=m, seed=seed, steps=steps, cfg=cfg, sampler_name=sampler, scheduler=scheduler,
                positive=pos, negative=ng, latent_image=lat, denoise=1.0)
-    img = g.add('VAEDecode', samples=ks, vae=vae)
+    if tiled:
+        img = g.add('VAEDecodeTiled', samples=ks, vae=vae, tile_size=512, overlap=64, temporal_size=32,
+                    temporal_overlap=8)
+    else:
+        img = g.add('VAEDecode', samples=ks, vae=vae)
     _save_video(g, img, 24, prefix)
     return g.json()
 

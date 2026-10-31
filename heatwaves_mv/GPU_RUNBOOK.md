@@ -17,7 +17,7 @@ cd PPT && git sparse-checkout set heatwaves_mv && cd heatwaves_mv
 bash gpu/hwcheck.sh
 ```
 
-## 2. Install ComfyUI + models sized to this Mac's memory (~50 GB download)
+## 2. Install ComfyUI + models sized to this Mac's memory (~24 GB download)
 
 ```bash
 bash gpu/setup_mac.sh            # add --mirror if huggingface.co is slow
@@ -26,13 +26,13 @@ bash gpu/setup_mac.sh            # add --mirror if huggingface.co is slow
 ## 3. Start ComfyUI (leave it running)
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 .hw/venv/bin/python .hw/ComfyUI/main.py --listen 127.0.0.1 --port 8188 --disable-auto-launch
+bash gpu/start_comfy_mac.sh      # caps GPU memory at ~8 GB on a 16 GB Mac (OOM error instead of swap)
 ```
 
 ## 4. Benchmark (decides resolution / steps / shot budget)
 
 ```bash
-.hw/venv/bin/python gpu/bench.py --platform mac --quant <Q4_K_M|Q5_K_M|Q6_K>
+.hw/venv/bin/python gpu/bench.py --platform mac      # 5B turbo path; results in work/bench.json
 ```
 
 ## 5. Characters -> LoRA

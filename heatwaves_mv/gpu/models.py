@@ -97,6 +97,9 @@ MAC = [
      'LowNoise/Wan2.2-I2V-A14B-LowNoise-{q}.gguf', 0, 0),
     ('wan22_ti2v_5b_gguf', 'video5b', 'diffusion_models', 'QuantStack/Wan2.2-TI2V-5B-GGUF',
      'Wan2.2-TI2V-5B-Q6_K.gguf', 4.21, 0),
+    # 4-step / no-CFG distill of the 5B (Self-Forcing): ~10x fewer model evaluations per clip
+    ('wan22_ti2v_5b_turbo_gguf', 'video5b', 'diffusion_models', 'hum-ma/Wan2.2-TI2V-5B-Turbo-GGUF',
+     'Wan2_2-TI2V-5B-Turbo-Q6_K.gguf', 4.22, 0),
     ('umt5_q5_gguf', 'video5b', 'text_encoders', 'city96/umt5-xxl-encoder-gguf', 'umt5-xxl-encoder-Q5_K_M.gguf', 4.15, 0),
     ('anima_turbo', 'keyframes', 'diffusion_models', 'circlestone-labs/Anima',
      'split_files/diffusion_models/anima-turbo-v1.1.safetensors', 4.18, 0),
