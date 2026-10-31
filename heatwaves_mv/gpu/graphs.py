@@ -219,3 +219,81 @@ def train_lora(dataset_folder, model='anima-base-v1.0.safetensors', steps=2400, 
                existing_lora='[None]', bucket_mode=True, bypass_mode=False)
     g.add('SaveLoRA', lora=tr[0], prefix=prefix, steps=steps)
     return g.json()
+
+
+# ----------------------------------------------------------------------------------------
+# Apple Silicon variants (MPS: no fp8) — GGUF experts via ComfyUI-GGUF, or the 5B model in fp16
+# ----------------------------------------------------------------------------------------
+def i2v_wan22_gguf(start_image, prompt, neg=NEG_WAN, w=832, h=480, frames=81, seed=0, end_image=None,
+                   quant='Q5_K_M', te='umt5-xxl-encoder-Q8_0.gguf', lightning=True, steps=20, cfg=3.5, split=10,
+                   shift=5.0, prefix='wan_gguf'):
+    """Wan 2.2 A14B I2V with GGUF experts (UnetLoaderGGUF / CLIPLoaderGGUF from ComfyUI-GGUF)"""
+    if lightning:
+        steps, cfg, split = 4, 1.0, 2
+    g = G()
+    hi = g.add('UnetLoaderGGUF', unet_name=f'Wan2.2-I2V-A14B-HighNoise-{quant}.gguf')
+    lo = g.add('UnetLoaderGGUF', unet_name=f'Wan2.2-I2V-A14B-LowNoise-{quant}.gguf')
+    if lightning:
+        hi = g.add('LoraLoaderModelOnly', model=hi, lora_name='wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors',
+                   strength_model=1.0)
+        lo = g.add('LoraLoaderModelOnly', model=lo, lora_name='wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors',
+                   strength_model=1.0)
+    hi = g.add('ModelSamplingSD3', model=hi, shift=shift)
+    lo = g.add('ModelSamplingSD3', model=lo, shift=shift)
+    if te.endswith('.gguf'):
+        clip = g.add('CLIPLoaderGGUF', clip_name=te, type='wan')
+    else:
+        clip = g.add('CLIPLoader', clip_name=te, type='wan', device='default')
+    vae = g.add('VAELoader', vae_name='wan_2.1_vae.safetensors')
+    pos = g.add('CLIPTextEncode', text=prompt, clip=clip)
+    ng = g.add('CLIPTextEncode', text=neg, clip=clip)
+    st = g.add('LoadImage', image=start_image)
+    if end_image:
+        en = g.add('LoadImage', image=end_image)
+        cond = g.add('WanFirstLastFrameToVideo', positive=pos, negative=ng, vae=vae, width=w, height=h, length=frames,
+                     batch_size=1, start_image=st, end_image=en)
+    else:
+        cond = g.add('WanImageToVideo', positive=pos, negative=ng, vae=vae, width=w, height=h, length=frames,
+                     batch_size=1, start_image=st)
+    k1 = g.add('KSamplerAdvanced', model=hi, add_noise='enable', noise_seed=seed, steps=steps, cfg=cfg,
+               sampler_name='euler', scheduler='simple', positive=cond[0], negative=cond[1], latent_image=cond[2],
+               start_at_step=0, end_at_step=split, return_with_leftover_noise='enable')
+    k2 = g.add('KSamplerAdvanced', model=lo, add_noise='disable', noise_seed=seed, steps=steps, cfg=cfg,
+               sampler_name='euler', scheduler='simple', positive=cond[0], negative=cond[1], latent_image=k1,
+               start_at_step=split, end_at_step=10000, return_with_leftover_noise='disable')
+    img = g.add('VAEDecode', samples=k2, vae=vae)
+    _save_video(g, img, 16, prefix)
+    return g.json()
+
+
+def ti2v_wan22_5b(start_image, prompt, neg=NEG_WAN, w=1280, h=704, frames=121, seed=0, steps=20, cfg=5.0,
+                  shift=8.0, te='umt5_xxl_fp16.safetensors', prefix='wan5b'):
+    """Wan 2.2 TI2V 5B (fp16, 720p, 24 fps) — the template settings: uni_pc 20 steps cfg 5 shift 8"""
+    g = G()
+    unet = g.add('UNETLoader', unet_name='wan2.2_ti2v_5B_fp16.safetensors', weight_dtype='default')
+    m = g.add('ModelSamplingSD3', model=unet, shift=shift)
+    if te.endswith('.gguf'):
+        clip = g.add('CLIPLoaderGGUF', clip_name=te, type='wan')
+    else:
+        clip = g.add('CLIPLoader', clip_name=te, type='wan', device='default')
+    vae = g.add('VAELoader', vae_name='wan2.2_vae.safetensors')
+    pos = g.add('CLIPTextEncode', text=prompt, clip=clip)
+    ng = g.add('CLIPTextEncode', text=neg, clip=clip)
+    st = g.add('LoadImage', image=start_image)
+    lat = g.add('Wan22ImageToVideoLatent', vae=vae, width=w, height=h, length=frames, batch_size=1, start_image=st)
+    ks = g.add('KSampler', model=m, seed=seed, steps=steps, cfg=cfg, sampler_name='uni_pc', scheduler='simple',
+               positive=pos, negative=ng, latent_image=lat, denoise=1.0)
+    img = g.add('VAEDecode', samples=ks, vae=vae)
+    _save_video(g, img, 24, prefix)
+    return g.json()
+
+
+def upscale_video(video, model='2x-AnimeSharpV4_RCAN.safetensors', prefix='up', fps=32.0):
+    """per-frame model upscale (fast on MPS); final resize to 1080p happens in the compositor"""
+    g = G()
+    lv = g.add('LoadVideo', file=video)
+    comp = g.add('GetVideoComponents', video=lv)
+    um = g.add('UpscaleModelLoader', model_name=model)
+    up = g.add('ImageUpscaleWithModel', upscale_model=um, image=comp[0])
+    _save_video(g, up, fps, prefix)
+    return g.json()

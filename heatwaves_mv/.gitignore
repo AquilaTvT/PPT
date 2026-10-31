@@ -3,3 +3,5 @@ assets/fonts/*.ttf
 __pycache__/
 *.pyc
 out/
+.hw/
+work/
