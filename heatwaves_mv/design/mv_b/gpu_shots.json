@@ -1,0 +1,256 @@
+{
+ "mv": "B",
+ "tokens": {
+  "<girl>": "short black hair, bob cut, flipped hair, swept bangs, brown eyes, mole under eye, an 18-year-old girl with a chin-length black bob whose ends flip outward and a small mole under her right eye,",
+  "<boy>": "black hair, messy hair, hair between eyes, grey eyes, an 18-year-old slim boy with messy short black hair falling over his eyes,",
+  "<girl_uniform>": "white serafuku, short sleeves, navy sailor collar, white collar stripes, red neckerchief, navy pleated skirt,",
+  "<girl_yukata>": "dark blue yukata, white morning glory print, red obi, red flower hair clip,",
+  "<boy_shirt>": "white collared school shirt, short sleeves, black trousers,",
+  "<boy_night>": "plain white t-shirt, short sleeves, dark navy trousers,"
+ },
+ "shots": [
+  {
+   "id": "B-intro-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up profile of the boy sitting on the floor at night, facing left, looking at something off-screen with tired sleepless eyes, lips slightly parted, soft cool light on the left side of his face, upper body, from side, profile, simple background, green background",
+   "video_prompt": "The boy sits still in profile, a breeze from an electric fan sweeps across him twice and lifts his bangs and the collar of his t-shirt, he blinks slowly, his eyes drift down and back up, his chest rises with a quiet breath, flickering light plays on his face, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "房间里风扇来回摇头，显像管下沿滚着文字放送，他的侧脸被电视光一闪一闪照亮——睡不着。"
+  },
+  {
+   "id": "B-hook-01",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl walks toward the viewer on a hot summer day with a relaxed smile, squinting slightly in bright sunlight, skirt and neckerchief moving in the wind, walking, front view, looking at viewer, summer, simple background, green background",
+   "video_prompt": "The girl walks slowly toward the camera with a relaxed smile, her bob and red neckerchief sway with each step, her skirt moves in a warm breeze, she squints a little in the bright light, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "第一次爆发：剪纸太阳炸成正午烈日，镜头从太阳甩下来落进弯道镜；镜子里她从热浪中朝这边走来，路面一下子亮了。"
+  },
+  {
+   "id": "B-hook-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> upper body, the girl looks back over her shoulder at the viewer and smiles brightly, hair swaying, neckerchief fluttering in the wind, looking back, from behind, smile, open mouth, bright summer light, simple background, green background",
+   "video_prompt": "The girl turns her head and shoulders to look back over her shoulder, then breaks into a bright smile, her chin-length bob swings out and settles, the red neckerchief flutters in a warm wind, she blinks once, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "镜中世界的近景：她在热浪里回头一笑，外翘的发梢和红领巾被风掀起。"
+  },
+  {
+   "id": "B-chorus1-01",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> upper body, the girl leans in from the side and peeks playfully at the viewer as if looking into a mirror, mischievous smile, head tilted, leaning forward, looking at viewer, close-up, simple background, green background",
+   "video_prompt": "The girl leans in from the side to peek at the camera, tilts her head, then laughs with her eyes squeezed shut and her shoulders shaking, her bob bounces, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 4.0,
+   "beat": "路口的三面弯道镜里全是她：她从镜边探出头来偷看，然后笑出声。"
+  },
+  {
+   "id": "B-chorus1-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> sitting on the floor at night with his knees loosely up and his arms resting on them, head lowered, about to look up toward the upper right, tired eyes, upper body, from side, three-quarter view, simple background, green background",
+   "video_prompt": "The boy sits with his head lowered, then slowly lifts his head and looks up to the upper right as if at a clock, his messy bangs slide off his eyes, he swallows and exhales, a soft breeze moves his t-shirt sleeve, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "接力：镜中的笑脸变成显像管上的同一张脸；镜头拉开是夜里的房间，点阵钟跳到0:00，他抬起头去看。"
+  },
+  {
+   "id": "B-chorus1-03",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl stands alone on a hot day looking around as if lost, one hand shading her eyes, worried expression, wind in her hair and skirt, standing, looking to the side, simple background, green background",
+   "video_prompt": "The girl stands still and looks around, turning her head slowly from left to right with a worried expression, one hand shading her eyes, a warm wind moves her hair and skirt, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "正午公路上她站在热浪里四下张望；镜头一边推近一边拉广焦距，身后的路被越拉越长——在热浪里迷了路。"
+  },
+  {
+   "id": "B-chorus1-04",
+   "video_mode": "composite",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_uniform> <boy> <boy_shirt> the girl sits on the edge of a concrete seawall swinging her legs and smiling at the sea, the boy stands a little apart beside her with his hands in his pockets looking at her, side by side, not touching, full body, from side, simple background, white background",
+   "clip_seconds": 0,
+   "beat": "两人在防波堤上的双色孔版印刷：她在橙版，他在钴蓝版；唱到'幸福'时两块版慢慢错开，再也套不准。"
+  },
+  {
+   "id": "B-chorus1-05",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl sits on the edge of a school swimming pool with her bare feet dangling down, hands on the edge beside her, looking up at the bright summer sky and squinting, gentle smile, barefoot, sitting, from side, full body, simple background, green background",
+   "video_prompt": "The girl sits on the edge and swings her bare feet back and forth, she tilts her head back to look up at the bright sky, squints, then smiles, a breeze moves her bob and her neckerchief, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "一镜到底：正午的学校泳池，她坐在池边晃腿、眯眼看太阳，计分板八条泳道全显示'君'；镜头抬到计时器的0:00.00，点阵融化成夜里房间的点阵钟。"
+  },
+  {
+   "id": "B-verse-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> the boy sits cross-legged on the floor facing the viewer, hands resting on his ankles, staring straight ahead with empty eyes, upper body, front view, looking at viewer, night, simple background, green background",
+   "video_prompt": "The boy sits facing the camera, he closes his eyes, tilts his head back slowly and lets out a long breath, his shoulders drop, his bangs fall back from his forehead, then he lowers his head again, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "从电视里面往外看：隔着弧形玻璃，他闭上眼仰起头，长长地呼出一口气——不去想'我们'。"
+  },
+  {
+   "id": "B-verse-03",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at night watching a screen in the dark, light flickering across his face, wide unblinking eyes, slightly parted lips, face focus, portrait, front view, looking ahead, simple background, green background",
+   "video_prompt": "The boy watches something in the dark without moving, flickering light slides across his face, his eyes glisten, he blinks once slowly and presses his lips together, a faint breath moves his bangs, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "一镜到底：电视放'今晚的好莱坞电影'，两人被印成网点海报上的电影明星；镜头从屏幕里退出来，电影的光像投影一样爬过他的脸。"
+  },
+  {
+   "id": "B-verse-04",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl runs toward the viewer laughing on a bright summer day, arms swinging, hair and skirt flying in the sea wind, running, happy, open mouth smile, looking at viewer, simple background, green background",
+   "video_prompt": "The girl runs slowly toward the camera, laughing, her arms swing naturally, her bob and red neckerchief fly back in the wind, her skirt flutters, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "插播的夏日广告：阳光、大海，她笑着朝镜头跑来——'你本该会幸福'的那种完美画面。"
+  },
+  {
+   "id": "B-verse-05",
+   "video_mode": "composite",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_uniform> <boy> <boy_shirt> the girl and the boy stand side by side on a small railway platform in summer, the girl smiles and lifts one hand in a small wave, the boy stands stiffly beside her looking down, not touching, full body, front view, simple background, white background",
+   "clip_seconds": 0,
+   "beat": "两人在站台上的双色印刷照：他那一块钴蓝版像丝网一样从纸上揭起、卷走，只剩她，她那一版反而更亮了。"
+  },
+  {
+   "id": "B-chorus2-01",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy walks slowly at night with his hands in his pockets, looking slightly up, calm, sneakers, walking, from side, profile, simple background, green background",
+   "video_prompt": "The boy walks slowly from right to left with his hands in his pockets, the camera follows him so he stays in the centre of the frame, a light night breeze moves his hair and t-shirt, he glances up once as if hearing something above him, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "月亮挂在瓦顶上，他走在屋檐下，一排风铃随着歌声一个接一个亮起、叮当作响，每张短册上写着一个字。"
+  },
+  {
+   "id": "B-chorus2-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands in front of a glowing vending machine at night, his face lit by warm light from the front, looking at it blankly, tired, three-quarter view, simple background, green background",
+   "video_prompt": "The boy stands still in warm light, he looks at something in front of him, his eyes move as if reading, then he looks down and exhales through his nose with a faint bitter smile, a breeze moves his hair, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "他停在自动贩卖机前，脸被灯光照亮；机器的点阵跑马灯滚着'刚过零点'，中奖轮盘停在0012。"
+  },
+  {
+   "id": "B-chorus2-04",
+   "video_mode": "composite",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy stands alone seen from behind, looking at the sea at night, hands in pockets, wind blowing his t-shirt and hair, from behind, standing, simple background, green background",
+   "clip_seconds": 0,
+   "beat": "防波堤上，他背对着我们看海；月光在海面铺成一条竖着的光路，歌词就印在光路里，被浪打碎；潮水越涨越高。"
+  },
+  {
+   "id": "B-bridge1-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl sits on the edge of a concrete seawall at sunset, looking down shyly, blushing, hand raised near her mouth, embarrassed smile, sitting, upper body, from side, warm sunset light, simple background, green background",
+   "video_prompt": "The girl sits and giggles shyly, she lowers her face and covers her smile with her hand, then glances up at the camera with a blush and looks away again, the sea breeze moves her bob and neckerchief, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "去年夏天的黄昏：防波堤的水泥上，粉笔画的相合伞自己画了出来，伞下一个太阳、一个月亮；她坐在旁边，捂着嘴害羞地笑。"
+  },
+  {
+   "id": "B-bridge1-03",
+   "video_mode": "composite",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl sits on a seawall seen from behind, looking into the distance, wind in her hair, from behind, upper body, sunset, simple background, green background",
+   "clip_seconds": 0,
+   "beat": "黄昏的长堤：前景是她的背影，远处他一个人沿着堤走远了；歌词被夕阳拉成长长的影子投在水泥上。"
+  },
+  {
+   "id": "B-bridge1-05",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at night by the sea, eyes squeezed shut in pain, jaw tight, wind in his messy hair, portrait, face focus, three-quarter view, simple background, green background",
+   "video_prompt": "The boy keeps his eyes shut tight for a moment, then slowly opens them and looks out toward the sea, he bites his lower lip and breathes in shakily, the sea wind pushes his hair across his forehead, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "现在：夜里的防波堤，灯塔的光一下下扫过他的脸，他紧闭着眼又睁开，望着海，咬住下嘴唇。"
+  },
+  {
+   "id": "B-bridge1-06",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> close-up of the girl's face at dusk, gentle sad smile, eyes beginning to fill with tears, looking at the viewer, portrait, face focus, warm light, simple background, green background",
+   "video_prompt": "The girl looks at the camera and gives a small understanding nod with a sad smile, then her eyes fill with tears and a tear rolls down her cheek while she keeps smiling, her lips tremble, the evening breeze moves her bob, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 4.0,
+   "beat": "去年的黄昏，她看着他：先像是懂了一样轻轻点头、笑了一下，接着眼泪涌出来，笑着哭；她的印刷边缘开始一粒粒散开，像快碎了。"
+  },
+  {
+   "id": "B-chorus3-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_yukata> upper body, at a summer festival at night, the girl turns around to look back at the viewer with a wide happy smile, warm lantern light on her face, looking back, smile, simple background, green background",
+   "video_prompt": "The girl turns around toward the camera and smiles widely, her bob swings and her yukata sleeves sway, warm light flickers on her face, she laughs softly, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "人潮里，穿浴衣的她转过身来看他，笑得很开；灯笼的光一拍一拍照在她脸上。"
+  },
+  {
+   "id": "B-chorus3-03",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands in a crowd at a night festival looking around for someone, anxious, warm lantern light, looking to the side, simple background, green background",
+   "video_prompt": "The boy looks around anxiously, turning his head to the left, then quickly to the right, searching for someone, his messy hair swings with the movement, he takes a short breath, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "他在人潮里找她，左右张望；身边的点状人群像潮水一样分开又合上。"
+  },
+  {
+   "id": "B-chorus3-06",
+   "video_mode": "composite",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, 1girl, <girl> <girl_yukata> <boy> <boy_night> the girl and the boy stand side by side at a night festival looking up at fireworks, faces lit by colourful light, the girl smiling with her mouth open, the boy looking up quietly, a little apart, not touching, upper body, front view, from below, simple background, green background",
+   "clip_seconds": 0,
+   "beat": "一组连发烟花在夜空里拼出'0:00'；从正面看，她和他并排仰着头，烟花的光一拍一拍照在两人脸上。"
+  },
+  {
+   "id": "B-chorus3-07",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_yukata> full body, the girl runs through a summer festival at night, looking back over her shoulder and waving at the viewer to follow, laughing, sleeves fluttering, running, looking back, waving, simple background, green background",
+   "video_prompt": "The girl runs forward with small steps in her yukata, looks back over her shoulder and waves for the camera to follow, laughing, her sleeves and hair flutter, the camera follows her at the same speed, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "她跑到前面，穿过人潮回头笑着招手；灯笼一排排从镜头两边掠过。"
+  },
+  {
+   "id": "B-bridge2-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> the girl lies on her back floating on water as if asleep, eyes closed, arms loosely spread, hair spreading around her head, peaceful contented smile, from above, upper body, lying, simple background, green background",
+   "video_prompt": "The girl floats on her back with her eyes closed, her hair drifts gently around her head, her chest rises with slow breaths, a contented smile slowly spreads across her face, the camera is static looking down, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "走马灯：电车从侧面驶过，每帧正好走过一个窗距，车身看起来像停着，窗里的她却一格一格动起来——闭着眼，心满意足地笑。"
+  },
+  {
+   "id": "B-bridge2-03",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands still on a railway platform at night as a train rushes past behind him, wind blowing his hair and t-shirt to one side, he looks down at his open hands, helpless expression, simple background, green background",
+   "video_prompt": "The boy stands still while strong wind from a passing train blows his hair and t-shirt sideways, flickering light passes over him, he looks down at his open hands and slowly lets them fall to his sides, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "他站在月台上一动不动，车窗的光一格格从他身上扫过，风把头发和T恤推向一边——他什么也做不了。"
+  },
+  {
+   "id": "B-bridge2-04",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> close-up of the girl's face, eyes slowly opening, looking calmly at the viewer, serene gentle smile, soft light on her face, portrait, face focus, front view, simple background, green background",
+   "video_prompt": "The girl slowly opens her eyes and looks calmly at the camera with a serene gentle smile, she blinks once, a soft breeze moves strands of her bob across her cheek, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "她在梦里睁开眼，迎着光平静地看过来；脸上那层网点阴影像一张薄纸被揭走，她的脸干干净净，没有一点阴影。"
+  },
+  {
+   "id": "B-chorus4-03",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy walks along a seawall at dawn in strong sea wind, his t-shirt and hair blown sideways, determined but tired face, walking, from side, profile, simple background, green background",
+   "video_prompt": "The boy walks steadily from right to left against a strong sea wind, his t-shirt flaps and his hair is blown back, he lifts his face toward the horizon, the camera follows him so he stays in the centre of the frame, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "黎明前的防波堤，他一个人朝灯塔走，海风很大，灯塔的光最后几次扫过他。"
+  },
+  {
+   "id": "B-outro-01",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, on a seawall at sunrise, the boy turns toward the rising sun, squinting into the bright light, a small first smile, wind in his hair and t-shirt, warm golden light on his face, from side, simple background, green background",
+   "video_prompt": "The boy turns his head and shoulders toward a bright light, squints, lifts a hand slightly to shade his eyes, then lowers it as a small smile appears, the morning wind moves his hair and t-shirt, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "第三次爆发：车头灯变成日出，太阳从海里升起，整个小镇被重新印成黎明的颜色；他站在堤上转身迎着光，眯起眼，第一次笑了一点。"
+  },
+  {
+   "id": "B-outro-03",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> full body, the boy runs along a seaside road at dawn, arms pumping, hair and t-shirt flying back in the wind, breathing hard but almost smiling, running, from side, profile, simple background, green background",
+   "video_prompt": "The boy runs at a steady pace from right to left, arms swinging, his hair and t-shirt fly back in the wind, he breathes hard and his face relaxes into an almost-smile, the camera follows him so he stays in the centre of the frame, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "他沿着防波堤朝灯塔跑；堤边一排自动贩卖机，他每跑过一台，就亮出一个英文词。"
+  },
+  {
+   "id": "B-outro-08",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at sunrise, a gentle smile with slightly teary eyes, morning wind in his hair, warm golden light, looking up, portrait, face focus, three-quarter view, simple background, green background",
+   "video_prompt": "The boy looks up toward the sky and smiles gently with slightly teary eyes, he lets out a long slow breath, his shoulders relax, the morning wind moves his hair, his eyes follow something rising upward, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "他的特写：他笑了，眼睛有点湿，长长地呼出一口气；风把集章卡从他身边吹起，卡片像风筝一样朝太阳飞去。"
+  },
+  {
+   "id": "B-outro_hook-02",
+   "video_mode": "i2v",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> full body, the girl walks away on a hot summer road, then glances back over her shoulder at the viewer with a gentle smile, wind in her hair and skirt, from behind, looking back, walking, simple background, green background",
+   "video_prompt": "The girl walks slowly away from the camera, after a few steps she stops, glances back over her shoulder and smiles gently, then turns forward again, a warm wind moves her hair and skirt, the camera is static, the plain green background stays flat.",
+   "clip_seconds": 3.0,
+   "beat": "弯道镜里的正午：她站在镜中的路上，转身朝热浪走去，走了几步回头，冲镜头笑了一下；镜面像水一样晃。"
+  }
+ ]
+}
