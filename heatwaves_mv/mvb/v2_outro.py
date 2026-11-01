@@ -163,18 +163,32 @@ def draw_card(img, x, y, z, yaw, pitch, roll, sun_dir=(0.6, -0.6, -0.5), alpha=1
     return fx.quad_paste(img, tex, q, alpha=alpha, feather=0.8)
 
 
+O08_PATH = [(0.0, 1830, 1290), (0.25, 1805, 990), (0.5, 1745, 795), (0.72, 1790, 600), (0.9, 1910, 470),
+            (1.0, 2090, 400)]    # screen points (e, x, y): up his right side -- right of his ear and hair, right of the
+                                 # LED strip -- and off the right edge (the next shot picks the card up from the left)
+
+
+def _o08_screen(e):
+    """Catmull-Rom through O08_PATH"""
+    ps = O08_PATH
+    i = max(0, min(len(ps) - 2, next((j for j in range(len(ps) - 1) if e <= ps[j + 1][0]), len(ps) - 2)))
+    u = (e - ps[i][0]) / max(1e-6, ps[i + 1][0] - ps[i][0])
+    p0, p1, p2, p3 = (np.float32(ps[max(0, min(len(ps) - 1, j))][1:]) for j in (i - 1, i, i + 1, i + 2))
+    return 0.5 * ((2 * p1) + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u ** 3)
+
+
 def outro_08_over(img, s, t, local):
-    """the card rises past his face on the wind and flies off toward the sun (upper right)"""
+    """the card blows in from below, rises past his shoulder on the wind and flies off to the right -- never across
+    his face"""
     t0 = 183.35
     k = (t - t0) / (185.87 - t0)
     if k <= 0:
         return img
     e = clamp(k)
-    # from below the frame on his right, up past his shoulder (never across his face), lingering, then away toward
-    # the sun at the upper right; positions planned on screen, depth grows
-    sx = 1500 + 150 * e - 100 * math.sin(math.pi * e) + 25 * math.sin(e * 11.0)
-    sy = 1150 - 1030 * (1 - (1 - e) ** 2) + 20 * math.sin(e * 9.0 + 1)
-    z = 900 + 6100 * e ** 1.8
+    sx, sy = _o08_screen(e)
+    sx += 18 * math.sin(e * 11.0)
+    sy += 14 * math.sin(e * 9.0 + 1)
+    z = 1300 + 5200 * e ** 1.4
     x, y = (sx - 960) * z / 1400.0, (sy - 540) * z / 1400.0
     yaw = 35 * math.sin(t * 2.9) + 20
     pitch = 50 * math.sin(t * 3.7 + 0.4) - 25
