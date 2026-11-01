@@ -3740,3 +3740,103 @@ def verse_03(s, t, local, fi):
 
 R['B-verse-03'] = verse_03
 tl.OWN_TYPE.add('B-verse-03')
+
+
+# ---- B-verse-04: the summer commercial inside the TV -- she runs at us on a perfect beach; the slogan is the lyric ------
+def _v04_plate():
+    s = tl.BY_ID['B-verse-04']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [-1.8, 1.5, 22.0], 'look': [3.0, 1.2, 60.0], 'fov': 44},
+            {'t': d, 'pos': [-1.8, 1.5, 20.0], 'look': [3.0, 1.2, 58.0], 'fov': 44, 'ease': 'linear'}]
+    return plate('B-verse-04', 's2_coast', {'world': 'noon', 'day': True, 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3,
+                                           'mirrors': [], 'moonPos': [160.0, 120.0, 720.0]}, 0.0, d, fps=24)
+
+
+def sun_logo(img, cx, cy, r, t, label='夏ソーダ'):
+    """paper-cut sun logo with spinning rays + brand"""
+    import cv2
+    from mv import text
+    from .print_fx import hexc as H
+    m = np.zeros((1080, 1920), np.float32)
+    for k in range(12):
+        a = k * np.pi / 6 + t * 1.6
+        pts = np.array([[cx + np.cos(a - 0.12) * r * 1.15, cy + np.sin(a - 0.12) * r * 1.15],
+                        [cx + np.cos(a) * r * 1.75, cy + np.sin(a) * r * 1.75],
+                        [cx + np.cos(a + 0.12) * r * 1.15, cy + np.sin(a + 0.12) * r * 1.15]], np.int32)
+        cv2.fillConvexPoly(m, pts, 1.0, cv2.LINE_AA)
+    img = img + (H('#F08A3C')[None, None] - img) * m[..., None]
+    d = np.zeros((1080, 1920), np.float32)
+    cv2.circle(d, (int(cx), int(cy)), int(r), 1.0, -1, cv2.LINE_AA)
+    img = img + (H('#F5C842')[None, None] - img) * d[..., None]
+    gl, _ = text.layout_h(label, cx, cy, int(r * 0.55), 'dela', align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        img = img + (H('#D9402B')[None, None] - img) * f[..., None]
+    return img
+
+
+def verse_04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('v04', _v04_plate)
+    img = pl.frame(local).copy()
+    # sea sparkle: AM halftone glints on beats (flash on 65.13)
+    nb = (t - 0.682) / BEAT
+    ph = nb % 1.0
+    rng = np.random.default_rng(int(nb))
+    for _ in range(9):
+        gx, gy = rng.uniform(1000, 1900), rng.uniform(560, 760)
+        kit.halo(img, gx, gy, 40 * math.exp(-ph * 3) + 8, '#F6F2E7', 0.9 * math.exp(-ph * 3), period=7.0)
+    if 65.13 <= t < 65.13 + 4 / 24:
+        img = kit.dot_flash(img, 0.55 * (1 - (t - 65.13) / (4 / 24)), '#F5C842', 22)
+    # her, running in: 500 -> 900 px, thick cream CM cut-out rim, AM sun glare behind her
+    kit.halo(img, 760, 380, 520, '#F5C842', 0.55, period=12.0)
+    cl = once('v04_char', lambda: chars.CharLayer('B-verse-04', rim_w=(2.0, 6.0, 0.0)))
+    hgt = 500 + 400 * _ease_in(clamp(local / (s['end'] - s['start'])))
+    frz = 1.0
+    lt = local
+    if 66.61 <= t < 66.61 + 3 / 24:                     # CM freeze-zoom on the laugh
+        frz = 1.06
+        lt = 66.61 - s['start']
+    if cl.ok:
+        rgb, a = cl.frame(lt, x=820, y=1080, cx=0.5, cy=0.98, height=hgt * frz)
+        img = chars.over(img, rgb, a, shadow='#2D6BE0', shadow_amt=0.35)
+    # CM supers: sun logo, brand, SUMMER 1985
+    img = sun_logo(img, 230, 200, 92 * frz, t)
+    gl, _ = text.layout_h('SUMMER 1985', 230, 360, 34, 'mincho', tracking=0.4, align='center')
+    f, _ = text.render_glyphs(gl)
+    if f is not None:
+        img = img + (H('#1A1416')[None, None] - img) * f[..., None]
+    # L22 slogan: 150 px sun-yellow with cobalt shadow, snapping per mora; bounces 6% with the freeze
+    gt = _map_gt(22)
+    word = '幸せに君なるはず'
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)] - 0.09:
+            continue
+        k = clamp((t - gt[min(i, len(gt) - 1)] + 0.09) / (2 / 24))
+        y = 120 + i * 118 * frz
+        kit.map_glyph(img, ch, 1700 + 9, y + 9, int(112 * frz), 0.0, 1.0, '#2D6BE0', '#2D6BE0', 0.5, alpha=k)
+        kit.map_glyph(img, ch, 1700 + (1 - k) * 24, y - (1 - k) * 24, int(112 * frz), 0.0, 1.0, '#F5C842', '#1A1416', 6.0)
+    # the TV frame: rounded mask + barrel 0.08 + OSD 10
+    img = crt_glass(img, t, 0.08, osd=10, sheen=0.08)
+    # 67.00-67.35 版ずれ: the CM separates into its plates (yellow up, cobalt down)
+    if t >= 67.00:                                         # separate into a yellow plate (up) and a cobalt plate (down)
+        from . import print_fx
+        k = clamp((t - 67.00) / 0.35)
+        sh = int(60 * k)
+        lum = img.mean(-1)
+        cov_y = np.clip((img[..., 0] + img[..., 1] - 2 * img[..., 2]) * 1.4 + (1 - lum) * 0.25, 0, 1)
+        cov_b = np.clip((img[..., 2] - img[..., 0]) * 1.6 + (1 - lum) * 0.75, 0, 1)
+        cov_y, cov_b = np.roll(cov_y, -sh, 0), np.roll(cov_b, sh, 0)
+        yd = np.where(cov_y > 0.9, 1.0, print_fx._screen(cov_y, 8.0, 75.0))[..., None]
+        bd = np.where(cov_b > 0.9, 1.0, print_fx._screen(cov_b, 8.0, 15.0))[..., None]
+        sep = H('#EDE3CF') * (1 - yd) * (1 - bd) + H('#F5C842') * yd * (1 - bd) + H('#2D6BE0') * bd * (1 - yd) + H('#1E2550') * yd * bd
+        img = img + (sep - img) * clamp(k * 1.6)
+    return _zh_fixed(img, t, 22, 64.3, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-verse-04'] = verse_04
+tl.OWN_TYPE.add('B-verse-04')
