@@ -17,6 +17,9 @@ MV = os.environ.get('HW_MV', 'b')
 def modules():
     if MV == 'a':
         from mva import timeline as tl, recipes  # noqa: F401
+    elif MV == 'b2':
+        from mvb import timeline as tl, recipes, v2  # noqa: F401
+        v2.install()
     else:
         from mvb import timeline as tl, recipes  # noqa: F401
     return tl
@@ -62,7 +65,7 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--workers', type=int, default=3)
     ap.add_argument('--audio', action='store_true')
-    ap.add_argument('--mv', default=MV, choices=['a', 'b'])
+    ap.add_argument('--mv', default=MV, choices=['a', 'b', 'b2'])
     a = ap.parse_args()
     globals()['MV'] = a.mv
     os.environ['HW_MV'] = a.mv

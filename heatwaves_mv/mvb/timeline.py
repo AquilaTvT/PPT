@@ -20,6 +20,7 @@ SHOTS = SPEC['shots']
 BY_ID = {s['id']: s for s in SHOTS}
 RECIPES = {}
 OWN_TYPE = set()
+ZH = True                # translation column under the lyrics (MV-B v2 sets False: original lyrics only)
 ACCENT = {'intro': '#D9402B', 'hook': '#2D6BE0', 'chorus1': '#2D6BE0', 'verse': '#D9402B', 'chorus2': '#F08A3C',
           'bridge1': '#D9402B', 'chorus3': '#D9402B', 'bridge2': '#F08A3C', 'chorus4': '#F08A3C', 'outro': '#D9402B',
           'outro_hook': '#2D6BE0'}
@@ -56,7 +57,7 @@ def default_lyrics(s, img, t):
             continue
         key = (s['id'], idx)
         if key not in _LY:
-            _LY[key] = VLyric(idx, accent=ACCENT.get(s['section'], '#D9402B'))
+            _LY[key] = VLyric(idx, accent=ACCENT.get(s['section'], '#D9402B'), zh=ZH)
         img = _LY[key].draw(img, t)
     return img
 

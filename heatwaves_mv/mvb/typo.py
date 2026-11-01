@@ -59,7 +59,8 @@ class VLyric:
         self.size = size
         self.glyphs = text.layout_v(s, x, y, size, 'mincho', tracking=0.08)
         self.x, self.y = x, y
-        self.zh = zh and idx in lyrics.ZH
+        from . import timeline as _tl
+        self.zh = zh and _tl.ZH and idx in lyrics.ZH
         self.snap = snap          # registration-lock length in frames (number, or f(onset) for builds)
         self.hide = hide          # f(glyph index, t) -> True while a glyph has left the column
 

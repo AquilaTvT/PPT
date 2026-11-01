@@ -1233,6 +1233,8 @@ def _map_gt(line):
 
 def _zh_fixed(img, t, line, t_in, y=1012, size=30, ink='#1A1416', halo_col='#EDE3CF'):
     """Chinese line fixed to screen, with a paper-coloured halo so it reads over the map"""
+    if not tl.ZH:                                  # MV-B v2: original lyrics only
+        return img
     from mv.core import clamp
     from mv import text, lyrics
     from .print_fx import hexc as H
