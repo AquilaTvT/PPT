@@ -136,24 +136,61 @@ def put_ellipse(img, content, e, mode='over', amt=1.0, fisheye=0.0, mirror=False
 
 
 def find_disc(img, default, hue=(4, 24), smin=110, vmin=70, inner=0.86):
-    """curve mirror: orange rim -> largest component -> fitEllipse; returns the glass ellipse (cx, cy, rx, ry, rot)"""
+    """curve mirror -> the glass ellipse (cx, cy, rx, ry, rot). The glass is the hole inside the orange rim, so the
+    orange pole attached to the rim cannot stretch the fit; when the rim is broken (no hole) the outer contour of the
+    largest roundish orange component is used, shrunk by `inner`. Candidates far from the region hint lose."""
     u8 = (np.clip(img, 0, 1) * 255).astype(np.uint8)
     hsv = cv2.cvtColor(u8, cv2.COLOR_RGB2HSV)
     m = ((hsv[..., 0] >= hue[0]) & (hsv[..., 0] <= hue[1]) & (hsv[..., 1] >= smin) & (hsv[..., 2] >= vmin)).astype(np.uint8)
     m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
-    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    dx, dy, dr = default[0], default[1], max(default[2], default[3])
+
+    def score(e, area):
+        d = math.hypot(e[0] - dx, e[1] - dy) / max(40.0, dr)
+        return area * (min(e[2], e[3]) / max(e[2], e[3])) / (1.0 + d * d)
+
+    def upright(x, y, rx, ry, ang):
+        """fitEllipse angles are arbitrary for a near-circle: keep the reflection upright (|rot| <= 45 deg, 0 when round)"""
+        ang = ((ang + 90.0) % 180.0) - 90.0
+        if ang > 45.0:
+            ang, rx, ry = ang - 90.0, ry, rx
+        elif ang < -45.0:
+            ang, rx, ry = ang + 90.0, ry, rx
+        if max(rx, ry) / max(1e-6, min(rx, ry)) < 1.12:
+            ang = 0.0
+        return (x, y, rx, ry, ang)
+
     best = None
-    for c in cs:
-        a = cv2.contourArea(c)
-        if a < 2500 or len(c) < 20:
-            continue
-        (x, y), (MA, ma), ang = cv2.fitEllipse(c)
-        if min(MA, ma) < 30 or max(MA, ma) / max(1, min(MA, ma)) > 2.2:
-            continue
-        hull = cv2.contourArea(cv2.convexHull(c))
-        score = hull * (min(MA, ma) / max(MA, ma))
-        if best is None or score > best[0]:
-            best = (score, (x, y, MA / 2 * inner, ma / 2 * inner, ang))
+    if hier is not None:
+        for i, c in enumerate(cs):
+            if hier[0][i][3] < 0 or len(c) < 20:          # holes only: the glass inside the rim
+                continue
+            area = cv2.contourArea(c)
+            if area < 2500:
+                continue
+            (x, y), (MA, ma), ang = cv2.fitEllipse(c)
+            if min(MA, ma) < 30 or max(MA, ma) / max(1, min(MA, ma)) > 1.8:
+                continue
+            e = upright(x, y, MA / 2, ma / 2, ang)
+            sc = score(e, area)
+            if best is None or sc > best[0]:
+                best = (sc, e)
+        if best:
+            return best[1]
+        for i, c in enumerate(cs):                        # no clean hole: outer contour, shrunk to the glass
+            if hier[0][i][3] >= 0 or len(c) < 20:
+                continue
+            area = cv2.contourArea(c)
+            if area < 2500:
+                continue
+            (x, y), (MA, ma), ang = cv2.fitEllipse(c)
+            if min(MA, ma) < 30 or max(MA, ma) / max(1, min(MA, ma)) > 1.6:
+                continue
+            e = upright(x, y, MA / 2 * inner, ma / 2 * inner, ang)
+            sc = score(e, cv2.contourArea(cv2.convexHull(c)))
+            if best is None or sc > best[0]:
+                best = (sc, e)
     return best[1] if best else tuple(default)
 
 
@@ -551,7 +588,7 @@ def a_chorus1_03(s, t, local, fi):
     img = plate(s, local)
     img = haze_in(img, t, local)
     hx, hy = REG(sid, 'him', [960, 540])
-    img = fx.swirl(img, hx, hy, 1.5 * local)
+    img = fx.swirl(img, hx, hy, math.radians(1.5) * local)          # 1.5 degrees per second (design)
     img = fx.heat_haze(img, t, amp=0.018)
     if t >= 36.24:
         img = fx.chroma(img, 1.0 + 3.0 * clamp((t - 36.24) / 1.0))
@@ -569,7 +606,7 @@ def a_chorus1_04(s, t, local, fi):
     sid = s['id']
     img = plate(s, local)
     img = fx.heat_haze(img, t, amp=0.010)
-    e = disc_of(sid, local, img, REG(sid, 'mirror', [960, 420, 150, 150]))
+    e = tuple(REG(sid, 'mirror', [960, 420, 150, 150]))       # static mirror mask (design)
     # the mirror's kind lie: both figures side by side in the glass; her reflection runs one beat late
     hb = REG(sid, 'him_box', [300, 300, 700, 1000])
     nb_ = REG(sid, 'her_box', [1200, 300, 1600, 1000])
@@ -597,7 +634,7 @@ def a_chorus1_05(s, t, local, fi):
     # circle match in: a ripple ring where the mirror disc was (chorus1-04's last frame, computed, not cached)
     s4 = tl.BY_ID['A-chorus1-04']
     l4 = s4['end'] - s4['start'] - 1 / 24
-    e = disc_of('A-chorus1-04', l4, plate(s4, l4), REG('A-chorus1-04', 'mirror', [960, 420, 150, 150]))
+    e = tuple(REG('A-chorus1-04', 'mirror', [960, 420, 150, 150]))   # chorus1-04's static mirror mask
     if local < 0.6:
         img = fx.ripple(img, e[0], e[1], t, s['start'], speed=600.0, wavelength=50.0, amp=10.0, decay=2.0)
     ca = fx.caustics(t, scale=120.0)
@@ -618,6 +655,7 @@ def a_chorus1_06(s, t, local, fi):
     floor = np.float32(REG(sid, 'floor', [[300, 700], [1620, 700], [1920, 1080], [0, 1080]]))
     Mh = cv2.getPerspectiveTransform(np.float32([[0, 0], [W, 0], [W, H], [0, H]]), floor)
     spill = cv2.warpPerspective(pool, Mh, (W, H), borderMode=cv2.BORDER_REFLECT)
+    m = m * quad_mask(floor, 6.0)                         # water stays on the floor plane
     img = img + (spill - img) * m[..., None]
     edge = np.clip(cv2.dilate(m, np.ones((5, 5), np.uint8)) - m, 0, 1)
     img = img + np.float32(0.6) * edge[..., None]
@@ -839,6 +877,17 @@ def a_verse_08(s, t, local, fi):
         if t >= 74.76:
             wave = fx.ripple(wave, W / 2, H / 2, t, 74.76, speed=500.0, wavelength=30.0, amp=10.0, decay=1.5)
         img = put_ellipse(img, wave, pud, 'screen', amt=glow)
+    # moths: a few soft specks circling the street lamp (composited; the model drew them as glitches)
+    lx, ly = REG(sid, 'lamp', [960, 74])
+    if t < 75.13:
+        for j in range(4):
+            ph = t * (2.1 + 0.37 * j) + j * 1.9
+            rx, ry = 34 + 16 * j, 18 + 7 * j
+            mx = lx + rx * math.cos(ph) + 6 * math.sin(t * 23 + j)
+            my = ly + 22 + ry * math.sin(ph * 1.3) + 5 * math.cos(t * 19 + j * 2)
+            flap = 0.55 + 0.45 * abs(math.sin(t * 31 + j * 1.7))
+            m = fx.ellipse_mask(mx, my, 2.6 * flap + 0.8, 2.0, feather=2.5)
+            img = img + fx.hexc('#FFF1D6')[None, None] * (m * 0.85)[..., None]
     # the lamp flickers and dies on 75.13 -> near black
     if t >= 74.95:
         fl = 1.0 if t < 75.13 and int(t * 24) % 2 == 0 else 0.55

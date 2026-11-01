@@ -92,8 +92,11 @@ def frame_of(sid, local_t, in_t=0.2, speed=1.0, zoom=1.0, cx=0.5, cy=0.5, pingpo
             tt = tt % per
             tt = per - tt if tt > c.duration else tt
         tt = min(max(0.0, tt), max(0.0, c.duration - 1.0 / FPS))
-        raw = c.raw(tt)
-        return fx.fit(raw, zoom=zoom, cx=cx, cy=cy)
+        raw = c.raw(tt)                                    # uint8 BGR from the decoder
+        if raw is None:
+            return card(sid, local_t)
+        rgb = cv2.cvtColor(raw, cv2.COLOR_BGR2RGB).astype(np.float32) * (1 / 255.0)
+        return fx.fit(rgb, zoom=zoom, cx=cx, cy=cy)
     if kind == 'still':
         if m not in _still_cache:
             _still_cache[m] = cv2.cvtColor(cv2.imread(m), cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0

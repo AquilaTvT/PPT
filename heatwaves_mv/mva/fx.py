@@ -163,13 +163,35 @@ def pulse(t, times, decay=0.12):
 
 
 # ------------------------------------------------------------------ distortion
-def heat_haze(img, t, amp=0.012, wavelength=38.0, speed=1.6, region=None, vertical=0.25, seed=0):
-    """amp as a fraction of frame height (spec uses %); region mask limits it"""
+_HAZE_TEX = None
+
+
+def _haze_tex():
+    """tileable smooth 2-channel noise (256 x 256, unit std) for the heat-haze displacement field"""
+    global _HAZE_TEX
+    if _HAZE_TEX is None:
+        rng = np.random.default_rng(1907)
+        n = rng.standard_normal((48, 48, 2)).astype(np.float32)
+        big = cv2.GaussianBlur(np.tile(n, (3, 3, 1)), (0, 0), 1.6)[48:96, 48:96]       # blurred with wrap-around
+        big = cv2.resize(np.tile(big, (3, 3, 1)), (768, 768), interpolation=cv2.INTER_CUBIC)[256:512, 256:512]
+        _HAZE_TEX = (big / big.std()).astype(np.float32)
+    return _HAZE_TEX
+
+
+def heat_haze(img, t, amp=0.012, wavelength=38.0, speed=1.6, region=None, vertical=0.35, seed=0):
+    """heat shimmer: two octaves of smooth noise drifting upward (rising hot air), so lines tremble irregularly instead
+    of bending as one wave. amp is a fraction of frame height (the spec's %): peaks reach about amp, typical
+    displacement is a third of it. region (0..1 mask) limits it."""
     a = amp * H
-    ph = seed * 1.7
-    dx = (np.sin(_YS / wavelength * 2.1 + t * speed * 4.0 + ph) * 0.6 +
-          np.sin(_YS / (wavelength * 0.43) + t * speed * 7.3 + ph * 2) * 0.4) * a
-    dy = np.sin(_XS / (wavelength * 1.7) + t * speed * 3.1 + ph) * a * vertical
+    tex = _haze_tex()
+    d = np.zeros((H, W, 2), np.float32)
+    for lam, wgt, rise in ((wavelength * 2.4, 0.62, 1.0), (wavelength * 0.95, 0.38, 1.7)):
+        k = 256.0 / (lam * 6.0)                            # ~6 noise cells per wavelength across the texture
+        u = (_XS * k + seed * 37.0 + t * speed * 6.0 * 0.3).astype(np.float32)
+        v = (_YS * k + seed * 53.0 + t * speed * 6.0 * rise).astype(np.float32)    # the field rises with time
+        d += cv2.remap(tex, u, v, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP) * wgt
+    dx = d[..., 0] * (0.36 * a)
+    dy = d[..., 1] * (0.36 * a * vertical)
     if region is not None:
         dx *= region
         dy *= region
