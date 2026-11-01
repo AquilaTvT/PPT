@@ -167,6 +167,9 @@ def default_recipe(s, t, local_t, frame_idx):
 
 
 RECIPES = {}       # filled by mva.recipes (shot id -> fn(s, t, local_t, frame_idx) -> img)
+NO_GRAIN = set()   # shots printed without grain (A-verse-05: the over-perfect future)
+OWN_LYRICS = set() # shots whose recipe typesets its own lines (the default lyric pass skips them)
+GRAIN_FRAME = {}   # shot id -> fn(local_t, frame_idx) -> frame index for the grain (a time-stop freezes it)
 
 
 def shot_at(t):
@@ -189,6 +192,8 @@ LYRICS_CACHE = {}
 def lyrics_at(t):
     out = []
     for s in SHOTS:
+        if s['id'] in OWN_LYRICS:
+            continue
         for idx in s.get('lyric', []):
             key = (s['id'], idx)
             from mv.timing import LYRICS
@@ -216,5 +221,7 @@ def render(t, frame_idx):
         img = fx.letterbox(img, open_k=letterbox_open(t))
     for ly in lyrics_at(t):
         img = ly.draw(img, t)
-    img = fx.grain(img, frame_idx, 0.022)
+    if s['id'] not in NO_GRAIN:
+        gi = GRAIN_FRAME[s['id']](local, frame_idx) if s['id'] in GRAIN_FRAME else frame_idx
+        img = fx.grain(img, gi, 0.022)
     return np.clip(img, 0, 1)
