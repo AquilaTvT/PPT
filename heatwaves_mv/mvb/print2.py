@@ -198,6 +198,9 @@ class Printer:
             xd = g1 - 0.985 * g2
             ln = 1 - np.clip(1 - np.tanh(np.maximum(0, -xd - 0.007) * 70), 0, 1)
             ln = cv2.GaussianBlur(ln, (0, 0), 0.55) * self.lines_amt
+            if skin_h is not None:                         # faces keep their outline; creases inside the skin fade
+                sk_in = cv2.erode(cv2.resize(skin_h, (W, H), interpolation=cv2.INTER_LINEAR), np.ones((7, 7), np.uint8))
+                ln = ln * (1 - 0.6 * sk_in)
             on_dark = np.clip((34.0 - base_lab[..., 0]) / 14.0, 0, 1)[..., None]
             lcol = self.line[None, None] * (1 - on_dark) + self.gold[None, None] * on_dark
             la = ln[..., None] * (0.92 - 0.25 * on_dark) * st.get('lines', 1.0)

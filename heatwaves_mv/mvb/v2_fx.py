@@ -246,7 +246,7 @@ def mirror_insert(img, ell, src, alpha=1.0, k=0.35, tint='#BFD4E6', edge=0.45, g
     return img
 
 
-def quad_paste(img, content, quad, alpha=1.0, light=None, feather=1.2, blur=0.0):
+def quad_paste(img, content, quad, alpha=1.0, light=None, feather=1.2, blur=0.0, ref=None):
     """perspective-paste `content` onto the plate quad (TL, TR, BR, BL); `light` multiplies by the plate's own
     shading (0 = flat, 1 = fully lit by the plate)"""
     h, w = content.shape[:2]
@@ -267,7 +267,8 @@ def quad_paste(img, content, quad, alpha=1.0, light=None, feather=1.2, blur=0.0)
     roi = img[y0:y1, x0:x1]
     if light:
         lum = roi @ np.float32([0.2126, 0.7152, 0.0722])
-        ref = np.percentile(lum[m > 0.5], 90) if (m > 0.5).any() else 1.0
+        if ref is None:                  # normalise to the brightest part under the quad, or to a fixed paper white
+            ref = np.percentile(lum[m > 0.5], 90) if (m > 0.5).any() else 1.0
         shade = np.clip(lum / max(ref, 1e-3), 0.0, 1.4)
         shade = cv2.GaussianBlur(shade, (0, 0), 6)
         patch = patch * (1 - light + light * shade[..., None])

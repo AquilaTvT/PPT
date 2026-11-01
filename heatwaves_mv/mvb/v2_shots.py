@@ -299,7 +299,7 @@ def intro03(s, t, local):
 
 def intro03_over(img, s, t, local):
     """the card (its own riso inks, kept out of the scene's palette) lit by the room, then the clock"""
-    img = fx.quad_paste(img, card_tex(), v2.tracked(s, INTRO03_CARD, local), light=0.8, feather=1.0, blur=0.5)
+    img = fx.quad_paste(img, card_tex(), v2.tracked(s, INTRO03_CARD, local), light=0.8, feather=1.0, blur=0.5, ref=0.7)
     return led_over(img, v2.tracked_box(s, INTRO03_LED, local), '23:59' if (t * 2) % 2 < 1 else '23 59')
 
 
@@ -578,8 +578,42 @@ def chorus1_07(s, t, local):
     return dream(v2.plate(s, local), s, t, local)
 
 
+C107_PHOTO = [(397, 1016), (690, 838), (839, 1081), (546, 1259)]     # the other sheet on the floor, partly under the card
+
+
+@functools.lru_cache(maxsize=1)
+def c107_photo():
+    """a 1985 snapshot of her (the turn on the noon road): faded warm colour, white border, the camera's orange date"""
+    f = v2.footage('B2-hook-02')
+    if f is None:
+        return None
+    fr = f.at(1.0)
+    ph = fr[60:900, 480:1600]
+    ph = cv2.resize(ph, (560, 420), interpolation=cv2.INTER_AREA)
+    ph = ph * np.float32([1.04, 0.98, 0.86]) * 0.92 + np.float32([0.06, 0.05, 0.03])       # faded warm print
+    ph = np.clip(ph, 0, 1)
+    out = np.empty((470, 610, 3), np.float32)
+    out[:] = H('#F1ECE0')
+    out[25:445, 25:585] = ph
+    import skia
+    from mv import text
+    surf = skia.Surface(610, 470)
+    c = surf.getCanvas()
+    c.clear(skia.Color4f(0, 0, 0, 0))
+    fnt = text.font('dot', 26)
+    c.drawString("'85 7 28", 430, 430, fnt, skia.Paint(AntiAlias=True, Color=skia.Color4f(*H('#FF8A2A'), 1.0)))
+    arr = np.empty((470, 610, 4), np.uint8)
+    surf.readPixels(skia.ImageInfo.Make(610, 470, skia.ColorType.kRGBA_8888_ColorType, skia.AlphaType.kUnpremul_AlphaType), arr, 610 * 4)
+    a = arr[..., 3:4].astype(np.float32) / 255
+    return out * (1 - a) + arr[..., :3].astype(np.float32) / 255 * a
+
+
 def chorus1_07_over(img, s, t, local):
     z = v2.cam_params(s, local)[0]
+    ph = c107_photo()
+    if ph is not None:                                   # the snapshot of her beside the card
+        img = fx.quad_paste(img, ph, v2.tracked(s, C107_PHOTO, local, box=(397, 838, 839, 1080)), light=0.9, feather=1.0,
+                            blur=0.5, ref=0.62)
     qz = v2.tracked(s, C107_CARD, local)
 
     def bump(t0, peak, up=0.30, down=0.42):
@@ -591,7 +625,8 @@ def chorus1_07_over(img, s, t, local):
     sun = max(bump(50.31, 0.42), bump(51.05, 0.47))
     if 51.79 <= t < 52.05:
         sun = 0.38 if int((t - 51.79) * 24) % 2 == 0 else 0.0
-    return fx.quad_paste(img, card_tex(5, round(sun, 2), w=960 if z < 1.4 else 1920), qz, light=0.85, feather=1.0, blur=0.4)
+    return fx.quad_paste(img, card_tex(5, round(sun, 2), w=960 if z < 1.4 else 1920), qz, light=0.85, feather=1.0, blur=0.4,
+                         ref=0.62)
 
 
 RAW['B-chorus1-07'] = chorus1_07

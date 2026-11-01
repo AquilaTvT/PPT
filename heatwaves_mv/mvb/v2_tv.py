@@ -209,7 +209,7 @@ RAW['B-verse-02'] = verse02
 
 
 # ------------------------------------------------------------------ verse-03: the film, then out of the screen
-V03_SIGN = [(775, -6), (1185, -6), (1185, 54), (775, 54)]
+V03_SIGN = [(779, -12), (1185, -12), (1185, 99), (779, 99)]          # the whole lit box (the clip's first frame)
 V07_SCREEN = [(858, 298), (1032, 298), (1030, 448), (860, 450)]
 PULL = (61.2, 64.39)
 
@@ -229,16 +229,20 @@ def _film(s, t, local):
 
 
 def verse03(s, t, local):
+    """raw stage: the film (letterboxed while it fills the screen)"""
     film = _film(s, t, local)
+    out = film.copy()
     if t < PULL[0]:
-        out = film.copy()
         out[:120] *= 0.04
         out[-120:] *= 0.04
-        return out
-    # pull back out of the screen into his room (the room of verse-07)
-    k = clamp((t - PULL[0]) / (PULL[1] - PULL[0]))
-    e = k * k * (3 - 2 * k)
+    return out
+
+
+def _room_view(t, e):
+    """the dark room of verse-07 framed by the pull-back (TV-lit), and the screen quad in that frame"""
     room_f = v2.footage('B2-verse-07')
+    if room_f is None and v2.kf_path('B2-verse-07'):            # its clip not generated yet: the picked keyframe
+        room_f = v2.Still(v2.kf_path('B2-verse-07'))
     room = room_f.at(0.2 + (t - PULL[0]) * 0.3) if room_f is not None else np.zeros((H_, W, 3), np.float32)
     q = np.asarray(V07_SCREEN, np.float32)
     sc = q.mean(0)
@@ -247,15 +251,38 @@ def verse03(s, t, local):
     z = math.exp(math.log(z0) * (1 - e))
     cx, cy = sc[0] + (W / 2 - sc[0]) * e, sc[1] + (H_ / 2 - sc[1]) * e
     M = np.float32([[z, 0, W / 2 - cx * z], [0, z, H_ / 2 - cy * z]])
-    view = cv2.warpAffine(room * (0.55 + 0.45 * e), M, (W, H_), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    ys, xs = np.mgrid[0:H_, 0:W].astype(np.float32)
+    rr = np.hypot(xs - sc[0], ys - sc[1]) / 520.0
+    tvlight = (1.0 + 1.2 * np.exp(-rr * rr))[..., None] * np.float32([0.95, 1.0, 1.12])     # the film lights the room
+    lit_room = np.clip(room * 1.15 * tvlight, 0, 1)
+    view = cv2.warpAffine(lit_room, M, (W, H_), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
     qs = np.hstack([q, np.ones((4, 1), np.float32)]) @ M.T
+    return view, qs
+
+
+def verse03_full(s, t, local, fi):
+    """two presses: the film with its own palette; once the view pulls back out of the TV, the room is printed with
+    the room's palette (verse-07) and the printed film plays inside the screen"""
+    pr = v2.printer_for(s, verse03)
+    film = pr(verse03(s, t, local))
+    if t < PULL[0]:
+        return v2.english_lines(film, s, t)
+    k = clamp((t - PULL[0]) / (PULL[1] - PULL[0]))
+    e = k * k * (3 - 2 * k)
+    s7 = v2.tl.BY_ID['B-verse-07']
+    view, qs = _room_view(t, e)
+    room_pr = v2.printer_for(s7, lambda s_, t_, l_: _room_view(PULL[0] + 2.0, 1.0)[0])
+    room = room_pr(view)
     tv = fx.crt(film, t, tint='#DDF2FF', curve=0.06 * e, bloom=0.25 * e, lines=e > 0.15)
-    view = fx.quad_paste(view, tv, qs, feather=1.0 + 2 * e)
-    # the TV's light falls into the room as it shrinks
-    return v2.glow(view, 0.25 * e)
+    out = fx.quad_paste(room, tv, qs, feather=1.0 + 2 * e)
+    m = np.zeros((H_, W), np.float32)                     # the screen's glow spills into the room
+    cv2.fillPoly(m, [np.round(qs * 4).astype(np.int32)], 1.0, cv2.LINE_AA, shift=2)
+    g = cv2.GaussianBlur(m, (0, 0), 30 + 60 * e) * (0.35 * e)
+    out = out + np.float32([0.75, 0.82, 0.95])[None, None] * g[..., None]
+    return v2.english_lines(out, s, t)
 
 
-RAW['B-verse-03'] = verse03
+GRAPHIC_FOOT = {'B-verse-03': verse03_full}
 
 
 # ------------------------------------------------------------------ verse-04: the commercial
@@ -272,8 +299,14 @@ def _bezel():
 
 
 def verse04(s, t, local):
-    img = v2.plate(s, local)
-    tv = fx.crt(img, t, tint='#FFF4DA', curve=0.05, bloom=0.22)
+    """the commercial's footage, printed like everything else; the TV (glass, scanlines, bezel, the channel bug and
+    the slogan) goes over the print"""
+    from .v2_shots import dream
+    return dream(v2.plate(s, local), s, t, local)
+
+
+def verse04_over(img, s, t, local):
+    tv = fx.crt(img, t, tint='#FFF4DA', curve=0.05, bloom=0.18)
     inside, edge = _bezel()
     plastic = H('#24201E')[None, None] * (0.8 + 0.2 * (np.arange(H_, dtype=np.float32) / H_)[:, None, None])
     out = plastic * (1 - inside[..., None]) + tv * inside[..., None] + edge[..., None] * 0.25
@@ -281,13 +314,13 @@ def verse04(s, t, local):
     def draw(c):
         _tv_text(c, '潮見テレビ', 200, 160, 40, '#FFFFFF', align='left', outline='#101018', ow=0.12)
         if local > 0.9:
-            a = clamp((local - 0.9) / 0.3)
             _tv_text(c, 'この夏を、もう一度。', 200, 930, 76, '#FFFFFF', name='mincho', outline='#101018', ow=0.10)
             _tv_text(c, '潮見観光協会', 205, 990, 36, '#F5C842', outline='#101018', ow=0.12)
     return _over(out, _skia_rgba(draw))
 
 
 RAW['B-verse-04'] = verse04
+OVER = {'B-verse-04': verse04_over}
 
 
 # ------------------------------------------------------------------ verse-07: sign-off, test card, the room dims
@@ -352,4 +385,9 @@ LYRIC = {'B-verse-01': dict(x=1845, y=120, size=84), 'B-verse-03': dict(x=180), 
 def install():
     v2.CAM.update(_cams())
     v2.RAW.update(RAW)
+    v2.OVER.update(OVER)
+    for sid, fn in GRAPHIC_FOOT.items():
+        s = v2.tl.BY_ID[sid]
+        if v2.clip_path(v2.b2_id(s)) or (v2.STANDIN and v2.kf_path(v2.b2_id(s))):
+            v2.GRAPHIC[sid] = fn
     v2.LYRIC_POS.update(LYRIC)
