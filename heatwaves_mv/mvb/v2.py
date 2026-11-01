@@ -206,7 +206,8 @@ def footage(sid2):
     return _CLIPS[sid2]
 
 
-SPEED = {'B-hook-01': 0.42}  # clip speed overrides (hook-01: only the first 1.3 s of its clip hold the mirror upright)
+SPEED = {'B-hook-01': 0.42,   # clip speed overrides (hook-01: only the first 1.3 s of its clip hold the mirror upright;
+         'B-outro-03': 0.5}   # outro-03: a slow-motion dawn run -- after 1.5 s the clip grows yellow letters on the wall)
 REVERSE = {'B-hook-01'}    # clips played backwards: the generated camera move reads better reversed (hook-01: the
                           # view drifts off the mirror; reversed it settles on it, ready for the push into it)
 IN_T = {'B-chorus3-06': 0.72}   # clip in-points (s): chorus3-06 opens on a hard yellow-green firework patch over his
@@ -231,9 +232,36 @@ def plate(s, local, speed=None, in_t=0.08, zoom=None, cx=0.5, cy=0.5, sid2=None)
     """this shot's footage at shot-local time; by default the clip is stretched to cover the shot and framed by the
     shot's camera (CAM)"""
     f = footage(sid2 or b2_id(s))
+    own = sid2 is None or sid2 == b2_id(s)
     if zoom is None:
-        zoom, cx, cy = cam_params(s, local) if (sid2 is None or sid2 == b2_id(s)) else (1.0, 0.5, 0.5)
-    return f.at(src_time(s, local, speed, in_t, sid2), zoom, cx, cy)
+        zoom, cx, cy = cam_params(s, local) if own else (1.0, 0.5, 0.5)
+    img = f.at(src_time(s, local, speed, in_t, sid2), zoom, cx, cy)
+    fix = PLATE_FIX.get(s['id']) if own and not isinstance(f, Still) else None
+    return fix(img) if fix else img
+
+
+def _o03_letters(img):
+    """outro-03: the generated clip starts writing yellow letters on the seawall top (bottom left) -- find their
+    yellow strokes, take the white and dark outline pixels round them, inpaint from the concrete"""
+    x0, y0, x1, y1 = 60, 560, 760, 1000
+    roi = (np.clip(img[y0:y1, x0:x1], 0, 1) * 255).astype(np.uint8)
+    hsv = cv2.cvtColor(roi, cv2.COLOR_RGB2HSV)
+    h, sat, v = hsv[..., 0].astype(np.float32) * 2, hsv[..., 1] / 255.0, hsv[..., 2] / 255.0
+    yellow = ((h > 36) & (h < 70) & (sat > 0.40) & (v > 0.50)).astype(np.uint8)
+    yellow = cv2.morphologyEx(yellow, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(yellow, 8)
+    keep = np.isin(lab, [i for i in range(1, n) if st[i, cv2.CC_STAT_AREA] >= 12]).astype(np.uint8)
+    if not keep.any():
+        return img
+    near = cv2.dilate(keep, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))) > 0
+    odd = keep.astype(bool) | ((v > 0.62) & (h > 25) & (h < 75) & (sat > 0.18)) | ((v > 0.80) & (sat < 0.22)) | (v < 0.30)
+    m = cv2.dilate((near & odd).astype(np.uint8), np.ones((7, 7), np.uint8))
+    out = img.copy()
+    out[y0:y1, x0:x1] = cv2.inpaint(roi, m, 8, cv2.INPAINT_TELEA).astype(np.float32) / 255.0
+    return out
+
+
+PLATE_FIX = {'B-outro-03': _o03_letters}    # per-shot clean-up of generation artifacts in the footage itself
 
 
 _TRACKS = {}
