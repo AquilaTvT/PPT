@@ -11,6 +11,7 @@ Shots without B2 footage yet fall back to their v1 recipe (mvb.recipes), so the 
 
   import mvb.v2   # registers the v2 recipes into mvb.timeline (render with tools/render_mvb.py --mv b2)
 """
+import functools
 import math
 import os
 
@@ -79,10 +80,68 @@ class Footage:
         return fit(rgb, zoom, cx, cy)
 
 
+class Still:
+    """development stand-in while a shot's video is still being generated: the picked keyframe, framed exactly
+    as the video will be (Wan's centre crop to 832x480, then the 1920-wide upscale cover-fitted to 1080)"""
+    def __init__(self, path):
+        im = cv2.imread(path)
+        self.img = kf_frame(im)
+        self.dur = 5.0
+
+    def at(self, t_src, zoom=1.0, cx=0.5, cy=0.5):
+        from mv.clip import fit
+        return fit(self.img, zoom * (1.0 + 0.012 * t_src), cx, cy)
+
+
+def kf_frame(im):
+    h, w = im.shape[:2]
+    cw = int(round(h * 832 / 480))
+    x0 = (w - cw) // 2
+    crop = im[:, x0:x0 + cw]
+    up = cv2.resize(crop, (1920, int(round(1920 * h / cw))), interpolation=cv2.INTER_CUBIC)
+    y0 = (up.shape[0] - 1080) // 2
+    return cv2.cvtColor(up[y0:y0 + 1080], cv2.COLOR_BGR2RGB).astype(np.float32) * (1 / 255.0)
+
+
+def kf2plate(pts, kw=1280, kh=704):
+    """keyframe pixel coordinates -> plate (1920x1080) coordinates, for quads drawn on a keyframe"""
+    cw = kh * 832 / 480
+    s = 1920 / cw
+    p = np.asarray(pts, np.float32).reshape(-1, 2)
+    return np.stack([(p[:, 0] - (kw - cw) / 2) * s, p[:, 1] * s - (kh * s - 1080) / 2], 1)
+
+
+@functools.lru_cache(maxsize=1)
+def picks():
+    import re
+    out = {}
+    p = os.path.join(ROOT, 'work', 'review', 'picks_B2.txt')
+    if os.path.exists(p):
+        for ln in open(p):
+            m = re.match(r'(B2-\S+)\s+(kf_\d+)\.png', ln)
+            if m:
+                out[m.group(1)] = m.group(2)
+    return out
+
+
+def kf_path(sid2):
+    k = picks().get(sid2, 'kf_0')
+    p = os.path.join(WORK2, sid2, k + '.png')
+    return p if os.path.exists(p) else None
+
+
+STANDIN = os.environ.get('HW_V2_STANDIN', '') == '1'
+
+
 def footage(sid2):
     if sid2 not in _CLIPS:
         p = clip_path(sid2)
-        _CLIPS[sid2] = Footage(p) if p else None
+        if p:
+            _CLIPS[sid2] = Footage(p)
+        elif STANDIN and kf_path(sid2):
+            _CLIPS[sid2] = Still(kf_path(sid2))
+        else:
+            _CLIPS[sid2] = None
     return _CLIPS[sid2]
 
 
@@ -146,7 +205,7 @@ def led_caption(img, t, idx, y=1004, on='#F5C842', rows=10, dot=6):
         return img
     key = (idx, on, rows, dot)
     if key not in _LEDCACHE:
-        _LEDCACHE[key] = pf.led_board(ln['text'].upper(), rows=rows, dot=dot, on=on, off='#1A1A20', bg='#0C0C10', font='silk')
+        _LEDCACHE[key] = pf.led_board(ln['text'].upper(), rows=rows, dot=dot, on=on, off='#1A1A20', bg='#0C0C10', font='silk')[0]
     board = _LEDCACHE[key]
     bh, bw = board.shape[:2]
     k = clamp((t - ln['t']) / max(0.4, ln['end'] - ln['t']))
@@ -203,16 +262,17 @@ def make_recipe(s):
 
 def install():
     """override every shot that has B2 footage (or a v2-only recipe) with its v2 recipe"""
-    from . import v2_card, v2_map
+    from . import v2_card, v2_map, v2_shots
     GRAPHIC.update(v2_card.GRAPHIC)
     GRAPHIC.update(v2_map.GRAPHIC)
+    v2_shots.install()
     own = set(v2_card.OWN_TYPE) | V2_OWN_TYPE
     n = 0
     for s in tl.SHOTS:
         sid = s['id']
         if sid in GRAPHIC:
             tl.RECIPES[sid] = GRAPHIC[sid]
-        elif clip_path(b2_id(s)):
+        elif clip_path(b2_id(s)) or (STANDIN and kf_path(b2_id(s))):
             tl.RECIPES[sid] = make_recipe(s)
         else:
             continue
@@ -225,4 +285,23 @@ def install():
 
 
 V2_OWN_TYPE = set()      # v2 recipes that draw their own Japanese lines
+LYRIC_POS = {}           # shot id -> VLyric kwargs (x, y, size): keep the column off faces
+
+
+def _default_lyrics(s, img, t):
+    from mv.timing import LYRICS as _L
+    from .typo import VLyric
+    for idx in s.get('lyric', []):
+        ln = _L[idx]
+        if ln['lang'] == 'en' or not (ln['t'] - 0.1 <= t <= ln['end'] + 0.4):
+            continue
+        key = (s['id'], idx)
+        if key not in tl._LY:
+            kw = dict(LYRIC_POS.get(s['id'], {}))
+            tl._LY[key] = VLyric(idx, accent=tl.ACCENT.get(s['section'], '#D9402B'), zh=False, **kw)
+        img = tl._LY[key].draw(img, t)
+    return img
+
+
+tl.default_lyrics = _default_lyrics
 GRAPHIC = {}             # shot id -> full recipe for the pure-graphics shots (map, stamp card)
