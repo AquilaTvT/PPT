@@ -228,6 +228,7 @@ def led_caption(img, t, idx, y=1004, on='#F5C842', rows=10, dot=6):
 # ------------------------------------------------------------------ the generic v2 recipe
 RAW = {}                 # shot id -> raw(s, t, local) override
 STAGE = {}               # shot id -> fn(s, t, local) -> print2 stage dict (press running part-way) or None
+ENGLISH = {}             # shot id -> fn(img, s, t): a shot's own handling of its English lines
 OVER = {}                # shot id -> over(img, s, t, local) override (graphics on the print)
 
 
@@ -258,7 +259,7 @@ def make_recipe(s):
         fn = OVER.get(s['id'])
         if fn is not None:
             img = fn(img, s, t, local)
-        return english_lines(img, s, t)
+        return ENGLISH.get(s['id'], english_lines)(img, s, t)
     return recipe
 
 

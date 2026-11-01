@@ -621,7 +621,203 @@ def install():
     v2.OVER.update(OVER)
     v2.STAGE.update(STAGE)
     v2.V2_OWN_TYPE.update(OWN)
+    v2.ENGLISH.update(ENGLISH_OVR)
     for sid, fn in GRAPHIC_FOOT.items():
         if v2.clip_path(v2.b2_id(v2.tl.BY_ID[sid])) or (v2.STANDIN and v2.kf_path(v2.b2_id(v2.tl.BY_ID[sid]))):
             v2.GRAPHIC[sid] = fn
     v2.LYRIC_POS.update(LYRIC)
+
+
+# ================================================================== the ending: outro_hook-03
+# the title rises out of the mirage once more, then the press runs backwards -- key line, halftone, inks dark
+# to light rolled off on the beats -- until only cream paper, the registration marks and the sun stamp remain;
+# the LED strip's dots go out one by one, the last one on the final beat.
+OH3_BEATS = [BEAT0 + k * BEAT for k in range(258, 270)]       # 191.80, 192.54, ...
+
+
+def oh3_stage(s, t, local):
+    b = OH3_BEATS
+    if t < b[3]:
+        return None
+    passes = [(b[4], b[4] + 0.62), (b[5], b[5] + 0.62), (b[6], b[6] + 0.62), (b[7], b[7] + 0.58)]
+    k = 4.0
+    for i, (a0, a1) in enumerate(passes):
+        if t >= a1:
+            k = 3.0 - i
+        elif t > a0:
+            k = 4.0 - i - (t - a0) / (a1 - a0)
+            break
+    return {'inks': max(0.0, k), 'group': 6, 'lines': 1 - clamp((t - b[3]) / 0.35),
+            'dots': 1 - clamp((t - b[3] - 0.3) / 0.45), 'halo': 1 - clamp((t - b[3]) / 0.6)}
+
+
+@functools.lru_cache(maxsize=1)
+def proof_marks():
+    """printer's proof furniture: crop marks, registration targets, a colour bar"""
+    import skia
+    from .card2 import INK
+    surf = skia.Surface(W, H_)
+    c = surf.getCanvas()
+    c.clear(skia.Color4f(0, 0, 0, 0))
+    k = skia.Paint(AntiAlias=True, Color=skia.Color4f(0.10, 0.07, 0.07, 1.0), StrokeWidth=2.0, Style=skia.Paint.kStroke_Style)
+    m = 70
+    for (x, y, sx, sy) in ((m, m, -1, -1), (W - m, m, 1, -1), (m, H_ - m, -1, 1), (W - m, H_ - m, 1, 1)):
+        c.drawLine(x, y + sy * 14, x, y + sy * 52, k)
+        c.drawLine(x + sx * 14, y, x + sx * 52, y, k)
+    for (x, y) in ((W / 2, 40), (W / 2, H_ - 40), (36, H_ / 2), (W - 36, H_ / 2)):
+        c.drawCircle(x, y, 14, k)
+        c.drawLine(x - 24, y, x + 24, y, k)
+        c.drawLine(x, y - 24, x, y + 24, k)
+    cols = ['#F2C23A', '#F08A3C', INK['verm'], '#2D6BE0', INK['cobalt'], INK['navy'], '#1A1110']
+    for i, col in enumerate(cols):
+        h = H(col)
+        c.drawRect(skia.Rect.MakeXYWH(W - 470 + i * 52, H_ - 66, 44, 22), skia.Paint(AntiAlias=True, Color=skia.Color4f(*h, 1.0)))
+    from mv import text
+    c.drawString('潮見観光協会　昭和六十年夏　第一刷', 110, H_ - 48, text.font('mincho_sb', 22),
+                 skia.Paint(AntiAlias=True, Color=skia.Color4f(0.10, 0.07, 0.07, 1.0)))
+    arr = np.empty((H_, W, 4), np.uint8)
+    surf.readPixels(skia.ImageInfo.Make(W, H_, skia.ColorType.kRGBA_8888_ColorType, skia.AlphaType.kUnpremul_AlphaType), arr, W * 4)
+    return arr.astype(np.float32) / 255.0
+
+
+@functools.lru_cache(maxsize=1)
+def sun_hanko(R=170):
+    """the sun stamp at screen scale: vermilion double ring and lettering, a yellow sun with rays (two pads)"""
+    import skia
+    from . import card2 as C
+    n = int(R * 2 + 20)
+    info = skia.ImageInfo.Make(n, n, skia.ColorType.kAlpha_8_ColorType, skia.AlphaType.kPremul_AlphaType)
+
+    def layer(draw):
+        surf = skia.Surface.MakeRaster(info)
+        c = surf.getCanvas()
+        c.clear(skia.Color4f(0, 0, 0, 0))
+        c.translate(n / 2, n / 2)
+        draw(c)
+        a = np.empty((n, n), np.uint8)
+        surf.readPixels(info, a, n)
+        return a.astype(np.float32) / 255.0
+
+    def red(c):
+        c.drawCircle(0, 0, R * 0.97, C.P(1.0, stroke=R * 0.07))
+        c.drawCircle(0, 0, R * 0.74, C.P(1.0, stroke=R * 0.028))
+        C.ring_text(c, '潮見線夏休みスタンプラリー', 0, 0, R * 0.855, R * 0.13, 'old', mid=-90)
+        C.ring_text(c, '六〇・八・三一　日の出', 0, 0, R * 0.855, R * 0.11, 'mincho', mid=90, bottom=True)
+        c.drawCircle(0, R * 0.05, R * 0.36, C.P(1.0, stroke=R * 0.035))
+        for k in range(12):
+            a = math.radians(k * 30 - 90)
+            c.drawLine(math.cos(a) * R * 0.44, R * 0.05 + math.sin(a) * R * 0.44, math.cos(a) * R * 0.62,
+                       R * 0.05 + math.sin(a) * R * 0.62, C.P(1.0, stroke=R * 0.04))
+
+    def yel(c):
+        c.drawCircle(0, R * 0.05, R * 0.33, C.P(1.0))
+    r = C._rubber(layer(red), 77, 30.0)
+    y = C._rubber(layer(yel), 78, 200.0)
+    return r, y
+
+
+def oh3_over(img, s, t, local):
+    b = OH3_BEATS
+    # the title out of the mirage, as in hook-04, then its plates come apart and lift as the press runs back
+    p = clamp((t - (b[0] + 0.1)) / (b[1] - b[0] - 0.1))
+    if p > 0 and t < b[6]:
+        e = 1 - (1 - p) ** 3
+        fill, line = title_mask(180)
+        amp = 18 * (1 - e) + 1.0
+        fw, lw = _wavy(fill, amp, t), _wavy(line, amp, t)
+        h, w = fw.shape
+        cx, base = W / 2, OH3_BASE + 70 * (1 - e)
+        x0, y0 = int(cx - w / 2), int(base - h * 0.70)
+        apart = clamp((t - b[3]) / (b[5] - b[3]))
+        gone = clamp((t - b[5]) / (b[6] - b[5]))
+        off = 10 * (1 - e) + 1.2 + 40 * apart
+        alpha = e ** 0.7
+
+        def put(src, x, y):
+            lay = np.zeros((H_, W), np.float32)
+            xa, ya, xb, yb = max(0, x), max(0, y), min(W, x + src.shape[1]), min(H_, y + src.shape[0])
+            if xb > xa and yb > ya:
+                lay[ya:yb, xa:xb] = src[ya - y:yb - y, xa - x:xb - x]
+            return lay
+        ref = cv2.resize(fill[::-1], (w, int(h * 0.55)), interpolation=cv2.INTER_AREA)
+        ref = _wavy(ref, 7 + 6 * (1 - e), t * 1.4, freq=0.14)
+        fade = np.linspace(1, 0, ref.shape[0], dtype=np.float32)[:, None] ** 1.3
+        lay = put(ref * fade, x0, int(base - h * 0.30 * 0.55) + 6)
+        img += (H('#DCE8F2')[None, None] - img) * (lay * alpha * 0.45 * (1 - apart))[..., None]
+        for src, dx, dy, col, k in ((lw, 0, 0, '#141A33', 0.85 * (1 - clamp((t - b[3]) / 0.35))),
+                                    (fill, -off, off * 0.6, '#D9402B', 0.85 * (1 - gone)),
+                                    (fill, off, -off * 0.6, '#2C4C9A', 0.75 * (1 - clamp((t - b[5]) / 0.6))),
+                                    (fill, 0, 0, '#F3EBD9', 1.0 * (1 - gone))):
+            if k <= 0:
+                continue
+            srcw = fw if src is fill else lw
+            lay = put(srcw, x0 + int(dx), y0 + int(dy))
+            img += (H(col)[None, None] - img) * (lay * alpha * k)[..., None]
+    # bare paper: the proof marks surface, then the sun stamp lands on the last downbeat but one
+    pm = clamp((t - b[6] - 0.3) / 0.8)
+    if pm > 0:
+        mk = proof_marks()
+        img = img * (1 - mk[..., 3:4] * pm) + mk[..., :3] * (mk[..., 3:4] * pm)
+    if t >= b[8]:
+        red, yel = sun_hanko()
+        n = red.shape[0]
+        x0, y0 = int(W / 2 - n / 2), int(H_ / 2 - n / 2 - 20)
+        slam = clamp((t - b[8]) / (3 / 24))
+        k = 1.0
+        if slam < 1:
+            k = slam
+        roi = img[y0:y0 + n, x0:x0 + n]
+        roi *= 1 - (yel * k)[..., None] * (1 - H('#F2C23A'))[None, None]
+        wet = 1 - clamp((t - b[8]) / 0.25)
+        spread = cv2.dilate(red, np.ones((3, 3), np.uint8), iterations=max(1, int(round(2 * wet)))) if wet > 0 else red
+        roi *= 1 - (spread * k)[..., None] * (1 - H(C_STAMP))[None, None]
+    return img
+
+
+C_STAMP = '#C3342A'
+OH3_BASE = 610
+
+
+def oh3_english(img, s, t):
+    """the English lines on the strip; from 197.9 its dots go out one by one, the last on the final beat"""
+    b = OH3_BEATS
+    if t < 197.9:
+        return v2.english_lines(img, s, t)
+    key = (66, '#F5C842', 10, 6)
+    if key not in v2._LEDCACHE:
+        v2.led_caption(img.copy(), 196.0, 66)
+    board = v2._LEDCACHE[key]
+    bh, bw = board.shape[:2]
+    strip_w = min(W - 240, bw)
+    crop = board[:, max(0, bw - strip_w):]
+    x0 = (W - strip_w) // 2
+    y0 = int(1004 - bh / 2)
+    dot = 6
+    gh, gw = bh // dot, crop.shape[1] // dot
+    lum = cv2.resize(crop @ np.float32([0.2126, 0.7152, 0.0722]), (gw, gh), interpolation=cv2.INTER_AREA)
+    lit = np.argwhere(lum > lum.max() * 0.45)
+    if len(lit) == 0:
+        return img
+    rng = np.random.default_rng(66)
+    order = rng.permutation(len(lit))
+    last = order[len(order) // 2]
+    f = 1 - clamp((t - 197.9) / (b[9] - 0.25 - 197.9))
+    keep = np.zeros((gh, gw), np.float32)
+    nkeep = int(round(f * (len(lit) - 1)))
+    for j in order[:nkeep]:
+        keep[lit[j][0], lit[j][1]] = 1
+    if t < b[9]:
+        keep[lit[last][0], lit[last][1]] = 1
+    on = cv2.resize(keep, (gw * dot, gh * dot), interpolation=cv2.INTER_NEAREST)
+    frame = crop[:gh * dot, :gw * dot] * on[..., None] + crop[:gh * dot, :gw * dot] * (1 - on[..., None]) * 0.12
+    bg_a = clamp(1 - (t - 197.9) / 0.6) * 0.92
+    roi = img[y0:y0 + frame.shape[0], x0:x0 + frame.shape[1]]
+    lit_m = on[..., None] * 1.0
+    roi += (frame - roi) * np.maximum(lit_m, bg_a)
+    return img
+
+
+RAW['B-outro_hook-03'] = lambda s, t, local: dream(base(s, t, local), s, t, local)
+STAGE['B-outro_hook-03'] = oh3_stage
+OVER['B-outro_hook-03'] = oh3_over
+ENGLISH_OVR = {'B-outro_hook-03': oh3_english}
