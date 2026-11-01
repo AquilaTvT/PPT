@@ -416,6 +416,8 @@ def a_intro_04(s, t, local, fi):
         M[0, 2] += (W / 2 - e[0]) * (k ** 2)
         M[1, 2] += (H / 2 - e[1]) * (k ** 2)
         img = cv2.warpAffine(img, M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    # present-day night: 2.39 bars, which slide open as the push passes through the glass into the noon memory
+    img = fx.letterbox(img, open_k=ease((t - 15.50) / (16.89 - 15.50)))
     return bloom_out(img, t, s['end'], 4)
 
 

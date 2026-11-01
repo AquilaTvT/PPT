@@ -116,7 +116,8 @@ def parse_use(s):
 
 
 def is_present(s):
-    return '2.39 letterbox' in (s.get('composite', '') + s.get('use', '')) or 'letterbox (present' in s.get('composite', '')
+    c = s.get('composite', '') + s.get('use', '')
+    return '2.39 letterbox' in c or 'letterbox (present' in c or 'letterbox is still on' in c
 
 
 def lyric_for(s, idx):
