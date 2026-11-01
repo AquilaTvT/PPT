@@ -487,22 +487,92 @@ def chorus1_07(s, t, local):
 RAW['B-chorus1-07'] = chorus1_07
 
 
+# ---- chorus1-04: two-ink riso -- her on the orange plate, him on the cobalt; the plates drift apart on 幸せ
+def chorus1_04(s, t, local, fi):
+    from . import v2_print as vp
+    from .v2_typo import glyph_times
+    raw = dream(base(s, t, local), s, t, local)
+    gt = glyph_times()['13']
+    k = clamp((t - gt[2]) / (gt[3] + 0.18 - gt[2]))
+    e = 1 - (1 - k) ** 3
+    off = 1.5 + 30.0 * e
+    img = vp.two_ink(raw, vp.split_masks(990), offsets=((-off, off * 0.35), (off, -off * 0.35)))
+    return img
+
+
+GRAPHIC_FOOT = {'B-chorus1-04': chorus1_04}
+
+
+# ---- chorus2-01: the line hangs on tanzaku strips under the wind chimes
+def chorus2_01_over(img, s, t, local):
+    from .v2_typo import tanzaku
+    return tanzaku(img, 26, t, x0=1830, y_top=34, step=-112, size=64)
+
+
+# ---- chorus2-02: the vending machine's ticker and its lottery roulette stopping on 0012
+C202_TICKER = (1012, 706, 1632, 750)
+C202_ROUL = (1306, 868, 1494, 936)
+
+
+@functools.lru_cache(maxsize=1)
+def _ticker_board():
+    from . import print_fx as pf
+    rgb, _ = pf.led_board('　ただいま 0:12　つめた〜い　あたりが出たらもう一本　', rows=12, dot=4, on='#FF8A3A',
+                          off='#2A1208', bg='#100804', font='dot', glow=0.5)
+    return rgb
+
+
+def chorus2_02(s, t, local):
+    img = base(s, t, local)
+    x0, y0, x1, y1 = C202_TICKER
+    board = _ticker_board()
+    bh, bw = board.shape[:2]
+    win = int((x1 - x0) * bh / (y1 - y0))
+    off = int(local * 160) % max(1, bw - win)
+    crop = board[:, off:off + win]
+    img = fx.quad_paste(img, crop, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=1.0)
+    x0, y0, x1, y1 = C202_ROUL
+    stop = [79.95, 80.35, 80.75, 81.15]
+    digs = ''
+    for j, ts in enumerate(stop):
+        digs += '0012'[j] if t >= ts else str(int(t * 31 + j * 3) % 10)
+    face = fx.led_face(digs, x1 - x0, y1 - y0, on='#FF3B2A')
+    img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=1.5)
+    return dream(img, s, t, local)
+
+
+RAW['B-chorus2-02'] = chorus2_02
+
+
+# ---- chorus2-04: the line set down the moon's path on the sea, broken by the waves
+def chorus2_04_over(img, s, t, local):
+    from .v2_typo import moon_path
+    return moon_path(img, 29, t, x=1190, y0=360)
+
+
 # ------------------------------------------------------------------ lyric column placement (off faces)
 LYRIC.update({
     'B-hook-02': dict(x=330, y=230),
     'B-hook-04': dict(x=1760, y=150),
     'B-chorus1-02': dict(x=1820, y=470, size=86),
-    'B-chorus1-04': dict(x=1840),
+    'B-chorus1-04': dict(x=1820, y=140),
+    'B-chorus2-02': dict(x=160, y=150),
     'B-chorus1-05': dict(x=150, y=150),
     'B-chorus1-03': dict(x=1500),
 })
 
 
-OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over}
+OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over, 'B-chorus2-01': chorus2_01_over,
+        'B-chorus2-04': chorus2_04_over}
+OWN = {'B-chorus2-01', 'B-chorus2-04'}
 
 
 def install():
     v2.RAW.update(RAW)
     v2.OVER.update(OVER)
     v2.STAGE.update(STAGE)
+    v2.V2_OWN_TYPE.update(OWN)
+    for sid, fn in GRAPHIC_FOOT.items():
+        if v2.clip_path(v2.b2_id(v2.tl.BY_ID[sid])) or (v2.STANDIN and v2.kf_path(v2.b2_id(v2.tl.BY_ID[sid]))):
+            v2.GRAPHIC[sid] = fn
     v2.LYRIC_POS.update(LYRIC)
