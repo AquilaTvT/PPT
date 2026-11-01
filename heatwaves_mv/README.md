@@ -3,9 +3,10 @@
 A non-commercial fan music video for **Glass Animals「Heat Waves」(Japanese cover and lyrics by Lime)**,
 3:18, 1920×1080, 24 fps.
 
-The film is delivered as `HeatWaves_1080p.mp4` (and a 720p copy); the repository holds everything that makes
-it. The song, recording and lyrics belong to their rights holders (Glass Animals / Polydor, Lime); this is a fan
-work, not affiliated with them.
+The film: `HeatWaves_720p.mp4` in this folder is a copy small enough for the repository; the full-quality
+`HeatWaves_1080p.mp4` and the CRF-15 master are delivered alongside it. `poster.jpg` shows twenty of its moments. The
+repository holds everything that makes the film. The song, recording and lyrics belong to their rights holders (Glass
+Animals / Polydor, Lime); this is a fan work, not affiliated with them.
 
 ## The film
 
@@ -66,8 +67,8 @@ bash tools/v2_final.sh                                        # render -> QA -> 
 
 ## Earlier versions in this repository
 
-- `STORYBOARD.md`, `mv/`: v1 「陽炎の向こうの君」, drawn entirely by a 2D renderer (its film was the earlier
-  `HeatWaves_MV_1080p.mp4` in this repository).
+- `STORYBOARD.md`, `mv/`: v1 「陽炎の向こうの君」, drawn entirely by a 2D renderer (its film is
+  `HeatWaves_MV_1080p.mp4`).
 - `mvb/recipes.py`, `three/`: MV-B v1, three.js plates printed in the same style (superseded by v2; its recipes are
   the fallback for any shot without footage).
 - `mva/`: a cinematic version that was discontinued.
