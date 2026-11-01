@@ -2300,16 +2300,15 @@ def bridge1_04(s, t, local, fi):
     img = img + (H('#F6F2E7')[None, None] - img) * ch[..., None]
     # wet concrete left behind: darker, glossy dots, slowly drying
     if t >= 97.72:
-        key = 'wetmask'
-        wet = _cache.get(key)
-        wet = water if wet is None else np.maximum(wet, water)
-        _cache[key] = wet
+        # the stain the tongue leaves: its furthest reach so far (a pure function of t, so any render chunk agrees)
+        fmin = 2100 - (2100 - 960) * _ease_io(clamp((min(t, 98.0) - 97.72) / 0.28))
+        wob0 = 40 * np.sin(kit._YS / 37.0 + 97.9 * 7.0) + 25 * np.sin(kit._YS / 13.0 - 97.9 * 11.0)
+        reach0 = 2100 - (2100 - fmin) * band
+        wet = np.clip((kit._XS - (reach0 + wob0)) / 10.0, 0, 1) * (band > 0.02)
         dry = 1 - clamp((t - 98.46) / 3.0) * 0.5
         img = img * (1 - (wet * 0.22 * dry)[..., None]) + H('#7A2A22')[None, None] * (wet * 0.05 * dry)[..., None]
         sheen = _dots_k(0.08, 9.0) * wet * np.clip(np.sin(kit._XS / 90.0 + kit._YS / 140.0) * 0.5 + 0.5, 0, 1) * dry
         img = img + (H('#F6F2E7')[None, None] - img) * (sheen * 0.7)[..., None]
-    else:
-        _cache.pop('wetmask', None)
     # the water itself: indigo sheet with foam dots at its front
     if 97.72 <= t < 98.6:
         img = img * (1 - water[..., None] * 0.30) + H('#2C4C9A')[None, None] * (water * 0.22)[..., None]
@@ -3155,9 +3154,14 @@ def chorus1_06(s, t, local, fi):
     order = [j for j in np.argsort(sizes)[::-1] if sizes[j] > 900]
     near = order[0] if order else -1
     holder = once(('c106_holder',), lambda: {})
-    for i, tg in enumerate(gt):
+    for i, tg in enumerate(gt):                            # assignment from the anchors at each glyph's onset (deterministic)
         if t >= tg and i not in holder:
-            free = [j for j in order if j not in holder.values() and -60 < Cs[j][0] < 1980 and 40 < Cs[j][1] < 1040]
+            lt = tg - s['start']
+            C0, X0, Y0 = pl.anchor(lt, 'mirrors') or [], pl.anchor(lt, 'mirrorX') or [], pl.anchor(lt, 'mirrorY') or []
+            sz0 = [np.hypot(X[0] - C[0], X[1] - C[1]) * np.hypot(Y[0] - C[0], Y[1] - C[1]) if 0 < C[2] < 1.001 else 0
+                   for C, X, Y in zip(C0, X0, Y0)]
+            order0 = [j for j in np.argsort(sz0)[::-1] if sz0[j] > 900]
+            free = [j for j in order0 if j not in holder.values() and -60 < C0[j][0] < 1980 and 40 < C0[j][1] < 1040]
             if free:
                 holder[i] = free[min(len(free) - 1, 1)]
     for j in sorted(order, key=lambda j: sizes[j]):
