@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import sys
+import time
 
 VIDEO_ORDER = ('final_up.mp4', 'v_0_up.mp4', 'final.mp4', 'v_0.mp4')
 MAX_BYTES = 95 * 1000 * 1000
@@ -24,6 +25,9 @@ def stage(dest_root, wdir):
         for name in VIDEO_ORDER:                       # best video that GitHub accepts (hard limit 100 MB per file)
             vp = os.path.join(sd, name)
             if os.path.exists(vp):
+                if time.time() - os.path.getmtime(vp) < 45:   # still being written by the chain: next push takes it
+                    print(f'  {sid}/{name}: just written, skipped this time')
+                    continue
                 if os.path.getsize(vp) > MAX_BYTES:
                     print(f'  {sid}/{name}: {os.path.getsize(vp) / 1e6:.0f} MB > limit, trying the next one')
                     continue
