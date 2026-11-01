@@ -4546,24 +4546,42 @@ def chorus3_07(s, t, local, fi):
     from .print_fx import hexc as H
     d = s['end'] - s['start']
     v = 3.0
+    # backward tracking: she runs at the lens, the camera retreats at her speed (the street recedes)
     path = [{'t': 0.0, 'pos': [0.0, 1.3, 30.0], 'look': [0.0, 1.7, 0.0], 'fov': 50},
-            {'t': d, 'pos': [0.0, 1.3, 30.0 - v * d], 'look': [0.0, 1.7, -v * d], 'fov': 50, 'ease': 'linear'}]
+            {'t': d, 'pos': [0.0, 1.3, 30.0 + v * d], 'look': [0.0, 1.7, v * d], 'fov': 50, 'ease': 'linear'}]
     pl = once('c307', lambda: _fest_plate('B-chorus3-07', path, crowdLane=1.6, wireSpacing=5))
     img = pl.frame(local).copy()
-    # glyphs printed on the right-hand lantern row, one per mora, each lighting as it passes the lens
+    # L44 on the right-hand lantern row: each glyph's lantern lights as it enters past the lens, then recedes lit
     gt = _map_gt(44)
     word = 'ヒートウェイブに迷うのさ'
-    row = pl.anchor(local, 'rowR') or []
-    vis = [p for p in row if 0 < p[2] < 1.0 and -200 < p[0] < 2120 and -200 < p[1] < 1000]
-    vis.sort(key=lambda p: -abs(p[0] - 960) - abs(p[1] - 540))       # nearest to the lens first
+    holder = once(('c307_holder',), lambda: {})
     for i, ch in enumerate(word):
-        if t < gt[min(i, len(gt) - 1)] or i >= len(vis):
+        tg = gt[min(i, len(gt) - 1)]
+        if t < tg:
             continue
-        j = min(len(word) - 1 - i, len(vis) - 1)          # earlier glyphs further down the row
-        x, y = vis[j][0], vis[j][1]
-        sz = int(np.clip(26 + (abs(x - 960) + abs(y - 540)) * 0.09, 24, 120))
-        kit.halo(img, x, y, sz * 1.4, '#F08A3C', 0.6, period=9.0)
-        kit.map_glyph(img, ch, x, y, sz, 0.0, 1.0, '#1A1416', '#F5C842', 3.0)
+        if i not in holder:
+            row = pl.anchor(tg - s['start'], 'rowR') or []
+            cand = [(j, p) for j, p in enumerate(row) if 0 < p[2] < 1.0 and 960 < p[0] < 1900 and -100 < p[1] < 900
+                    and j not in holder.values()]
+            if not cand:
+                continue
+            holder[i] = max(cand, key=lambda jp: jp[1][0])[0]          # the nearest one just in view
+        j = holder[i]
+        row = pl.anchor(local, 'rowR') or []
+        top = pl.anchor(local, 'rowRTop') or []
+        if j >= len(row) or not (0 < row[j][2] < 1.0):
+            continue
+        x, y = row[j][0], row[j][1]
+        px = abs(top[j][1] - y) if j < len(top) else 40.0           # pixels per 0.4 m at the lantern
+        r = px * 1.3                                                 # big paper lanterns carry the glyphs
+        if r < 6 or x > 2000:
+            continue
+        lit = clamp((t - tg) / (3 / 24))
+        kit.halo(img, x, y, r * 2.4, '#F08A3C', 0.75 * lit, period=max(7.0, min(16.0, r / 6)))
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.ellipse(m, (int(x), int(y)), (int(r), int(r * 1.25)), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#F5C842')[None, None] * (0.75 + 0.25 * lit) - img) * (m * lit)[..., None]
+        kit.map_glyph(img, ch, x, y, int(max(14, r * 1.3)), 0.0, 1.0, '#1A1416', '#F5C842', max(1.0, r * 0.06), alpha=lit)
     cl = once('c307_char', lambda: chars.CharLayer('B-chorus3-07'))
     punch = 1.02 if 131.05 <= t < 131.05 + 2 / 24 else 1.0
     if cl.ok:
