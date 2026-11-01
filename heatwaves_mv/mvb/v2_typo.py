@@ -327,3 +327,71 @@ def _xs():
 
 def _ys():
     return _grid()[0]
+
+
+# ------------------------------------------------------------------ road text (outro_hook-01): the line painted on the road
+ROAD_CW, ROAD_CH = 1000, 2200          # the road rectangle as a canvas: x = across (edge to edge), y = far (0) .. near
+
+
+@functools.lru_cache(maxsize=16)
+def road_word(word, height=300, max_w=820, name='kaku'):
+    """one word as road paint: heavy gothic, stretched along the road (x2.6) so it reads under the foreshortening;
+    worn (grain of the asphalt showing through)"""
+    g = glyph_mask_line(word, 120, name)
+    h, w = g.shape
+    out_w = min(max_w, int(w * height / (h * 2.6)))
+    m = cv2.resize(g, (out_w, height), interpolation=cv2.INTER_AREA)
+    rng = np.random.default_rng(abs(hash(word)) % 1000)
+    wear = cv2.GaussianBlur(rng.random(m.shape).astype(np.float32), (0, 0), 2.0)
+    wear = (wear - wear.min()) / (wear.max() - wear.min() + 1e-6)
+    return m * np.clip(0.55 + 0.7 * wear, 0, 1)
+
+
+@functools.lru_cache(maxsize=32)
+def glyph_mask_line(txt, size, name='kaku'):
+    import skia
+    from mv import text
+    f = text.font(name, size)
+    w = int(f.measureText(txt) + size * 0.3)
+    h = int(size * 1.25)
+    info = skia.ImageInfo.Make(w, h, skia.ColorType.kAlpha_8_ColorType, skia.AlphaType.kPremul_AlphaType)
+    surf = skia.Surface.MakeRaster(info)
+    c = surf.getCanvas()
+    c.clear(skia.Color4f(0, 0, 0, 0))
+    c.drawString(txt, size * 0.15, size * 0.98, f, skia.Paint(AntiAlias=True, Color=skia.Color4f(1, 1, 1, 1)))
+    a = np.empty((h, w), np.uint8)
+    surf.readPixels(info, a, w)
+    a = a.astype(np.float32) / 255.0
+    ys, xs = np.nonzero(a > 0.05)
+    return a[ys.min():ys.max() + 1, xs.min():xs.max() + 1] if len(ys) else a
+
+
+def road_text(img, words, times, t, quad, v_slots=(0.20, 0.36, 0.52, 0.68, 0.84), col='#F2B23A'):
+    """paint words on a road: quad = the road rectangle's image corners (near-left, near-right, far-right, far-left);
+    word i sits at v_slots[i] (0 near .. 1 far) and appears on times[i] (a quick press-in)"""
+    canvas = np.zeros((ROAD_CH, ROAD_CW), np.float32)
+    any_on = False
+    for i, (wd, t0) in enumerate(zip(words, times)):
+        k = (t - t0) / 0.14
+        if k <= 0:
+            continue
+        any_on = True
+        m = road_word(wd)
+        h, w = m.shape
+        cy = int((1 - v_slots[i]) * ROAD_CH)
+        y0, x0 = cy - h // 2, (ROAD_CW - w) // 2
+        canvas[y0:y0 + h, x0:x0 + w] = np.maximum(canvas[y0:y0 + h, x0:x0 + w], m * clamp(k))
+    if not any_on:
+        return img
+    q = np.asarray(quad, np.float32)
+    src = np.float32([[0, ROAD_CH], [ROAD_CW, ROAD_CH], [ROAD_CW, 0], [0, 0]])
+    Hm = cv2.getPerspectiveTransform(src, q)
+    a = cv2.warpPerspective(canvas, Hm, (W, H_), flags=cv2.INTER_AREA)
+    a = cv2.GaussianBlur(a, (0, 0), 0.6) * 0.97
+    ys, xs = np.mgrid[0:H_, 0:W].astype(np.float32)               # printed paint: a fine 45-degree screen in the ink
+    u, v = (xs + ys) / (5.0 * 1.4142), (xs - ys) / (5.0 * 1.4142)
+    dd = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
+    a = a * np.clip(0.78 + (0.62 - dd) * 0.6, 0.6, 1.0)
+    lum = img @ np.float32([0.2126, 0.7152, 0.0722])
+    paint = H(col)[None, None] * np.clip(0.45 + 0.6 * lum, 0.6, 1.05)[..., None]      # yellow road paint, lit like the asphalt
+    return img + (paint - img) * a[..., None]

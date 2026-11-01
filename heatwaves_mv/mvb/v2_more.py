@@ -329,6 +329,23 @@ def lanterns_raw(s, t, local):
 RAW['B-chorus3-01'] = lanterns_raw
 
 
+# ------------------------------------------------------------------ chorus3-02: the lantern light pulses on her face
+def chorus3_02(s, t, local):
+    img = base(s, t, local)
+    nb = (t - BEAT0) / BEAT
+    ph = nb - math.floor(nb)
+    pulse = math.exp(-ph * 4.5)
+    ys, xs = _grid()
+    fx_, fy_ = v2.frame_map(s, local)([(880, 330)])[0]
+    g = np.exp(-(((xs - fx_) / 520.0) ** 2 + ((ys - fy_) / 460.0) ** 2))
+    gain = 1.0 + (0.10 + 0.22 * pulse) * g
+    img = img * gain[..., None] + (pulse * g)[..., None] * np.float32([0.10, 0.04, 0.0])[None, None]   # warm, on the beat
+    return _dream(img, s, t, local)
+
+
+RAW['B-chorus3-02'] = chorus3_02
+
+
 # ------------------------------------------------------------------ chorus3-04: goldfish
 # a school of goldfish fry (hundreds of tiny fish among the big ones of the footage) gathers into 幸せ; the poi in
 # the tank dips at 幸, the paper tears with a splash on あげ, and the fry scatter from it

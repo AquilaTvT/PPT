@@ -188,9 +188,15 @@ def outro_08_over(img, s, t, local):
     return img
 
 
+OH1_ROAD = [(460, 1080), (1510, 1080), (1162, 640), (847, 640)]      # the near road as a rectangle (keyframe)
+
+
 def outro_hook_01(s, t, local, fi):
-    """aerial: the card crosses the town; the light turns from dawn to noon in a few beats"""
+    """aerial: the card crosses the town; the light turns from dawn to noon in a few beats; the English line is painted
+    on the road below, one word on each sung word"""
+    from .v2_typo import road_text, glyph_times
     raw = v2.plate(s, local)
+    quad = v2.tracked(s, OH1_ROAD, local, box=(460, 640, 1510, 1080))
     d = s['end'] - s['start']
     k = clamp(local / d)
     day = clamp((local - 0.4) / 1.6)
@@ -202,6 +208,7 @@ def outro_hook_01(s, t, local, fi):
         raw = v2.heat(raw, t, 0.004 * day)
         raw = v2.heat(raw, t * 1.6 + 3.7, MIRAGE['B-outro_hook-01'][4] * (day - 0.5) * 2, region=_mirage_mask('B-outro_hook-01'))
     img = v2.printer_for(s, lambda s_, t_, l_: v2.plate(s_, l_))(raw)
+    img = road_text(img, ['ROAD', 'SHIMMER', "WIGGLIN'", 'THE', 'VISION'], glyph_times()['63'], t, quad)   # paint on the print
     e = k
     img = draw_card(img, -900 + 1900 * e, -60 + 90 * math.sin(e * 4), 1700 - 300 * e, 30 * math.sin(t * 2.4), 60 + 20 * math.sin(t * 3.1),
                     -15 + 25 * math.sin(t * 1.7), shadow=0.0)
