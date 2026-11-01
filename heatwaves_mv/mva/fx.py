@@ -134,9 +134,14 @@ def light_leak(img, t, t0, dur=0.8, color='#FFB46B', direction=1, amount=0.5):
 
 
 def rect_sweep(img, t, t0, period, color='#FFB46B', n=8, w=240, h=150, y=None, speed=-2600.0, amount=0.35,
-               skew=0.0, region=None):
-    """lit train-window rectangles passing across the frame, one every `period` seconds"""
+               skew=0.0, region=None, mode='light', mullion=True):
+    """lit train-window patches passing across the frame, one every `period` seconds.
+    mode 'light': the patch is light falling on the scene (it multiplies what is there, plus a little glow in the
+    air), soft-edged in proportion to its size, split by the window's centre mullion and motion-blurred along its
+    travel; mode 'add': a flat additive wash (light flooding the lens, used by transitions)."""
     acc = np.zeros((H, W), np.float32)
+    fx_ = max(30.0, 0.07 * w) + abs(speed) / 48.0 * 0.5          # penumbra + half a 180-degree shutter of travel
+    fy_ = max(30.0, 0.07 * h)
     for k in range(n):
         tk = t - (t0 + k * period)
         if tk < 0:
@@ -146,11 +151,17 @@ def rect_sweep(img, t, t0, period, color='#FFB46B', n=8, w=240, h=150, y=None, s
             continue
         yy = (y if y is not None else H * 0.3) + 18 * math.sin(k * 1.7)
         xs = _XS - x - (_YS - yy) * skew
-        m = np.exp(-(np.maximum(np.abs(xs) - w / 2, 0) / 30.0) ** 2) * np.exp(-(np.maximum(np.abs(_YS - yy) - h / 2, 0) / 30.0) ** 2)
+        m = np.exp(-(np.maximum(np.abs(xs) - w / 2, 0) / fx_) ** 2) * np.exp(-(np.maximum(np.abs(_YS - yy) - h / 2, 0) / fy_) ** 2)
+        if mullion and mode == 'light' and w > 120:
+            m = m * (1 - 0.55 * np.exp(-(xs / max(6.0, 0.035 * w + abs(speed) / 96.0)) ** 2))
         acc = np.maximum(acc, m)
     if region is not None:
         acc *= region
-    return add(img, hexc(color)[None, None] * acc[..., None], amount)
+    col = hexc(color)[None, None]
+    if mode == 'add':
+        return add(img, col * acc[..., None], amount)
+    a3 = acc[..., None]
+    return img + (img * col * 1.9 + col * 0.22) * (a3 * amount)
 
 
 def pulse(t, times, decay=0.12):

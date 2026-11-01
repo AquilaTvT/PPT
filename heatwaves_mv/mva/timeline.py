@@ -135,15 +135,45 @@ def region_override(sid, key):
     return _REGIONS.get(sid, {}).get(key)
 
 
-def lyric_for(s, idx):
-    ty = s.get('typography', '') or ''
-    low = ty.lower()
+def slot_for(s):
+    low = (s.get('typography', '') or '').lower()
     slot = 'right'
     if 'left third' in low:
         slot = 'left'
     elif 'high center' in low or 'centred' in low or 'centered' in low:
         slot = 'center'
-    slot = region_override(s['id'], 'lyric_slot') or slot      # moved off a face in the real footage
+    return region_override(s['id'], 'lyric_slot') or slot      # moved off a face in the real footage
+
+
+_SLOT_X = {'right': 1450, 'left': 470, 'center': 960, 'far_right': 1690, 'far_left': 230}
+
+
+def _handover(idx):
+    """True when line idx+1 starts as idx ends and is set in the same place (both English in the bar / at the foot,
+    or both Japanese in the same column): idx must be gone by then, or the two overprint"""
+    from mv.timing import LYRICS
+    if idx + 1 >= len(LYRICS):
+        return False
+    a, b = LYRICS[idx], LYRICS[idx + 1]
+    if b['t'] > a['end'] + 0.05:
+        return False
+    sa = next((x for x in SHOTS if idx in x.get('lyric', [])), None)
+    sb = next((x for x in SHOTS if idx + 1 in x.get('lyric', [])), None)
+    if sa is None or sb is None:
+        return False
+    if a['lang'] == 'en' and b['lang'] == 'en':
+        return True
+    if is_present(sa) and is_present(sb):               # both translations sit centred in the bottom bar
+        return True
+    if a['lang'] != 'en' and b['lang'] != 'en':
+        return abs(_SLOT_X.get(slot_for(sa), 1450) - _SLOT_X.get(slot_for(sb), 1450)) < 200
+    return False
+
+
+def lyric_for(s, idx):
+    ty = s.get('typography', '') or ''
+    low = ty.lower()
+    slot = slot_for(s)
     font = 'hina' if 'hina' in low else 'mincho'
     world = 'memory'
     if 'moon white' in low or (is_present(s) and 'silver' not in low):
@@ -165,6 +195,10 @@ def lyric_for(s, idx):
         special.append('complete70')
     lb = is_present(s)
     zh = 'bar' if lb else 'foot'
+    if _handover(idx):        # the next line takes this place as this one ends: be gone by then
+        from mv.timing import LYRICS
+        return Lyric(idx, slot=slot, world=world, font=font, letterboxed=lb, zh=zh, special=special,
+                     out_t=LYRICS[idx]['end'] - 0.15, fade_out=0.15)
     return Lyric(idx, slot=slot, world=world, font=font, letterboxed=lb, zh=zh, special=special)
 
 

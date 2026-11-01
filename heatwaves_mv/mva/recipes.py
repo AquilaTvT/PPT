@@ -392,7 +392,7 @@ def a_intro_02(s, t, local, fi):
         fres = np.clip(np.abs(np.linspace(-1, 1, refl.shape[1]))[None, :] ** 2 * 0.6 + 0.4, 0, 1)[..., None]
         img = put_quad(img, refl * fres, q, 'screen', amt=0.18)
     # 光の走査 out: the last train's first lit window crosses right -> left from 7.35 and wipes by 8.09
-    img = fx.rect_sweep(img, t, 7.35, 10.0, n=1, w=900, h=420, speed=-2600.0, amount=0.55)
+    img = fx.rect_sweep(img, t, 7.35, 10.0, n=1, w=900, h=420, speed=-2600.0, amount=1.1, skew=-0.25)
     if t > 8.09 - 3 / 24:
         img = fx.white_bloom(img, 0.5 * clamp((t - (8.09 - 3 / 24)) / (3 / 24)))
     return img
@@ -1142,7 +1142,7 @@ def a_bridge1_08(s, t, local, fi):
     img = img + fx.hexc('#FFE9C8')[None, None] * (fx.ellipse_mask(gx, gy, 40, 380, feather=40) * 0.18)[..., None]
     if t >= 111.42:                                         # the first train's headlight floods in from the right
         k = clamp((t - 111.42) / 0.37)
-        img = fx.rect_sweep(img, t, 111.42, 99.0, color='#FFD9A0', n=1, w=900, h=1080, y=0, speed=-3200.0, amount=0.6)
+        img = fx.rect_sweep(img, t, 111.42, 99.0, color='#FFD9A0', n=1, w=900, h=1080, y=0, speed=-3200.0, amount=0.6, mode='add')
         img = img + fx.hexc('#FFE9C8')[None, None] * (np.clip((fx._XS - W * (1 - k)) / 400, 0, 1) * 0.6 * k)[..., None]
     return bloom_out(img, t, s['end'], 4)
 
@@ -1266,7 +1266,7 @@ def a_chorus3_07(s, t, local, fi):
         streak = np.exp(-((fx._YS - 520) / 10.0) ** 2) * np.clip(1 - np.abs(fx._XS - (-300 + 2600 * k)) / 1400, 0, 1)
         img = img + fx.hexc('#FFF4DE')[None, None] * (cone + streak * 0.8)[..., None]
     # 光の走査 wipe out
-    img = fx.rect_sweep(img, t, s['end'] - 0.37, 99.0, color='#FFF4DE', n=1, w=1100, h=1080, y=0, speed=-5200.0, amount=0.7)
+    img = fx.rect_sweep(img, t, s['end'] - 0.37, 99.0, color='#FFF4DE', n=1, w=1100, h=1080, y=0, speed=-5200.0, amount=0.7, mode='add')
     return img
 
 
