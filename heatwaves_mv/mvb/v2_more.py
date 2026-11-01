@@ -353,7 +353,7 @@ C304_POI = (1530.0, 262.0)
 
 
 @functools.lru_cache(maxsize=1)
-def _fish_init(n=1300):
+def _fish_init(n=1700):
     from .v2_typo import glyph_points
     rng = np.random.default_rng(41)
     tgt = glyph_points('幸せ', 540, n, name='mincho', seed=4) + np.float32([900, 560])
@@ -419,7 +419,7 @@ def goldfish_raw(s, t, local):
     sl = np.zeros((H_, W, 3), np.float32)
     sa = np.zeros((H_, W), np.float32)
     _draw_fish(sl, sa, p + np.float32([6, 10]), prev + np.float32([6, 10]), kind)
-    img *= 1 - np.clip(cv2.GaussianBlur(sa, (0, 0), 7) * 1.6, 0, 1)[..., None] * 0.55   # the school's shadow (printed)
+    img *= 1 - np.clip(cv2.GaussianBlur(sa, (0, 0), 8) * 1.7, 0, 1)[..., None] * 0.66   # the school's shadow (printed)
     # the poi dips on 幸 (rings spread from it) and tears with a splash on あげ
     ys, xs = _grid()
     px, py = C304_POI
@@ -472,7 +472,7 @@ def _bursts(sid):
         out.append((gt(42)[6] - 0.42, 960, 400, '#FFE9A8', '#FF8A3C', '君'))
     else:
         out = [(BEAT0 + (nb0 + 1 + j) * BEAT, x, y, c1, c2, g) for j, x, y, c1, c2, g in FW06]
-        out.append((gt(43)[2] - 0.40, 600, 300, '#BFF0FF', '#5FA0FF', '0:00'))
+        out.append((gt(43)[2] - 0.40, 590, 225, '#BFF0FF', '#5FA0FF', '0:00'))     # in the sky above her head
     return out
 
 
