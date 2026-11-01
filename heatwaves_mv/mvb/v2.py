@@ -205,12 +205,20 @@ def footage(sid2):
     return _CLIPS[sid2]
 
 
+SPEED = {'B-hook-01': 0.42}  # clip speed overrides (hook-01: only the first 1.3 s of its clip hold the mirror upright)
+REVERSE = {'B-hook-01'}    # clips played backwards: the generated camera move reads better reversed (hook-01: the
+                          # view drifts off the mirror; reversed it settles on it, ready for the push into it)
+
+
 def src_time(s, local, speed=None, in_t=0.08, sid2=None):
     """the clip time that plate() shows at shot-local time `local`"""
     f = footage(sid2 or b2_id(s))
     d = s['end'] - s['start']
+    own = sid2 is None or sid2 == b2_id(s)
     if speed is None:
-        speed = min(1.0, max(0.55, (f.dur - in_t - 0.05) / d))
+        speed = SPEED.get(s['id']) if own and s['id'] in SPEED else min(1.0, max(0.55, (f.dur - in_t - 0.05) / d))
+    if s['id'] in REVERSE and own:
+        return in_t + max(0.0, d - local) * speed
     return in_t + local * speed
 
 

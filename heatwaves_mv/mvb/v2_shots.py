@@ -92,30 +92,27 @@ def fit_mirror(rgb, est, hint):
 
 
 def mirror_track(sid2, hints):
-    """per-frame [(cx, cy, s, conf), ...] for each hint, cached beside the clip"""
+    """per-frame [(cx, cy, s, conf), ...] for each hint (zoom-1 plate px), cached beside the clip; masked multi-scale
+    template matching of each mirror's ring + hood (v2_fx.track_mirror_tm)"""
     f = v2.footage(sid2)
     src = v2.clip_path(sid2) or v2.kf_path(sid2)
-    key = os.path.join(v2.WORK2, sid2, f'track_mirrors_{abs(hash(json.dumps(hints))) % 10**8}_{int(os.path.getmtime(src))}.json')
+    key = os.path.join(v2.WORK2, sid2, f'track_mtm_{abs(hash(json.dumps(hints))) % 10**8}_{int(os.path.getmtime(src))}.json')
     if os.path.exists(key):
         return json.load(open(key))
-    fps = getattr(getattr(f, 'c', None), 'fps', 16.0)
-    n = max(1, int(round(f.dur * fps))) if hasattr(f, 'c') else 1
-    est = [(h[0][0], h[0][1], 1.0) for h in hints]
-    out = []
-    for i in range(n):
-        rgb = f.at(i / fps) if hasattr(f, 'c') else f.img
-        row = []
-        for j, h in enumerate(hints):
-            e, conf = fit_mirror(rgb, est[j], h)
-            if conf > 0.5 and abs(e[2] - est[j][2]) < 0.25:
-                est[j] = e
-            row.append([est[j][0], est[j][1], est[j][2], conf])
-        out.append(row)
-    a = np.array(out, np.float32)                              # (n, m, 4)
-    if n > 2:
-        for j in range(a.shape[1]):
-            a[:, j, :3] = fx._gauss1d(a[:, j, :3], 1.5)
-    res = a.tolist()
+    if not hasattr(f, 'c'):
+        res = [[[h[0][0], h[0][1], 1.0, 1.0] for h in hints]]
+    else:
+        fps = f.c.fps
+        n = max(1, int(f.c.n))
+        cache = {}
+
+        def frame_at(i):
+            if i not in cache:
+                cache.clear()
+                cache[i] = f.at(i / fps)
+            return cache[i]
+        per = [fx.track_mirror_tm(frame_at, n, h) for h in hints]
+        res = [[per[j][i] for j in range(len(hints))] for i in range(n)]
     os.makedirs(os.path.dirname(key), exist_ok=True)
     json.dump(res, open(key, 'w'))
     return res
@@ -141,6 +138,20 @@ def mirrors_at(sid2, hints, s, local, speed=None):
         c = m([(cx, cy)])[0]
         out.append((((float(c[0]), float(c[1])), (ew * m.scale, eh * m.scale), ang), conf))
     return out
+
+
+def ripple(src, amp, t, wl=0.09, speed=7.0):
+    """water rings from the centre of a picture: 'the swimming mirror'; amp in px"""
+    if src is None or amp < 0.2:
+        return src
+    h, w = src.shape[:2]
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    cx, cy = w / 2, h / 2
+    dx, dy = xs - cx, ys - cy
+    r = np.sqrt(dx * dx + dy * dy) + 1e-3
+    disp = amp * np.sin(r / (wl * max(w, h)) * 2 * math.pi - t * speed)
+    return cv2.remap(src, (xs + disp * dx / r).astype(np.float32), (ys + disp * dy / r).astype(np.float32), cv2.INTER_LINEAR,
+                     borderMode=cv2.BORDER_REFLECT)
 
 
 def insert_in(img, plate, ell, src, alpha=1.0, k=0.35, rip=0.0, t=0.0):

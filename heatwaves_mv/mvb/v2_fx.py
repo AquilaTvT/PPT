@@ -358,3 +358,74 @@ def track_region(frame_at, n, box, pad=70, min_feat=12):
     elif n > 3:
         C = _gauss1d(C, 1.5)
     return C.reshape(n, 4, 2).tolist()
+
+
+# ------------------------------------------------------------------ mirror tracking by masked multi-scale template match
+def track_mirror_tm(frame_at, n, hint, half=True):
+    """follow one curve mirror through a clip: frame_at(i) -> float RGB plate (zoom 1); hint = ((cx, cy), (w, h),
+    ang) = its glass on frame 0. The ring + hood annulus of frame 0 (the glass masked out: its reflection changes) is
+    matched in every frame around the predicted position, at three scales round the previous one.
+    Returns [[cx, cy, scale, conf]] per frame in plate px; conf ~ match score, 0 once the mirror has left the frame."""
+    (cx0, cy0), (ew, eh), ang = hint
+    k = 0.5 if half else 1.0
+    R = max(ew, eh) / 2 * k
+    f0 = cv2.resize(frame_at(0), None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+    hh = int(math.ceil(R * 1.32))
+    pad = hh + 4
+    big = cv2.copyMakeBorder(f0, pad, pad, pad, pad, cv2.BORDER_REFLECT)
+    tx, ty = int(round(cx0 * k)) + pad, int(round(cy0 * k)) + pad
+    T = big[ty - hh:ty + hh + 1, tx - hh:tx + hh + 1].copy()
+    ys, xs = np.mgrid[-hh:hh + 1, -hh:hh + 1].astype(np.float32)
+    t = math.radians(ang)
+    u = (xs * math.cos(t) + ys * math.sin(t)) / (ew / 2 * k)
+    v = (-xs * math.sin(t) + ys * math.cos(t)) / (eh / 2 * k)
+    e = np.sqrt(u * u + v * v)
+    M = ((e > 0.93) & (e < 1.30)).astype(np.float32)
+    M3 = np.repeat(M[..., None], 3, 2)
+    out = [[float(cx0), float(cy0), 1.0, 1.0]]
+    c = np.float32([cx0 * k, cy0 * k])
+    vel = np.zeros(2, np.float32)
+    s_prev = 1.0
+    gone = False
+    for i in range(1, n):
+        if gone:
+            out.append([float(c[0] / k), float(c[1] / k), s_prev, 0.0])
+            continue
+        fr = cv2.resize(frame_at(i), None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+        Hf, Wf = fr.shape[:2]
+        pred = c + vel * 0.7
+        best = (-2.0, pred, s_prev)
+        for sc in (s_prev * 0.965, s_prev, s_prev * 1.035):
+            Ts = cv2.resize(T, None, fx=sc, fy=sc, interpolation=cv2.INTER_LINEAR)
+            Ms = cv2.resize(M3, (Ts.shape[1], Ts.shape[0]), interpolation=cv2.INTER_NEAREST)
+            th, tw_ = Ts.shape[:2]
+            sr = int(0.22 * R * sc + 10)
+            x0, y0 = int(round(pred[0] - tw_ / 2 - sr)), int(round(pred[1] - th / 2 - sr))
+            x1, y1 = x0 + tw_ + 2 * sr, y0 + th + 2 * sr
+            p = max(0, -x0, -y0, x1 - Wf, y1 - Hf)
+            if p > tw_:                                     # mostly outside the frame
+                continue
+            win = cv2.copyMakeBorder(fr, p, p, p, p, cv2.BORDER_REFLECT) if p else fr
+            win = win[y0 + p:y1 + p, x0 + p:x1 + p]
+            if win.shape[0] < th or win.shape[1] < tw_:
+                continue
+            res = cv2.matchTemplate(win, Ts, cv2.TM_CCOEFF_NORMED, mask=Ms)
+            res = np.nan_to_num(res, nan=-1.0, posinf=-1.0, neginf=-1.0)
+            _, mv, _, ml = cv2.minMaxLoc(res)
+            if mv > best[0]:
+                best = (mv, np.float32([x0 + ml[0] + tw_ / 2, y0 + ml[1] + th / 2]), sc)
+        score, cn, sn = best
+        if score < -1.5:
+            gone = True
+            out.append([float(c[0] / k), float(c[1] / k), s_prev, 0.0])
+            continue
+        vel = cn - c
+        c, s_prev = cn, float(sn)
+        r_now = R * s_prev
+        if c[0] < -r_now or c[0] > Wf + r_now or c[1] < -r_now or c[1] > Hf + r_now:
+            gone = True
+        out.append([float(c[0] / k), float(c[1] / k), s_prev, float(max(0.0, score))])
+    a = np.array(out, np.float32)
+    if n > 3:
+        a[:, :3] = _gauss1d(a[:, :3], 1.2)
+    return a.tolist()
