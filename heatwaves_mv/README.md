@@ -1,50 +1,67 @@
-# Heat Waves (Japanese Version) — fan MV 「陽炎の向こうの君」
+# Heat Waves (Japanese Version) — fan music video
 
-A non-commercial fan music video for **Glass Animals「Heat Waves」(Japanese cover & lyrics by Lime)**,
-3:18, 1920×1080, 30 fps.
+A non-commercial fan music video for **Glass Animals「Heat Waves」(Japanese cover and lyrics by Lime)**,
+3:18, 1920×1080, 24 fps.
 
-![key frames](poster.jpg)
+The film is delivered as `HeatWaves_1080p.mp4` (and a 720p copy); the repository holds everything that makes
+it. The song, recording and lyrics belong to their rights holders (Glass Animals / Polydor, Lime); this is a fan
+work, not affiliated with them.
 
-- `HeatWaves_MV_1080p.mp4`: the finished MV (H.264 3.5 Mbps + AAC 192k, sized to stay under GitHub's 100 MB limit)
-- `poster.jpg`: 20 key frames
-- `STORYBOARD.md`: concept, palette and the full 64-shot list with timings
-- `mv/`: the renderer (every frame is drawn by this code)
-- `tools/`: character stylisation, chunked renderer, checks
-- `assets/chars/`: the stylised character art used in the film
+## The film
 
-The song, recording and lyrics belong to their respective rights holders (Glass Animals / Polydor, Lime).
-This video is a fan work and is not affiliated with them.
+A summer in a small coastal town in 1985, printed like a riso / screen print that moves. Just after midnight a boy
+cannot sleep with the old CRT on; a stamp-rally card on the low table still has its sixth cell empty — the sunrise
+at the lighthouse, the one stamp they never collected. Through the night the song's images come back to him in
+heat haze and curve mirrors: her walk on the noon road, the pool, the festival, the chalk umbrella on the seawall.
+At dawn he walks the coast to the lighthouse, the sixth stamp lands in its cell, the card flies off toward the sun,
+and at the end the print runs backwards to bare paper, leaving only the sun stamp.
+
+- **Lyrics:** the original Japanese lines only, set vertically in Mincho; the English lines run on a station-style
+  dot-matrix LED strip.
+- **The print:** every frame of generated anime footage is printed by `mvb/print2.py`: ~22 flat inks fitted per shot
+  and harmonised with the section's colour world, a 45° halftone screen carrying the shading, a 15° light screen,
+  AM halos around light sources, key lines (gold on dark inks), cream paper, grain and gate weave
+  (measured from the reference, `design/ref_study/forensics.md`). Faces print clean on a warm cream.
+- **The town is real:** the map and the stamp card are drawn from OpenStreetMap data of the Enoden coast
+  (Koshigoe – Shichirigahama – Enoshima), renamed 潮見 (Shiomi): every building footprint, the coastal railway,
+  the streets the stamp route follows (`mvb/shiomi_map.py`, `mvb/card2.py`).
+- **Devices** composited into the footage (`mvb/v2_*.py`): her moments swimming inside tracked curve mirrors, the
+  title rising out of a mirage, the press printing itself plate by plate at the start and running backwards at the
+  end, LED clocks and boards, CRT channels, tanzaku strips, lyric bubbles, chalk drawings, fireworks that spell
+  glyphs, a goldfish school spelling 幸せ, a duotone dream, a zoetrope train, the night-to-dawn plate peel. Signs,
+  screens, clocks and the card follow the footage with a planar tracker (`mvb/v2_fx.py`).
 
 ## How it is made
 
-The look borrows the *craft* of 「花30亿token制作的千本樱mv」 (limited inks, flat shapes, a halftone screen
-doing every gradient, so each frame reads like a riso / screen print with a pixel feel); the world, palette,
-story and staging are new.
-
-1. **Music analysis**: demucs splits the song into stems; the beat grid (81 BPM, 66 bars) is fitted on the drum
-   stem; lyric line times come from a lyric video and are refined against vocal onsets (`mv/timing.py`).
-2. **Renderer** (`mv/core.py`): Skia rasterises vector shapes in a 1920×1080 design space; numpy composites
-   them as ink layers. Gradients and light go through an AM halftone screen (`halftone`, `ramp`); `heat_haze`
-   is the signature vertical shimmer; TV pictures are real 320×180 ordered dither on a 16-colour palette with a
-   CRT pass (`mv/el/tv.py`).
-3. **Scenes** (`mv/el/`): sphere-shaded cumulonimbus, the perspective road with 逃げ水 mirage, utility poles and
-   wires, the midnight room, the CRT, カーブミラー with a fisheye reflection, festival fireworks and goldfish, the
-   station, the coastal railcar, the night town.
-4. **Characters**: 君 was generated with **Anima-Turbo** in ComfyUI on CPU, cut out with anime-seg (ISNet), then
-   re-inked by `tools/stylize.py`: cels flattened and snapped to the palette, line art re-inked in navy, shading
-   stored as maps that turn into the *same* halftone screen as the backgrounds at render time, plus a fg/bg split
-   with an inpainted background for 2.5D parallax.
-5. **Edit** (`mv/shots/*.py`, `mv/edit.py`): 64 shots cut on bar lines, joined by halftone-dot, heat-haze, CRT,
-   whip, wipe and flash transitions; Japanese lyrics typeset vertically with a Chinese translation beside them.
-
-## Re-rendering
+1. **Music** (`mv/timing.py`, `assets/glyph_times.json`): beat grid fitted on the drum stem (81 BPM), lyric lines
+   and per-glyph sung times aligned to the vocal stem.
+2. **Generation** on an Apple M4 Mac with ComfyUI (`gpu/`, `GPU_RUNBOOK.md`): Anima keyframes (two candidates per
+   shot, picked by review), Wan 2.2 TI2V 5B video (832×480, 16 fps), RIFE ×3 to 48 fps, then upscaling; the shot list
+   with prompts is `design/mv_b/gpu_shots_v2.json`. Media travel to the cloud on the `hw-media` branch
+   (`gpu/push_media.sh` → `tools/ingest_media.py`).
+3. **Compositing** on CPU (`mvb/v2.py` + `mvb/v2_*.py`): per shot, raw stage (footage + devices + heat shimmer and
+   glow) → print → graphics over the print (LED, stamps, lyrics).
+4. **Render and checks:** `tools/render_mvb.py --mv b2` (parallel workers, then concat + audio),
+   `tools/qa_video.py` (duration, audio, W3C general-flash check), `tools/deliver.sh` (delivery encode).
 
 ```bash
-pip install numpy opencv-python-headless skia-python pillow librosa
-tools/fetch_fonts.sh
-python -m mv.render sheet --times 18,30,84 --res 960          # stills -> out/sheet.jpg
-python tools/render_chunks.py --workers 4                      # 1080p30 chunks -> out/
-python tools/assemble.py --audio heat_waves_jp.wav --out HeatWaves_MV_1080p.mp4 --mb 92
+python3 tools/ingest_media.py --only work/B2                 # footage from the hw-media branch
+python3 tools/render_mvb.py --mv b2 --out out/hw.mp4 --workers 3 --audio
+python3 tools/qa_video.py out/hw.mp4
+TITLE="Heat Waves" bash tools/deliver.sh out/hw.mp4 HeatWaves
 ```
 
-`python tools/check.py` renders the whole timeline at 320×180 and reports any shot that throws.
+## Credits and data
+
+- Map data © OpenStreetMap contributors, available under the Open Database License (ODbL 1.0).
+- Fonts: Shippori Mincho, Zen Old Mincho, Zen Kaku Gothic New, DotGothic16, EB Garamond, Silkscreen and others under
+  the SIL Open Font License (`assets/fonts/`).
+- Models: Anima (keyframes), Wan 2.2 TI2V 5B (video), RIFE (frame interpolation), an anime upscaler.
+
+## Earlier versions in this repository
+
+- `STORYBOARD.md`, `mv/`: v1 「陽炎の向こうの君」, drawn entirely by a 2D renderer (its film was the earlier
+  `HeatWaves_MV_1080p.mp4` in this repository).
+- `mvb/recipes.py`, `three/`: MV-B v1, three.js plates printed in the same style (superseded by v2; its recipes are
+  the fallback for any shot without footage).
+- `mva/`: a cinematic version that was discontinued.

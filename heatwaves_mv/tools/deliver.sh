@@ -13,7 +13,7 @@ out=out/deliver
 mkdir -p "$out"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-title="Heat Waves (Japanese version) - ${name}"
+title="${TITLE:-Heat Waves (Japanese version) - ${name}}"
 ffmpeg -v error -y -i "$src" -map 0 -c copy -movflags +faststart -metadata title="$title" "$out/${name}_master_1080p.mp4"
 enc() {   # enc <w> <h> <vbitrate> <abitrate> <outfile> <level>
   local vf="scale=$1:$2:flags=lanczos"
