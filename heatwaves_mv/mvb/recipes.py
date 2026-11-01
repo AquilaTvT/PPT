@@ -4019,3 +4019,97 @@ def chorus2_02(s, t, local, fi):
 
 R['B-chorus2-02'] = chorus2_02
 tl.OWN_TYPE.add('B-chorus2-02')
+
+
+# ---- B-chorus2-04: on the seawall at night -- the moon path on the sea is the lyric column; a swell rises over the wall -
+def chorus2_04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    push = 1.0 + 0.015 * clamp(local / 2.2)
+    drop = _ease_in(clamp((t - 87.35) / 0.74))
+    img, hor = night_bay(260)
+    hy = 330                                               # looking down from the wall: sea fills the lower 2/3
+    sea_top = int(hor)
+    shift = hy - sea_top
+    img = np.roll(img, shift, 0)
+    if shift > 0:                                          # extend the sky upward
+        img[:shift] = img[shift:shift + 1]
+    sea = np.zeros((1080, 1920, 3), np.float32)
+    g = np.clip((kit._YS - hy) / (1080 - hy), 0, 1)[..., None]
+    sea[:] = H('#1E2550') * (1 - g) + H('#141A33') * g
+    dep = np.maximum(kit._YS - hy, 0.0)
+    ph = dep / (2.0 + 0.018 * dep) - t * 2.4 + np.sin(kit._XS / (60 + 0.4 * dep) + dep / 40.0) * 2.2
+    brk = np.sin(kit._XS / (25 + 0.3 * dep) + dep / 7.0 + t)
+    swell = ((np.sin(ph) > 0.82) & (brk > -0.2)).astype(np.float32)
+    sea = sea + (H('#2C4C9A')[None, None] - sea) * (swell * _dots_k(0.35, 8.0))[..., None]
+    img = np.where((kit._YS > hy)[..., None], sea, img)
+    if push != 1.0:
+        img = cv2.warpAffine(img, cv2.getRotationMatrix2D((960, 540), 0, push), (1920, 1080), borderMode=cv2.BORDER_REFLECT)
+    mx = 1080
+    img = moon_with_halo(img, mx, 150, 62, 0.4)
+    # the moon path: a vertical column of silver dots on the sea, rippled by passing wave lines
+    ys = kit._YS
+    wave = 8 * np.sin(ys / 13.0 - t * 5.0) + 6 * np.sin(ys / 5.0 + t * 7.0)
+    width = 26 + (ys - hy) * 0.22
+    col = np.clip(1 - np.abs(kit._XS - mx - wave) / np.maximum(width, 1), 0, 1) * (ys > hy + 4)
+    lines = (np.sin(ys / 7.0 - t * 6.0 + np.sin(kit._XS / 50.0)) > 0.35).astype(np.float32)
+    path = col * lines
+    img = img + (H('#C9D3DC')[None, None] - img) * (path * _dots_k(0.75, 7.0) + path * 0.25)[..., None]
+    # L29 inside the moon path, 110 px cream, formed out of the silver dots per mora; 幸せ breaks apart on 86.61
+    gt = _map_gt(29)
+    word = '君に幸せあげられない'
+    ystart, step = hy + 60, 70
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)]:
+            continue
+        y = ystart + i * step
+        if y > 1040:
+            break
+        k = clamp((t - gt[min(i, len(gt) - 1)]) / (4 / 24))
+        size = int(52 + 0.07 * (y - hy))
+        if ch in '幸せ' and t >= 86.61:
+            br = clamp((t - 86.61) / 0.5)
+            if br >= 1:
+                continue
+            tmp = np.zeros((1080, 1920, 3), np.float32)
+            kit.map_glyph(tmp, ch, mx, y, size, 0.0, 1.0, '#EDE3CF', '#EDE3CF', 0.5)
+            mm = (tmp.mean(-1) > 0.3).astype(np.float32) * (1 - _dots_k(br, 8.0))
+            mm = np.roll(mm, int(30 * br * (1 if ch == '幸' else -1)), 1)
+            img = img + (H('#EDE3CF')[None, None] - img) * mm[..., None]
+            continue
+        xw = mx + 8 * math.sin(y / 13.0 - t * 5.0)
+        tmp = np.zeros((1080, 1920, 3), np.float32)
+        kit.map_glyph(tmp, ch, xw, y, size, 0.0, 1.0, '#EDE3CF', '#EDE3CF', 0.5)
+        mm = (tmp.mean(-1) > 0.3).astype(np.float32)
+        mm = mm * (1 - (1 - k) * (1 - _dots_k(k, 7.0)))
+        mm = mm * (1 - 0.6 * lines * (np.abs(kit._YS - y) < size * 0.5))
+        img = img + (H('#EDE3CF')[None, None] - img) * mm[..., None]
+    # him, back view on the seawall top, screen-left third; t-shirt hem and hair in the wind (mesh sway)
+    cl = once('c204_char', lambda: chars.CharLayer('B-chorus2-04'))
+    if cl.ok:
+        rgb, a = cl.frame(0.0, x=520, y=1060 + 300 * drop, cx=0.5, cy=0.97, height=560)
+        sway = (3.5 * np.sin(2 * math.pi * 1.6 * t + kit._YS / 30.0)).astype(np.float32)
+        rgb = cv2.remap(rgb, (kit._XS + sway).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        a = cv2.remap(a, (kit._XS + sway).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        rim = np.clip(a - cv2.erode(a, np.ones((7, 7), np.uint8)), 0, 1) * (kit._XS > 520)
+        rgb = rgb + (H('#EDE3CF')[None, None] - rgb) * (rim * 0.8)[..., None]
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    # the seawall edge in the foreground
+    m = (kit._YS > 1000 + 300 * drop).astype(np.float32)
+    img = img + (H('#26345E')[None, None] - img) * (m * 0.95)[..., None]
+    # 87.35-88.09: the swell rises over the wall and the camera; halftone foam at the crest
+    if t >= 87.35:
+        k = clamp((t - 87.35) / 0.74)
+        crest = 1080 - 1250 * _ease_in(k) + 30 * np.sin(kit._XS / 90.0 + t * 4)
+        water = (kit._YS > crest).astype(np.float32)
+        img = img + (H('#1E2550')[None, None] - img) * (water * 0.92)[..., None]
+        foam = np.clip(1 - np.abs(kit._YS - crest) / 40.0, 0, 1)
+        img = img + (H('#C9D3DC')[None, None] - img) * (foam * _dots_k(0.8, 10.0))[..., None]
+    return _zh_fixed(img, t, 29, 85.15, y=1012, ink='#EDE3CF', halo_col='#141A33')
+
+
+R['B-chorus2-04'] = chorus2_04
+tl.OWN_TYPE.add('B-chorus2-04')
