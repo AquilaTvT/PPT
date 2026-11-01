@@ -141,15 +141,27 @@ class Printer:
         half = cv2.resize(u8, (hw, hh), interpolation=cv2.INTER_AREA)
         flat_h = cv2.bilateralFilter(cv2.pyrMeanShiftFiltering(half, 5, 16), 5, 24, 4).astype(np.float32) / 255.0
         base_lab_h, refL_h = self._assign(to_lab(flat_h))
+        skin_h = None
         if skin:          # faces and hands print on a warm cream; the screen carries their shading (manga print)
             sm, core = skin_mask_scene(flat_h)
             if sm.max() > 0.05:
                 Lh = to_lab(flat_h)[..., 0]
                 lit = float(np.percentile(Lh[core], 70)) if core.sum() > 50 else 75.0
+                # each face / hand is lit on its own: its reference level is its own lit side
+                ref = np.full(Lh.shape, min(lit + 3.0, 92.0), np.float32)
+                n, lab = cv2.connectedComponents((sm > 0.35).astype(np.uint8), 8)
+                for i in range(1, n):
+                    reg = lab == i
+                    c = reg & core
+                    vals = Lh[c] if c.sum() > 30 else (Lh[reg] if reg.sum() > 30 else None)
+                    if vals is not None:
+                        ref[reg] = min(float(np.percentile(vals, 70)) + 3.0, 92.0)
+                ref = cv2.GaussianBlur(ref, (0, 0), 2.0)
                 skin_lab = to_lab((np.float32(CREAM) / 255 * 0.82 + hexc('#E8A890') * 0.18)[None, None])[0, 0]
                 sm3 = sm[..., None]
                 base_lab_h = base_lab_h * (1 - sm3) + skin_lab[None, None] * sm3
-                refL_h = refL_h * (1 - sm) + min(lit + 3.0, 92.0) * sm
+                refL_h = refL_h * (1 - sm) + ref * sm
+                skin_h = sm
         if stage is not None and stage.get('inks', 1e9) < len(self.pal):
             k = max(0.0, float(stage['inks']))
             order = np.argsort(-self.pal_g[:, 0])                 # lightest ink first
@@ -169,6 +181,10 @@ class Printer:
         # shading: the real image darker / lighter than its flat ink -> halftone
         L = to_lab(rgb)[..., 0]
         dark = np.clip((ref_L - L - 3.0) / 26.0, 0, 1) * self.shade_amt
+        if skin_h is not None:                                 # faces stay mostly clean: lighter screen on skin
+            sk = cv2.resize(skin_h, (W, H), interpolation=cv2.INTER_LINEAR)
+            dark = dark * (1 - 0.45 * sk) - 0.06 * sk
+            dark = np.clip(dark, 0, 1)
         light = np.clip((L - ref_L - 4.0) / 28.0, 0, 1) * self.shade_amt
         p = self.period
         dk = dots(dark, screen(p, 45.0), p) * st.get('dots', 1.0)

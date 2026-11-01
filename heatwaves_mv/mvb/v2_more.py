@@ -329,12 +329,17 @@ RAW['B-chorus3-01'] = lanterns_raw
 
 
 # ------------------------------------------------------------------ chorus3-04: goldfish
+# a school of goldfish fry (hundreds of tiny fish among the big ones of the footage) gathers into 幸せ; the poi in
+# the tank dips at 幸, the paper tears with a splash on あげ, and the fry scatter from it
+C304_POI = (1530.0, 262.0)
+
+
 @functools.lru_cache(maxsize=1)
-def _fish_init(n=80):
+def _fish_init(n=1300):
     from .v2_typo import glyph_points
     rng = np.random.default_rng(41)
-    tgt = glyph_points('幸せ', 380, n, name='mincho', seed=4) + np.float32([960, 520])
-    start = np.stack([rng.uniform(150, W - 150, n), rng.uniform(150, H_ - 150, n)], 1).astype(np.float32)
+    tgt = glyph_points('幸せ', 540, n, name='mincho', seed=4) + np.float32([900, 560])
+    start = np.stack([rng.uniform(80, W - 80, n), rng.uniform(80, H_ - 80, n)], 1).astype(np.float32)
     phase = rng.uniform(0, 2 * math.pi, n)
     kind = rng.random(n)
     return tgt, start, phase, kind
@@ -343,40 +348,43 @@ def _fish_init(n=80):
 def _fish_pos(t):
     tgt, start, phase, kind = _fish_init()
     g = gt(41)
-    t_in, t_poi = g[2], g[6]
-    wander = np.stack([np.sin(t * 0.7 + phase) * 140 + np.sin(t * 1.3 + phase * 2) * 50,
-                       np.cos(t * 0.6 + phase * 1.3) * 110], 1).astype(np.float32)
+    t_in, t_tear = g[2], g[7]
+    wander = np.stack([np.sin(t * 0.9 + phase) * 90 + np.sin(t * 1.7 + phase * 2) * 30,
+                       np.cos(t * 0.8 + phase * 1.3) * 70], 1).astype(np.float32)
     free = start + wander
-    k = clamp((t - (t_in - 0.6)) / 0.9)
+    k = clamp((t - (t_in - 0.7)) / 1.0)
     k = k * k * (3 - 2 * k)
-    p = free + (tgt + 6 * np.stack([np.sin(t * 3 + phase), np.cos(t * 2.6 + phase)], 1) - free) * k
-    sc = clamp((t - t_poi - 0.25) / 0.7)
+    p = free + (tgt + 3 * np.stack([np.sin(t * 4 + phase), np.cos(t * 3.4 + phase)], 1) - free) * k
+    sc = clamp((t - t_tear) / 0.8)
     if sc > 0:
-        d = p - np.float32([960, 520])
+        d = p - np.float32(C304_POI)
         d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-3
-        p = p + d * (sc ** 0.6) * 520
+        p = p + d * (sc ** 0.55) * 640
     return p
 
 
-def _draw_fish(layer, alpha, p, prev, kind):
+def _draw_fish(layer, alpha, p, prev, kind, outline=False):
     for (x, y), (px, py), kd in zip(p, prev, kind):
-        a = math.degrees(math.atan2(y - py, x - px)) if (abs(x - px) + abs(y - py)) > 0.3 else 0.0
-        col = (0.95, 0.42, 0.16) if kd < 0.7 else ((0.93, 0.90, 0.84) if kd < 0.88 else (0.85, 0.15, 0.10))
-        L, Wd = 26, 11
+        a = math.degrees(math.atan2(y - py, x - px)) if (abs(x - px) + abs(y - py)) > 0.2 else (kd * 360.0)
+        col = (0.97, 0.94, 0.86) if kd < 0.70 else ((0.98, 0.62, 0.22) if kd < 0.90 else (0.90, 0.20, 0.12))
+        L, Wd = 13, 5
+        if outline:
+            cv2.ellipse(layer, ((float(x), float(y)), (L + 3, Wd + 3), a), (0.16, 0.08, 0.06), -1, cv2.LINE_AA)
+            cv2.ellipse(alpha, ((float(x), float(y)), (L + 3, Wd + 3), a), 1.0, -1, cv2.LINE_AA)
         cv2.ellipse(layer, ((float(x), float(y)), (L, Wd), a), col, -1, cv2.LINE_AA)
         cv2.ellipse(alpha, ((float(x), float(y)), (L, Wd), a), 1.0, -1, cv2.LINE_AA)
         ar = math.radians(a)
-        bx, by = x - math.cos(ar) * L * 0.5, y - math.sin(ar) * L * 0.5
-        tail = np.float32([[bx, by], [bx - math.cos(ar - 0.6) * 16, by - math.sin(ar - 0.6) * 16],
-                           [bx - math.cos(ar + 0.6) * 16, by - math.sin(ar + 0.6) * 16]])
+        bx, by = x - math.cos(ar) * L * 0.45, y - math.sin(ar) * L * 0.45
+        tail = np.float32([[bx, by], [bx - math.cos(ar - 0.7) * 8, by - math.sin(ar - 0.7) * 8],
+                           [bx - math.cos(ar + 0.7) * 8, by - math.sin(ar + 0.7) * 8]])
         cv2.fillPoly(layer, [np.round(tail * 4).astype(np.int32)], col, cv2.LINE_AA, shift=2)
-        cv2.fillPoly(alpha, [np.round(tail * 4).astype(np.int32)], 0.85, cv2.LINE_AA, shift=2)
+        cv2.fillPoly(alpha, [np.round(tail * 4).astype(np.int32)], 0.8, cv2.LINE_AA, shift=2)
 
 
 def goldfish_raw(s, t, local):
     img = base(s, t, local)
     g = gt(41)
-    # her face in the water (the reflection of the one looking down at the tank)
+    # her face on the water (the one looking down into the tank), faint, rippling
     from .v2_shots import her
     face = her('turn', 0.4 + local * 0.5)
     if face is not None:
@@ -384,55 +392,52 @@ def goldfish_raw(s, t, local):
         ys, xs = np.mgrid[0:760, 0:760].astype(np.float32)
         f = cv2.remap(f, xs + 4 * np.sin(ys / 13 + t * 3), ys + 3 * np.sin(xs / 17 + t * 2.4), cv2.INTER_LINEAR,
                       borderMode=cv2.BORDER_REFLECT)
-        m = np.clip(1 - np.hypot(xs - 380, ys - 380) / 380, 0, 1) ** 1.2 * 0.22
-        x0, y0 = 960 - 380, 540 - 380
+        m = np.clip(1 - np.hypot(xs - 380, ys - 380) / 380, 0, 1) ** 1.2 * 0.20
+        x0, y0 = 930 - 380, 560 - 380
         roi = img[y0:y0 + 760, x0:x0 + 760]
         roi += (f * 1.1 - roi) * m[..., None] * np.float32([0.9, 1.0, 1.1])
     p, prev = _fish_pos(t), _fish_pos(t - 1 / 24)
     _, _, _, kind = _fish_init()
-    layer = np.zeros((H_, W, 3), np.float32)
-    alpha = np.zeros((H_, W), np.float32)
-    # under-water shadow first, then the fish
     sl = np.zeros((H_, W, 3), np.float32)
     sa = np.zeros((H_, W), np.float32)
-    _draw_fish(sl, sa, p + np.float32([10, 16]), prev + np.float32([10, 16]), kind)
-    img *= 1 - cv2.GaussianBlur(sa, (0, 0), 5)[..., None] * 0.35
-    _draw_fish(layer, alpha, p, prev, kind)
-    img = img * (1 - alpha[..., None]) + layer * alpha[..., None]
-    # the poi: dips in at the line's 幸 -> tears on あげ
-    tp = g[6] - 0.5
-    k = (t - tp) / 0.5
-    if k > 0:
-        cx = 1250 - 290 * clamp(k)
-        cy = 300 + 220 * clamp(k)
-        r = 170
-        tear = clamp((t - g[6] - 0.15) / 0.25)
-        lift = clamp((t - g[8]) / 0.6)
-        cx += 300 * lift
-        cy -= 260 * lift
-        paper = np.zeros((H_, W), np.float32)
-        cv2.circle(paper, (int(cx * 4), int(cy * 4)), int(r * 4), 1.0, -1, cv2.LINE_AA, shift=2)
-        if tear > 0:
-            rng = np.random.default_rng(9)
-            ang = np.linspace(0, 2 * math.pi, 28)
-            rr = r * (0.25 + 0.55 * tear) * (0.75 + 0.25 * rng.random(28))
-            hole = np.stack([cx + 20 + np.cos(ang) * rr, cy + 10 + np.sin(ang) * rr], 1)
-            cv2.fillPoly(paper, [np.round(hole * 4).astype(np.int32)], 0.0, cv2.LINE_AA, shift=2)
-        img += (H('#F6F1E6')[None, None] - img) * (paper * 0.45)[..., None]
-        ring = np.zeros((H_, W), np.float32)
-        cv2.circle(ring, (int(cx * 4), int(cy * 4)), int(r * 4), 1.0, 10, cv2.LINE_AA, shift=2)
-        hx, hy = cx + math.cos(-0.7) * r, cy + math.sin(-0.7) * r
-        cv2.line(ring, (int(hx * 4), int(hy * 4)), (int((hx + 380) * 4), int((hy - 300) * 4)), 1.0, 22, cv2.LINE_AA, shift=2)
-        img += (H('#E64A3A')[None, None] - img) * ring[..., None]
-        # ripples where the poi meets the water
-        ys, xs = _grid()
-        rr = np.hypot(xs - cx, ys - cy)
-        rip = (np.sin((rr - (t - tp) * 260) / 9.0) > 0.92) * np.exp(-np.abs(rr - r - 40) / 120.0) * 0.25 * (1 - lift)
-        img += rip[..., None] * H('#FFFFFF')[None, None]
+    _draw_fish(sl, sa, p + np.float32([6, 10]), prev + np.float32([6, 10]), kind)
+    img *= 1 - np.clip(cv2.GaussianBlur(sa, (0, 0), 7) * 1.6, 0, 1)[..., None] * 0.55   # the school's shadow (printed)
+    # the poi dips on 幸 (rings spread from it) and tears with a splash on あげ
+    ys, xs = _grid()
+    px, py = C304_POI
+    rr = np.hypot(xs - px, ys - py)
+    for t0, amp in ((g[3], 0.18), (g[7], 0.32)):
+        k = t - t0
+        if 0 <= k < 1.4:
+            ring = np.exp(-((rr - 40 - k * 420) / 7.0) ** 2) + 0.6 * np.exp(-((rr - 20 - k * 300) / 6.0) ** 2)
+            img += ring[..., None] * H('#FFFFFF')[None, None] * amp * (1 - k / 1.4)
+    k = t - g[7]
+    if 0 <= k < 0.5:                                   # the splash: white droplets out of the torn paper
+        rng = np.random.default_rng(12)
+        m = np.zeros((H_, W), np.float32)
+        for j in range(60):
+            a = rng.uniform(0, 2 * math.pi)
+            d = rng.uniform(20, 150) * (0.3 + k * 2.2)
+            r = max(1, int(rng.uniform(2, 6) * (1 - k * 1.6)))
+            cv2.circle(m, (int((px + math.cos(a) * d) * 4), int((py + math.sin(a) * d) * 4)), r * 4, 1.0, -1, cv2.LINE_AA, shift=2)
+        img += (H('#F4FAFF')[None, None] - img) * (m * (1 - k / 0.5))[..., None]
     return _dream(img, s, t, local)
 
 
 RAW['B-chorus3-04'] = goldfish_raw
+
+
+def goldfish_over(img, s, t, local):
+    """the fry themselves, crisp over the print (small enough that the press would melt them)"""
+    p, prev = _fish_pos(t), _fish_pos(t - 1 / 24)
+    _, _, _, kind = _fish_init()
+    layer = np.zeros((H_, W, 3), np.float32)
+    alpha = np.zeros((H_, W), np.float32)
+    _draw_fish(layer, alpha, p, prev, kind, outline=True)
+    return img * (1 - alpha[..., None]) + layer * alpha[..., None]
+
+
+OVER['B-chorus3-04'] = goldfish_over
 
 
 # ------------------------------------------------------------------ chorus3-05 / 06: fireworks
@@ -449,7 +454,7 @@ def _bursts(sid):
         out.append((gt(42)[6] - 0.42, 960, 400, '#FFE9A8', '#FF8A3C', '君'))
     else:
         out = [(BEAT0 + (nb0 + 1 + j) * BEAT, x, y, c1, c2, g) for j, x, y, c1, c2, g in FW06]
-        out.append((gt(43)[2] - 0.40, 960, 360, '#BFF0FF', '#5FA0FF', '0:00'))
+        out.append((gt(43)[2] - 0.40, 600, 300, '#BFF0FF', '#5FA0FF', '0:00'))
     return out
 
 
