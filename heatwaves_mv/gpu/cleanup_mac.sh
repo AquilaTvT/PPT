@@ -7,6 +7,7 @@
 #   ~/Heat Waves/hw-media   (the media push clone)
 #   ~/Heat Waves/hw-push    (the push test clone)
 #   uv:  ~/.local/bin/uv, ~/.local/bin/uvx, ~/.local/share/uv, ~/.cache/uv
+# Also deletes the remote branches hw-media and hw-media-test (GitHub).
 # Keeps: the Claude desktop app / CLI, Homebrew, git, anything else. The ComfyUI server is stopped first.
 set -u
 YES=0
@@ -22,6 +23,12 @@ if [ "$YES" -ne 1 ]; then
   echo "dry run. Re-run with --yes to delete."
   exit 0
 fi
+# remove the media branches from GitHub (the cloud session cannot delete branches); best effort
+for d in "$BASE/hw-media" "$BASE/PPT"; do
+  if [ -d "$d/.git" ]; then
+    GIT_TERMINAL_PROMPT=0 git -C "$d" push origin --delete hw-media hw-media-test 2>&1 | tail -2 && break
+  fi
+done
 # stop ComfyUI / caffeinate started for this project (by command line, never by a bare pattern on other apps)
 for pid in $(pgrep -f "Heat Waves/PPT/heatwaves_mv/.hw/ComfyUI/main.py" 2>/dev/null); do kill "$pid" 2>/dev/null; done
 for pid in $(pgrep -f "chain_mac" 2>/dev/null); do kill "$pid" 2>/dev/null; done
