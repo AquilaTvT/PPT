@@ -271,6 +271,8 @@ def install():
     v2_shots.install()
     v2_tv.install()
     v2_b1.install()
+    from . import v2_outro
+    v2_outro.install()
     own = set(v2_card.OWN_TYPE) | V2_OWN_TYPE
     n = 0
     for s in tl.SHOTS:

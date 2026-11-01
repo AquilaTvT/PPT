@@ -232,10 +232,11 @@
    "end": 70.31,
    "kind": "scene",
    "video_mode": "i2v",
-   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, 1boy, <girl> <girl_uniform> and <boy> <boy_shirt> standing side by side on a small seaside station platform at noon, full body, front view, a little distance between them, platform sign, blue sky, 1980s japan, detailed background, cinematic composition",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, 1boy, duo, only two people, <girl> <girl_uniform> standing on the left and <boy> <boy_shirt> standing on the right, side by side a little apart, both facing the viewer, full body, wide shot, an empty small seaside station platform at noon, nobody else, blue sky, the sea behind them, symmetrical composition, 1980s japan, detailed background, cinematic composition",
    "video_prompt": "They stand still side by side on the platform, the summer wind moves their hair, heat shimmer rises from the rails, static shot.",
    "beat": "两人在站台上的双色印刷照：他那一块钴蓝版像丝网一样从纸上揭起、卷走，只剩她，她那一版反而更亮了。",
-   "notes": "two-ink photo; his cobalt plate peels off like a screen"
+   "notes": "two-ink photo; his cobalt plate peels off like a screen",
+   "regen": "v2: girl left / boy right, two people only, no sign (kf_0 had a duplicated girl, kf_1 close-ups)"
   },
   {
    "id": "B2-verse-06",
@@ -328,10 +329,11 @@
    "end": 96.98,
    "kind": "scene",
    "video_mode": "i2v",
-   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, 1boy, <girl> <girl_uniform> seen from behind in the foreground on a long concrete seawall at dusk, far away <boy> <boy_shirt> walking away alone along the seawall, long shadows, orange sunset, purple clouds, the sea, wide shot, 1980s japan, detailed background, cinematic composition",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, 1boy, from behind, back view of <girl> <girl_uniform> standing in the foreground on a long concrete seawall at dusk, her back to the viewer, facing away, looking into the distance, far away along the seawall <boy> <boy_shirt> walking away alone, small figure, long shadows, orange sunset, purple clouds, the sea, wide shot, 1980s japan, detailed background, cinematic composition",
    "video_prompt": "She stands still watching, the boy walks away along the seawall and grows smaller, their long shadows stretch over the concrete, the sunset glows, static shot.",
    "beat": "黄昏的长堤：前景是她的背影，远处他一个人沿着堤走远了；歌词被夕阳拉成长长的影子投在水泥上。",
-   "notes": "lyric cast as long shadows on the concrete"
+   "notes": "lyric cast as long shadows on the concrete",
+   "regen": "v2: she must be seen from behind (both first candidates faced the viewer)"
   },
   {
    "id": "B2-bridge1-04",
