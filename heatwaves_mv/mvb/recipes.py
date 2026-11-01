@@ -4521,16 +4521,19 @@ def chorus3_03(s, t, local, fi):
         dt = t - tg
         if dt < -0.3 or dt > 0.5:
             continue
-        x = 300 + (i * 137) % 1300 + 900 * dt
-        y = 640 + 60 * math.sin(i * 1.7)
+        side = -1 if i % 2 == 0 else 1                     # fans pass on both sides of him
+        x = 960 + side * (330 + 90 * (i % 3)) + 1100 * dt * side
+        y = 600 + 70 * math.sin(i * 1.7)
+        R0 = 112
         flip = math.cos(math.pi * clamp((dt + 0.1) / 0.2))
         m = np.zeros((1080, 1920), np.float32)
-        cv2.ellipse(m, (int(x), int(y)), (max(2, int(70 * abs(flip))), 70), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
-        cv2.line(m, (int(x), int(y + 70)), (int(x), int(y + 150)), 1.0, 8, cv2.LINE_AA)
+        cv2.ellipse(m, (int(x), int(y)), (max(2, int(R0 * abs(flip))), R0), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        cv2.line(m, (int(x), int(y + R0)), (int(x), int(y + R0 + 120)), 1.0, 12, cv2.LINE_AA)
         fan_col = '#EDE3CF' if flip < 0 else '#D9402B'
+        img = img + (H('#1A1416')[None, None] - img) * cv2.dilate(m, np.ones((7, 7), np.uint8))[..., None]
         img = img + (H(fan_col)[None, None] - img) * m[..., None]
         if flip < -0.2:
-            kit.map_glyph(img, ch, x, y, 74, 0.0, 1.0, sx=-flip, fill='#D9402B', stroke='#1A1416', sw=4.0)
+            kit.map_glyph(img, ch, x, y, 120, 0.0, 1.0, sx=-flip, fill='#D9402B', stroke='#1A1416', sw=5.0)
     ly = once('c303_ly', lambda: VLyric(40, x=1720, accent='#D9402B'))
     return ly.draw(img, t)
 
@@ -4944,10 +4947,17 @@ def chorus4_03(s, t, local, fi):
     from .print_fx import hexc as H
     pl = once('c403', _c403_plate)
     img = pl.frame(local).copy()
+    vp = pl.anchor(local, 'vp')
+    hy = float(np.clip(vp[0][1], 300, 800)) if vp else 585.0
+    lx = 1660.0                                             # the cape at the far end of the coast (road VP ~1470), sea side
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.fillConvexPoly(m, np.array([[lx - 7, int(hy)], [lx + 7, int(hy)], [lx + 4, int(hy - 52)], [lx - 4, int(hy - 52)]], np.int32), 1.0, cv2.LINE_AA)
+    img = img + (H('#EDE3CF')[None, None] - img) * m[..., None]
+    kit.halo(img, lx, hy - 55, 22 + 8 * math.sin(t * 3), '#F7E3C2', 0.9, period=6.0)
     # beam sweep across the frame on 154.02 (one pass per bar)
     k = (t - 154.02) / 0.5
     if -0.6 < k < 0.6:
-        ang = np.arctan2(kit._XS - (300 + 1300 * (k + 0.5)), -(kit._YS + 700))
+        ang = np.arctan2(kit._XS - (1560 - 1600 * (k + 0.5)), -(kit._YS + 700))
         fan = np.clip(1 - np.abs(ang) / 0.18, 0, 1)
         img = img + (H('#F7E3C2')[None, None] - img) * (fan * _dots_k(0.55, 12.0) * 0.6)[..., None]
     cl = once('c403_char', lambda: chars.CharLayer('B-chorus4-03'))
