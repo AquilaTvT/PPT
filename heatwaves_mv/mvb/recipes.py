@@ -4113,3 +4113,186 @@ def chorus2_04(s, t, local, fi):
 
 R['B-chorus2-04'] = chorus2_04
 tl.OWN_TYPE.add('B-chorus2-04')
+
+
+# ---- shared: dusk over the seawall (paper-cut vermilion sun, orange halftone sea, the wall receding) -----------------
+def dusk_wall(t, hy=470, sun=(1460, 440, 120), vp_x=1500, wall_top=640):
+    """a 2D printed dusk view along the seawall: sky band, low sun, glittering orange sea, wall receding to vp"""
+    import cv2
+    from .print_fx import hexc as H
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = np.clip(kit._YS / hy, 0, 1)[..., None]
+    img[:] = H('#2B2350') * (1 - g) + H('#F08A3C') * g
+    img = img + (H('#F5C842')[None, None] - img) * (np.clip(1 - np.abs(kit._YS - hy + 40) / 90.0, 0, 1) * 0.55)[..., None]
+    sx, sy, sr = sun
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.circle(m, (int(sx), int(sy)), int(sr), 1.0, -1, cv2.LINE_AA)
+    m *= (kit._YS < hy)
+    img = img + (H('#D9402B')[None, None] - img) * m[..., None]
+    sea = (kit._YS >= hy).astype(np.float32)
+    seac = H('#F08A3C') * 0.8 + H('#D9402B') * 0.2
+    img = img + (seac[None, None] - img) * sea[..., None]
+    dep = np.maximum(kit._YS - hy, 0.0)
+    ph = dep / (1.5 + 0.02 * dep) - t * 2.0 + np.sin(kit._XS / (60 + 0.4 * dep) + dep / 30.0) * 2.0
+    lines = ((np.sin(ph) > 0.85) & (sea > 0)).astype(np.float32)
+    img = img + (H('#1E2550')[None, None] - img) * (lines * 0.45)[..., None]
+    glit = np.clip(1 - np.abs(kit._XS - sx) / (40 + 0.6 * dep), 0, 1) * sea * lines
+    img = img + (H('#F5C842')[None, None] - img) * glit[..., None]
+    # the wall: a concrete band receding from the lower-left to the vanishing point
+    pts = np.array([[0, 1080], [0, wall_top + 80], [vp_x, hy + 6], [vp_x + 6, hy + 10], [1920, 1080]], np.int32)
+    wm = np.zeros((1080, 1920), np.float32)
+    cv2.fillPoly(wm, [pts], 1.0, cv2.LINE_AA)
+    return img, wm
+
+
+# ---- B-bridge1-02: last summer at dusk -- the chalk 相合傘 draws itself; she sits beside it, shy -------------------------
+def bridge1_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    arc = 10.0 * clamp(local / (s['end'] - s['start']))
+    push = 1.0 + 0.04 * _ease_io(clamp((t - 93.28) / 0.6))
+    img, wm = dusk_wall(t, hy=420, sun=(1560, 380, 110), vp_x=1700, wall_top=560)
+    conc = concrete_dusk()
+    img = img + (conc - img) * wm[..., None]
+    # the doodle in the screen-left foreground, foreshortened on the concrete
+    um, sun, moon, (sx, sy), (mx, my) = aiaigasa_masks()
+    draw_k = clamp((t - 91.05) / (91.79 - 91.05))
+    sig_k = clamp((t - 91.79) / 0.45)
+    def reveal(mask, k, seed):
+        if k <= 0:
+            return np.zeros_like(mask)
+        if k >= 1:
+            return mask
+        order = np.clip((kit._YS - 150) / 800.0 + 0.15 * np.sin(kit._XS / 60.0 + seed), 0, 1)
+        return mask * (order < k)
+    doodle = chalk(reveal(um, draw_k, 0), 1) + chalk(reveal(sun, sig_k, 1), 2) + chalk(reveal(moon, sig_k, 2), 3)
+    # L31 down the umbrella handle per mora; 愛 at the umbrella tip in vermilion chalk
+    gt = _map_gt(31)
+    word = '愛とか言っていたって'
+    ver = np.zeros((1080, 1920), np.float32)
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)]:
+            continue
+        key = ('b102g', i)
+        if key not in _cache:
+            if i == 0:
+                gl = text.layout_v(ch, 900, 70, 96, 'mincho')
+            else:
+                gl = text.layout_v(ch, 990, 230 + (i - 1) * 74, 72, 'mincho')
+            f, _ = text.render_glyphs(gl)
+            _cache[key] = f
+        f = _cache[key]
+        if f is None:
+            continue
+        if i == 0:
+            ver = np.maximum(ver, chalk(f, 9, 0.25))
+        else:
+            doodle = doodle + chalk(f, 10 + i, 0.25)
+    doodle = np.clip(doodle, 0, 1)
+    # lay the doodle on the ground: keystone into the lower-left of the frame
+    src = np.float32([[300, 0], [1500, 0], [1500, 1080], [300, 1080]])
+    dst = np.float32([[60, 470], [1000, 470], [1240, 1080], [-320, 1080]])
+    Hm = cv2.getPerspectiveTransform(src, dst)
+    dg = cv2.warpPerspective(doodle, Hm, (1920, 1080))
+    vg = cv2.warpPerspective(ver, Hm, (1920, 1080))
+    img = img + (H('#F6F2E7')[None, None] - img) * dg[..., None]
+    img = img + (H('#D9402B')[None, None] - img) * vg[..., None]
+    # long dusk shadows across the concrete
+    sh = np.clip(np.sin((kit._XS * 0.3 + kit._YS) / 80.0) * 0.5 + 0.5, 0, 1) * (kit._YS > 700) * wm * 0.0
+    # her, screen-right, sitting, sun-yellow rim light
+    cl = once('b102_char', lambda: chars.CharLayer('B-bridge1-02'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=1360, y=1080, cx=0.5, cy=0.95, height=760)
+        rim = np.clip(a - cv2.erode(a, np.ones((9, 9), np.uint8)), 0, 1) * (kit._XS > 1360)
+        rgb = rgb + (H('#F5C842')[None, None] - rgb) * (rim * 0.9)[..., None]
+        img = chars.over(img, rgb, a, shadow='#2B2350', shadow_off=(-30, 14), shadow_amt=0.5)
+    M = cv2.getRotationMatrix2D((960, 540), -arc * 0.3, push)
+    M[0, 2] -= arc * 6
+    img = cv2.warpAffine(img, M, (1920, 1080), borderMode=cv2.BORDER_REFLECT)
+    return _zh_fixed(img, t, 31, 90.8, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-bridge1-02'] = bridge1_02
+tl.OWN_TYPE.add('B-bridge1-02')
+
+
+# ---- B-bridge1-03: she watches him walk away along the wall; the lyric is only long shadows on the concrete ------------
+def bridge1_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    push = 1.0 + 0.02 * clamp(local / (s['end'] - s['start']))
+    sink = clamp((t - 96.24) / 0.7) * 40
+    img, wm = dusk_wall(t, hy=520, sun=(1650, 470 + sink, 70), vp_x=1180, wall_top=600)
+    conc = concrete_dusk()
+    img = img + (conc * 0.85 - img) * wm[..., None]
+    # glints on beats
+    ph = ((t - 0.682) / BEAT) % 1.0
+    rng = np.random.default_rng(int((t - 0.682) / BEAT))
+    for _ in range(6):
+        kit.halo(img, rng.uniform(1250, 1900), rng.uniform(540, 760), 30 * math.exp(-ph * 3) + 6, '#F5C842',
+                 0.9 * math.exp(-ph * 3), period=7.0)
+    # the curve mirror at the bend + his reflection flash on 95.50
+    mxp, myp = 1205, 470
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.line(m, (mxp, myp + 18), (mxp, myp + 64), 1.0, 3, cv2.LINE_AA)
+    img = img + (H('#D9402B')[None, None] - img) * m[..., None]
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.circle(m, (mxp, myp), 16, 1.0, -1, cv2.LINE_AA)
+    flash = math.exp(-max(0.0, t - 95.50) * 6) if t >= 95.50 else 0.0
+    img = img + (H('#F5D7A0')[None, None] * (1 + 0.3 * flash) - img) * m[..., None]
+    if flash > 0.05:
+        kit.halo(img, mxp, myp, 50 * flash + 10, '#F6F2E7', flash, period=6.0)
+    # him: a dot-person walking away along the wall top (90 -> 40 px)
+    u = clamp(local / (s['end'] - s['start']))
+    x = 760 + (1150 - 760) * u
+    y = 640 + (530 - 640) * u
+    img = kit.dot_walker(img, x, y, 90 - 50 * u, local * 1.8, colors=('#1A1416', '#F6F2E7', '#1A1416', '#1A1416'),
+                         pitch=max(2.6, (90 - 50 * u) / 16))
+    # L32 as invisible glyphs on the wall: only their long indigo halftone shadows print, stretching as the sun sinks
+    gt = _map_gt(32)
+    word = '行くべきなのさ'
+    shadow = np.zeros((1080, 1920), np.float32)
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)]:
+            continue
+        key = ('b103g', i)
+        if key not in _cache:
+            gl, _ = text.layout_h(ch, 960, 540, 150, 'mincho', align='center')
+            _cache[key], _ = text.render_glyphs(gl)
+        f = _cache[key]
+        if f is None:
+            continue
+        bx = 560 + i * 120
+        by = 1000 - i * 62
+        stretch = 2.6 + 0.9 * clamp((t - 94.34) / 2.6) + sink / 40
+        src = np.float32([[880, 460], [1040, 460], [1040, 620], [880, 620]])
+        sc_ = 1.0 - i * 0.08
+        dst = np.float32([[bx - 150 * stretch * sc_, by - 60 * sc_], [bx - 50 * stretch * sc_, by - 70 * sc_ - 25 * stretch * sc_],
+                          [bx + 70 * sc_, by], [bx - 40 * sc_, by + 20 * sc_]])
+        Hm = cv2.getPerspectiveTransform(src, dst)
+        shadow = np.maximum(shadow, cv2.warpPerspective(f, Hm, (1920, 1080)))
+    shadow = shadow * wm
+    img = img + (H('#1E2550')[None, None] - img) * (shadow * (0.55 + 0.45 * _dots_k(0.75, 8.0)))[..., None]
+    # her back, out of focus, foreground left, cropped at the waist; bob and neckerchief in the wind
+    cl = once('b103_char', lambda: chars.CharLayer('B-bridge1-03'))
+    if cl.ok:
+        rgb, a = cl.frame(0.0, x=330, y=1080, cx=0.5, cy=0.6, height=1500)
+        sway = (4.0 * np.sin(2 * math.pi * 1.4 * t + kit._YS / 40.0) * (kit._YS < 500)).astype(np.float32)
+        rgb = cv2.remap(rgb, (kit._XS + sway).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        a = cv2.remap(a, (kit._XS + sway).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        rgb = cv2.GaussianBlur(rgb, (0, 0), 4.0)
+        a = cv2.GaussianBlur(a, (0, 0), 3.0)
+        img = chars.over(img, rgb, a)
+    if push != 1.0:
+        img = cv2.warpAffine(img, cv2.getRotationMatrix2D((1180, 520), 0, push), (1920, 1080), borderMode=cv2.BORDER_REFLECT)
+    return _zh_fixed(img, t, 32, 94.34, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-bridge1-03'] = bridge1_03
+tl.OWN_TYPE.add('B-bridge1-03')
