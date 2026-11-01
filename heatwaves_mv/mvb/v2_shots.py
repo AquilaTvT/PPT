@@ -756,8 +756,14 @@ def proof_marks():
         h = H(col)
         c.drawRect(skia.Rect.MakeXYWH(W - 470 + i * 52, H_ - 66, 44, 22), skia.Paint(AntiAlias=True, Color=skia.Color4f(*h, 1.0)))
     from mv import text
-    c.drawString('潮見観光協会　昭和六十年夏　第一刷', 110, H_ - 48, text.font('mincho_sb', 22),
-                 skia.Paint(AntiAlias=True, Color=skia.Color4f(0.10, 0.07, 0.07, 1.0)))
+    ink = skia.Paint(AntiAlias=True, Color=skia.Color4f(0.10, 0.07, 0.07, 1.0))
+    c.drawString('潮見観光協会　昭和六十年夏　第一刷', 110, H_ - 48, text.font('mincho_sb', 22), ink)
+    # the colophon: song, cover, map data (OpenStreetMap attribution), fan work
+    f = text.font('garamond', 19)
+    for k, line in enumerate(('Heat Waves - Glass Animals  /  Japanese cover and lyrics: Lime',
+                              'Map data (c) OpenStreetMap contributors, ODbL  /  a fan-made music video')):
+        line = line.replace('(c)', '\u00a9')
+        c.drawString(line, W - 110 - f.measureText(line), 112 + k * 26, f, ink)
     arr = np.empty((H_, W, 4), np.uint8)
     surf.readPixels(skia.ImageInfo.Make(W, H_, skia.ColorType.kRGBA_8888_ColorType, skia.AlphaType.kUnpremul_AlphaType), arr, W * 4)
     return arr.astype(np.float32) / 255.0
@@ -893,7 +899,7 @@ def oh3_english(img, s, t):
         keep[lit[last][0], lit[last][1]] = 1
     on = cv2.resize(keep, (gw * dot, gh * dot), interpolation=cv2.INTER_NEAREST)
     frame = crop[:gh * dot, :gw * dot] * on[..., None] + crop[:gh * dot, :gw * dot] * (1 - on[..., None]) * 0.12
-    bg_a = clamp(1 - (t - 197.9) / 0.6) * 0.92
+    bg_a = clamp(1 - (t - 197.9) / 0.15) * 0.92                  # the strip's board goes first: only lit dots remain
     roi = img[y0:y0 + frame.shape[0], x0:x0 + frame.shape[1]]
     lit_m = on[..., None] * 1.0
     roi += (frame - roi) * np.maximum(lit_m, bg_a)
