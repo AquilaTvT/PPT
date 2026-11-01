@@ -70,50 +70,54 @@ class MapData:
         self.pois = [dict(p, xy=np.asarray(p['xy'], np.float32) / 10.0) for p in d['pois']]
         self.size = self.meta['size_m']
 
-    # road graph for routes (nodes = shared vertices, metres)
+    # road graph for routes. The exported ways were simplified, so junction vertices are not always shared:
+    # every way is densified to <= 6 m and vertices of different ways closer than 4 m are joined.
+    COST = {'road_major': 0.85, 'road_minor': 1.0, 'road_small': 1.1, 'path': 1.3, 'steps': 2.0, 'bridge': 1.0}
+
     def graph(self):
         if hasattr(self, '_g'):
             return self._g
-        adj = {}
-        def key(p):
-            return (round(float(p[0]), 1), round(float(p[1]), 1))
-        for k in ('road_major', 'road_minor', 'road_small', 'path', 'steps', 'bridge'):
+        from scipy.sparse import coo_matrix
+        from scipy.spatial import cKDTree
+        verts, rows, cols, wts = [], [], [], []
+        n = 0
+        for k, f in self.COST.items():
             for line in self.L[k]:
+                seg = [line[0]]
                 for a, b in zip(line[:-1], line[1:]):
-                    ka, kb = key(a), key(b)
-                    w = float(np.hypot(*(b - a)))
-                    adj.setdefault(ka, []).append((kb, w))
-                    adj.setdefault(kb, []).append((ka, w))
-        self._g = adj
-        return adj
+                    m = max(1, int(np.ceil(np.hypot(*(b - a)) / 6.0)))
+                    for j in range(1, m + 1):
+                        seg.append(a + (b - a) * (j / m))
+                seg = np.asarray(seg, np.float32)
+                idx = np.arange(n, n + len(seg))
+                d = np.hypot(*np.diff(seg, axis=0).T) * f
+                rows += list(idx[:-1]); cols += list(idx[1:]); wts += list(d + 1e-3)
+                verts.append(seg)
+                n += len(seg)
+        V = np.concatenate(verts)
+        pairs = cKDTree(V).query_pairs(4.0, output_type='ndarray')
+        dj = np.hypot(*(V[pairs[:, 0]] - V[pairs[:, 1]]).T) + 0.5
+        rows += list(pairs[:, 0]); cols += list(pairs[:, 1]); wts += list(dj)
+        r, c, w = np.array(rows + cols), np.array(cols + rows), np.array(wts + wts, np.float64)
+        self._g = (V, coo_matrix((w, (r, c)), shape=(n, n)).tocsr(), cKDTree(V))
+        return self._g
 
     def nearest_node(self, x, y):
-        g = self.graph()
-        ks = np.array(list(g.keys()), np.float32)
-        i = int(np.argmin((ks[:, 0] - x) ** 2 + (ks[:, 1] - y) ** 2))
-        return tuple(float(v) for v in ks[i])
+        V, _, tree = self.graph()
+        return int(tree.query([x, y])[1])
 
     def path(self, a, b):
         """shortest street path between two points (metres) -> polyline (N, 2)"""
-        g = self.graph()
+        from scipy.sparse.csgraph import dijkstra
+        V, G, _ = self.graph()
         s, t = self.nearest_node(*a), self.nearest_node(*b)
-        dist, prev = {s: 0.0}, {}
-        q = [(0.0, s)]
-        while q:
-            d, u = heapq.heappop(q)
-            if u == t:
-                break
-            if d > dist.get(u, 1e18):
-                continue
-            for v, w in g.get(u, ()):
-                nd = d + w
-                if nd < dist.get(v, 1e18):
-                    dist[v], prev[v] = nd, u
-                    heapq.heappush(q, (nd, v))
+        _, pred = dijkstra(G, indices=s, return_predecessors=True)
         out = [t]
-        while out[-1] != s and out[-1] in prev:
-            out.append(prev[out[-1]])
-        return np.array(out[::-1], np.float32)
+        while out[-1] != s and pred[out[-1]] >= 0:
+            out.append(int(pred[out[-1]]))
+        if out[-1] != s:
+            return np.array([V[s], V[t]], np.float32)
+        return V[np.array(out[::-1])]
 
 
 VARIANTS = {

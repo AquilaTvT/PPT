@@ -203,15 +203,25 @@ def make_recipe(s):
 
 def install():
     """override every shot that has B2 footage (or a v2-only recipe) with its v2 recipe"""
+    from . import v2_card
+    GRAPHIC.update(v2_card.GRAPHIC)
+    own = set(v2_card.OWN_TYPE) | V2_OWN_TYPE
     n = 0
     for s in tl.SHOTS:
-        if s['id'] in GRAPHIC:
-            tl.RECIPES[s['id']] = GRAPHIC[s['id']]
-            n += 1
+        sid = s['id']
+        if sid in GRAPHIC:
+            tl.RECIPES[sid] = GRAPHIC[sid]
         elif clip_path(b2_id(s)):
-            tl.RECIPES[s['id']] = make_recipe(s)
-            n += 1
+            tl.RECIPES[sid] = make_recipe(s)
+        else:
+            continue
+        n += 1
+        if sid in own:
+            tl.OWN_TYPE.add(sid)
+        else:
+            tl.OWN_TYPE.discard(sid)           # v1 recipes typeset their own lines; v2 uses the default column
     return n
 
 
+V2_OWN_TYPE = set()      # v2 recipes that draw their own Japanese lines
 GRAPHIC = {}             # shot id -> full recipe for the pure-graphics shots (map, stamp card)
