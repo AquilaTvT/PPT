@@ -208,7 +208,8 @@ def footage(sid2):
 
 SPEED = {'B-hook-01': 0.42,   # clip speed overrides (hook-01: only the first 1.3 s of its clip hold the mirror upright;
          'B-outro-03': 0.5,   # outro-03: a slow-motion dawn run -- after 1.5 s the clip grows yellow letters on the wall;
-         'B-chorus2-02': 0.82}  # chorus2-02: ends at 2.5 s of the clip, before his face smears dark as he leans in)
+         'B-chorus2-02': 0.82,  # chorus2-02: ends at 2.5 s of the clip, before his face smears dark as he leans in;
+         'B-chorus1-03': 0.9}   # chorus1-03 (v_3): ends at 2.75 s, before her face softens in the last frames)
 REVERSE = {'B-hook-01'}    # clips played backwards: the generated camera move reads better reversed (hook-01: the
                           # view drifts off the mirror; reversed it settles on it, ready for the push into it)
 IN_T = {'B-chorus3-06': 0.72}   # clip in-points (s): chorus3-06 opens on a hard yellow-green firework patch over his
