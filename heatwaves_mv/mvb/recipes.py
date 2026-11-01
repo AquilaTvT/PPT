@@ -4671,3 +4671,57 @@ def chorus3_04(s, t, local, fi):
 
 R['B-chorus3-04'] = chorus3_04
 tl.OWN_TYPE.add('B-chorus3-04')
+
+
+# ---- B-chorus3-06: a starmine writes 0:00 in the sky, one character per beat; the two of them look up side by side ------
+def chorus3_06(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import fireworks as fw
+    from .print_fx import hexc as H
+    push = 1.0 + 0.04 * clamp(local / (s['end'] - s['start']))
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = (kit._YS / 1080)[..., None]
+    img[:] = H('#141A33') * (1 - g) + H('#1E2550') * g
+    # lantern wires along the bottom of the sky
+    for k in range(3):
+        pts = [(x, int(560 + k * 40 + 60 * (1 - ((x - 960) / 1100) ** 2))) for x in range(-50, 1980, 40)]
+        for a, b in zip(pts, pts[1:]):
+            cv2.line(img, a, b, tuple(float(v) for v in H('#1A1416')), 2, cv2.LINE_AA)
+        for j, (x, y) in enumerate(pts[1::4]):
+            kit.halo(img, x, y + 22, 26, '#D9402B', 0.8, period=7.0)
+    # the starmine: '0' ':' '0' '0' in mint dot sparks, one per beat
+    chars_ = [('0', 126.61, 520), (':', 127.35, 800), ('0', 128.09, 1040), ('0', 128.83, 1340)]
+    flash = 0.0
+    for ch, t0, x in chars_:
+        img = fw.glyph_burst(img, t, t0 - 0.35, x, 270, 380, ch, '#7FC8B8', hold=2.5, life=2.4, grid=14)
+        if t0 <= t < t0 + 0.35:
+            flash = max(flash, 1 - (t - t0) / 0.35)
+    # the two of them, side by side, faces up (two-person still, separate figures), lit by the bursts
+    from . import chars
+    raw = once(('raw', 'B-chorus3-06'), lambda: chars.raw_matte('B-chorus3-06'))
+    if raw is not None:
+        rgb, a, parts = raw
+        k_ = 900 / rgb.shape[0]
+        M = np.float32([[k_ * push, 0, 960 - rgb.shape[1] * k_ * push / 2], [0, k_ * push, 1080 + 60 - rgb.shape[0] * k_ * push]])
+        lr = cv2.warpAffine(rgb, M, (1920, 1080))
+        la = cv2.warpAffine(a, M, (1920, 1080))
+        from .halftone import PrintStyle
+        sty = once('c306_sty', lambda: PrintStyle(['#141A33', '#1E2550', '#D9402B', '#F08A3C', '#EDE3CF', '#7FC8B8', '#1A1416'],
+                                                  period=8, grain=0.0, dead=0.06))
+        key = ('c306_print', round(push, 3))
+        if key not in _cache:
+            for kk in [kk for kk in _cache if isinstance(kk, tuple) and kk[0] == 'c306_print']:
+                del _cache[kk]
+            _cache[key] = sty(lr)
+        pr = _cache[key]
+        pr = pr + (H('#7FC8B8')[None, None] - pr) * (la * _dots_k(0.25 + 0.5 * flash, 8.0) * 0.6)[..., None]
+        pr, la2 = chars.sticker(pr, la)
+        img = chars.over(img, pr, la2)
+    ly1 = once('c306_ly1', lambda: VLyric(43, x=1740, accent='#D9402B', hide=lambda i, tt: i in (2, 3)))
+    ly2 = once('c306_ly2', lambda: VLyric(43, x=1740, accent='#D9402B', color='#7FC8B8', zh=False, hide=lambda i, tt: i not in (2, 3)))
+    return ly2.draw(ly1.draw(img, t), t)
+
+
+R['B-chorus3-06'] = chorus3_06
+tl.OWN_TYPE.add('B-chorus3-06')
