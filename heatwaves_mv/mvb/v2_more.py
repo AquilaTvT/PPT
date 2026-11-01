@@ -625,9 +625,13 @@ def bridge2_01_raw(s, t, local):
 RAW['B-bridge2-01'] = bridge2_01_raw
 
 
+C405_BOARD = (899, 208, 1041, 274)           # the destination board on the car's front (picked keyframe)
+
+
 def chorus4_05_raw(s, t, local):
     img = base(s, t, local)
-    box = board_at(s, local)
+    q = v2.tracked_box(s, C405_BOARD, local)                         # the train approaches: the board grows
+    box = (float(q[:, 0].min()), float(q[:, 1].min()), float(q[:, 0].max()), float(q[:, 1].max()))
     g = gt(54)
     flip = clamp((t - g[4]) / 0.25)
     if flip <= 0:

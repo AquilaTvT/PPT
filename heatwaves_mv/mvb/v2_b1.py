@@ -188,7 +188,7 @@ def bridge1_01_over(img, s, t, local):
     return bubbles(img, 30, t, x0=1600, y0=160)
 
 
-B103_QUAD = [(1010, 868), (1500, 868), (1760, 1050), (840, 1050)]
+B103_QUAD = [(1300, 945), (1690, 945), (1760, 1065), (1240, 1065)]     # on the walkway floor (kf_3)
 
 
 def bridge1_03_over(img, s, t, local):
