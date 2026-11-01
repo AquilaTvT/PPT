@@ -517,6 +517,14 @@ def intro02(s, t, local, fi):
         wx[-hh - 20:-20, 40:40 + min(band.shape[1], wx.shape[1] - 80)] = band[:, :min(band.shape[1], wx.shape[1] - 80)]
         flick = 1.0 + 0.15 * np.sin(t * 2 * np.pi * 2 / BEAT)
         img = warp_quad(img, np.clip(wx * flick, 0, 1), [p[:2] for p in q])
+    from . import chars
+    cl = once('intro02_char', lambda: chars.CharLayer('B-intro-02'))
+    if cl.ok:
+        rgb, a_ = cl.frame(local, x=1480, y=1080, cx=0.5, cy=0.62, height=1250)
+        flick = 0.5 + 0.5 * np.sin(t * 2 * np.pi * 2 / BEAT)
+        lit = np.clip((1560 - kit._XS) / 260.0, 0, 1) * a_ * _dots_k(0.3 + 0.2 * flick, 8.0)
+        rgb = rgb + (H('#7FC8B8')[None, None] - rgb) * (lit * 0.5)[..., None]
+        img = chars.over(img, rgb, a_, shadow='#141A33')
     a = clamp((t - 5.6) / 0.25)
     gl, _ = text.layout_h(lyrics.ZH[1], 1500, 930, 32, 'zh', tracking=0.15, align='center')
     f, _ = text.render_glyphs(gl, anim=lambda g: dict(alpha=a * 0.9))
@@ -556,7 +564,15 @@ def hook01(s, t, local, fi):
         cx, cy = m[0][0], m[0][1]
         pl3 = once('hook03', _hook03_plate)
         road = pl3.frame(min(2.4, local))[:, ::-1].copy()
-        road = kit.dot_person(road, 960, 640, 120, t, colors=('#1E2550', '#F6F2E7', '#D9402B', '#1A1416'))
+        from . import chars
+        clh = once('hook01_char', lambda: chars.CharLayer('B-hook-01', rim_w=(1.5, 3.0, 0.0)))
+        if clh.ok:
+            rgb, a_ = clh.frame(local, x=960, y=760, cx=0.5, cy=0.96, height=700)
+            low = np.clip((kit._YS - 560) / 200.0, 0, 1)
+            rgb = cv2.remap(rgb, (kit._XS + 8 * np.sin(kit._YS / 9.0 + t * 9) * low).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+            road = chars.over(road, rgb, a_)
+        else:
+            road = kit.dot_person(road, 960, 640, 120, t, colors=('#1E2550', '#F6F2E7', '#D9402B', '#1A1416'))
         mt = pl.anchor(local, 'mirrorTop')
         r = int(max(20, abs(mt[0][1] - cy) * 0.95)) if mt else 150
         inside = fx.fisheye(cv2.resize(road, (2 * r, 2 * r)), 0.4)
@@ -580,6 +596,11 @@ tl.OWN_TYPE.add('B-hook-01')
 def hook02(s, t, local, fi):
     pl = once('hook03', _hook03_plate)
     img = pl.frame(0.6 + 0.25 * local)[:, ::-1].copy()
+    from . import chars
+    cl = once('hook02_char', lambda: chars.CharLayer('B-hook-02'))
+    if cl.ok:
+        rgb, a_ = cl.frame(local, x=760, y=1080, cx=0.5, cy=0.75, height=1300)
+        img = chars.over(img, rgb, a_, shadow='#2D6BE0', shadow_amt=0.4)
     img = kit.haze_lower(img, t, 0.006, 520)
     a = once('h02_a', lambda: VLyric(6, x=1720, accent='#2D6BE0'))
     return a.draw(img, t)
