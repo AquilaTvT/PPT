@@ -143,24 +143,12 @@ class Printer:
         base_lab_h, refL_h = self._assign(to_lab(flat_h))
         skin_h = None
         if skin:          # faces and hands print on a warm cream; the screen carries their shading (manga print)
-            sm, core = skin_mask_scene(flat_h)
-            if sm.max() > 0.05:
-                Lh = to_lab(flat_h)[..., 0]
-                lit = float(np.percentile(Lh[core], 70)) if core.sum() > 50 else 75.0
-                # each face / hand is lit on its own: its reference level is its own lit side
-                ref = np.full(Lh.shape, min(lit + 3.0, 92.0), np.float32)
-                n, lab = cv2.connectedComponents((sm > 0.35).astype(np.uint8), 8)
-                for i in range(1, n):
-                    reg = lab == i
-                    c = reg & core
-                    vals = Lh[c] if c.sum() > 30 else (Lh[reg] if reg.sum() > 30 else None)
-                    if vals is not None:
-                        ref[reg] = min(float(np.percentile(vals, 70)) + 3.0, 92.0)
-                ref = cv2.GaussianBlur(ref, (0, 0), 2.0)
-                skin_lab = to_lab((np.float32(CREAM) / 255 * 0.82 + hexc('#E8A890') * 0.18)[None, None])[0, 0]
+            sk = skin_regions(flat_h)
+            if sk is not None:
+                sm, skin_lab_map, ref_map = sk
                 sm3 = sm[..., None]
-                base_lab_h = base_lab_h * (1 - sm3) + skin_lab[None, None] * sm3
-                refL_h = refL_h * (1 - sm) + ref * sm
+                base_lab_h = base_lab_h * (1 - sm3) + skin_lab_map * sm3
+                refL_h = refL_h * (1 - sm) + ref_map * sm
                 skin_h = sm
         if stage is not None and stage.get('inks', 1e9) < len(self.pal):
             k = max(0.0, float(stage['inks']))
@@ -215,6 +203,57 @@ class Printer:
             la = ln[..., None] * (0.92 - 0.25 * on_dark) * st.get('lines', 1.0)
             out = out + (lcol - out) * la
         return np.clip(out, 0, 1)
+
+
+def skin_regions(flat, grow_de=24.0, cream_mix=0.58):
+    """whole faces / hands as consistent regions, so a face half in lantern light does not print half cream, half tan:
+    strict skin cores (skin_mask_scene) are grown into neighbouring pixels of similar colour (Lab distance to the
+    core's median), within a radius of the core. Each region gets ONE ink -- its median colour pulled toward the
+    paper's warm cream -- and one reference lightness (its lit side), so the halftone carries its shading.
+    Returns (soft mask, ink Lab map, reference L map) at the input's resolution, or None."""
+    sm, core = skin_mask_scene(flat)
+    if not core.any():
+        return None
+    h, w = core.shape
+    lab = to_lab(flat)
+    n, lab_c, st, _ = cv2.connectedComponentsWithStats(core.astype(np.uint8), 8)
+    region = np.zeros((h, w), np.float32)
+    ink = np.zeros((h, w, 3), np.float32)
+    ref = np.zeros((h, w), np.float32)
+    cream = to_lab((np.float32(CREAM) / 255 * 0.82 + hexc('#E8A890') * 0.18)[None, None])[0, 0]
+    r = max(4, int(h * 0.05))
+    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
+    for i in range(1, n):
+        if st[i, cv2.CC_STAT_AREA] < max(30, int(h * w * 0.0002)):
+            continue
+        x, y, ww, hh = st[i, :4]
+        x0, y0, x1, y1 = max(0, x - r), max(0, y - r), min(w, x + ww + r), min(h, y + hh + r)
+        comp = (lab_c[y0:y1, x0:x1] == i).astype(np.uint8)
+        m = np.median(lab[y0:y1, x0:x1][comp > 0], axis=0)
+        near = cv2.dilate(comp, ker) > 0
+        d = np.sqrt(((lab[y0:y1, x0:x1] - m) ** 2).sum(-1))
+        cand = ((d < grow_de) & near & (lab[y0:y1, x0:x1, 0] > 22)).astype(np.uint8) | comp
+        nn, lab_g = cv2.connectedComponents(cand, 8)
+        keep = np.unique(lab_g[comp > 0])
+        keep = keep[keep > 0]
+        grown = np.isin(lab_g, keep).astype(np.uint8)
+        grown = cv2.morphologyEx(grown, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+        Lr = lab[y0:y1, x0:x1, 0][grown > 0]
+        lit = float(np.percentile(Lr, 75)) if Lr.size > 20 else float(m[0])
+        tgt = m * (1 - cream_mix) + cream * cream_mix
+        tgt[0] = max(tgt[0], min(90.0, lit * 0.25 + cream[0] * 0.75))
+        g = grown.astype(np.float32)
+        sub = region[y0:y1, x0:x1]
+        newer = g > sub
+        sub[newer] = g[newer]
+        ink[y0:y1, x0:x1][newer] = tgt
+        ref[y0:y1, x0:x1][newer] = min(lit + 3.0, 92.0)
+    if region.max() <= 0:
+        return None
+    soft = cv2.GaussianBlur(region, (0, 0), 1.2)
+    ink = cv2.GaussianBlur(ink, (0, 0), 1.2) / np.maximum(cv2.GaussianBlur(region, (0, 0), 1.2), 1e-3)[..., None]
+    ref = cv2.GaussianBlur(ref, (0, 0), 1.2) / np.maximum(cv2.GaussianBlur(region, (0, 0), 1.2), 1e-3)
+    return soft, ink, ref
 
 
 def skin_mask_scene(flat):

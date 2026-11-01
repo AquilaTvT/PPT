@@ -195,8 +195,12 @@ def tracked(s, pts, local, box=None, sid2=None, pad=70):
     sid2 = sid2 or b2_id(s)
     p = np.asarray(pts, np.float32).reshape(-1, 2)
     f = footage(sid2)
-    if f is None or isinstance(f, Still):
+    if f is None:
         return p
+    if isinstance(f, Still):                     # a stand-in still zooms slowly about the centre (Still.at)
+        z = 1.0 + 0.012 * src_time(s, local, sid2=sid2)
+        c = np.float32([W / 2, H / 2])
+        return (p - c) * z + c
     if box is None:
         box = (float(p[:, 0].min()), float(p[:, 1].min()), float(p[:, 0].max()), float(p[:, 1].max()))
     box = tuple(int(round(v)) for v in box)

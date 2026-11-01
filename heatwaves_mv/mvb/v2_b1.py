@@ -96,21 +96,38 @@ def _inpaint_strokes(img, box, v_min=0.80, s_max=0.35, grow=5):
 
 
 # ---- bridge1-02: the umbrella draws itself beside her
-B102_QUAD = [(1490, 864), (1900, 856), (1915, 992), (1455, 996)]     # the seawall top, on the plate
-B102_BOX = (1480, 860, 1910, 1004)
+B102_SURF = [(1430, 826), (1920, 874), (1920, 1012), (1352, 974)]     # the sunlit top of the seawall (plate)
+B102_QUAD = [(1505, 852), (1905, 880), (1912, 990), (1478, 972)]      # where the new chalk drawing goes
+
+
+def _strip_chalk(img, surf_q):
+    """remove the chalk the model drew on the seawall: thin strokes brighter than the surface around them (white in
+    the sun, pale blue in her shadow), found by a top-hat inside the surface, then inpainted"""
+    q = np.asarray(surf_q, np.float32)
+    x0, y0 = [int(max(0, v - 8)) for v in q.min(0)]
+    x1, y1 = int(min(W, q[:, 0].max() + 8)), int(min(H_, q[:, 1].max() + 8))
+    roi = (np.clip(img[y0:y1, x0:x1], 0, 1) * 255).astype(np.uint8)
+    g = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
+    th = cv2.morphologyEx(g, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
+    inside = np.zeros(g.shape, np.uint8)
+    cv2.fillPoly(inside, [np.round((q - [x0, y0]) * 4).astype(np.int32)], 255, cv2.LINE_8, shift=2)
+    m = ((th > 22) & (inside > 0)).astype(np.uint8)
+    m = cv2.dilate(m, np.ones((5, 5), np.uint8))
+    fixed = cv2.inpaint(roi, m * 255, 4, cv2.INPAINT_TELEA)
+    out = img.copy()
+    out[y0:y1, x0:x1] = fixed.astype(np.float32) / 255.0
+    return out
 
 
 def bridge1_02(s, t, local):
     img = v2.plate(s, local)
-    tq = v2.tracked(s, B102_QUAD, local, box=B102_BOX)
-    bx = v2.tracked_box(s, B102_BOX, local, box=B102_BOX)
-    img = _inpaint_strokes(img, (int(max(0, bx[:, 0].min())), int(max(0, bx[:, 1].min())), int(min(W, bx[:, 0].max())),
-                                 int(min(H_, bx[:, 1].max()))))
-    d = s['end'] - s['start']
-    cw, chh = 820, 300
+    img = _strip_chalk(img, v2.tracked(s, B102_SURF, local))
+    return _dream(img, s, t, local)
+
+
+def _aiaigasa_canvas(k, cw=560, chh=300):
+    """the aiaigasa drawn up to fraction k: canopy, shaft, a little heart, the sun on the left, the moon on the right"""
     canvas = np.zeros((chh, cw), np.float32)
-    k = clamp((local - 0.25) / (d - 0.6))
-    # the classic aiaigasa: canopy (a tall triangle with a little heart on top), the shaft, then sun and moon
     ax, ay = cw / 2, 26
     canopy = np.float32([[ax - 230, 150], [ax - 120, 70], [ax, ay + 20], [ax + 120, 70], [ax + 230, 150]])
     shaft = np.float32([[ax, ay + 20], [ax, chh - 20]])
@@ -122,18 +139,28 @@ def bridge1_02(s, t, local):
         parts.append((p, 0.44 + j * 0.025, 0.52 + j * 0.025))
     parts.append((moon[0], 0.70, 0.92))
     for p, a0, a1 in parts:
-        _stroke(canvas, p, 11, clamp((k - a0) / (a1 - a0)))
-    chalk = _chalk(canvas, 2)
-    rgb = np.ones((chh, cw, 3), np.float32) * H('#F2EDE2')
-    big = fx.quad_paste(np.zeros_like(img), rgb, tq, feather=0.8)
+        _stroke(canvas, p, 13, clamp((k - a0) / (a1 - a0)))
+    return _chalk(canvas, 2)
+
+
+def bridge1_02_over(img, s, t, local):
+    """the chalk drawn over the print, crisp, lit by the plate (bright in the sun, dim in her shadow)"""
+    d = s['end'] - s['start']
+    k = clamp((local - 0.25) / (d - 0.6))
+    if k <= 0:
+        return img
+    chalk = _aiaigasa_canvas(k)
+    tq = v2.tracked(s, B102_QUAD, local, box=(1360, 830, 1920, 1002))
     mk = fx.quad_paste(np.zeros_like(img), np.repeat(chalk[..., None], 3, 2), tq, feather=0.8)[..., 0]
-    lum = img @ np.float32([0.2126, 0.7152, 0.0722])
-    shade = np.clip(lum / 0.62, 0.35, 1.0)[..., None]
-    img = img + (big * shade - img) * (mk * 0.96)[..., None]
-    return _dream(img, s, t, local)
+    plate = v2.plate(s, local)
+    lum = cv2.GaussianBlur(plate @ np.float32([0.2126, 0.7152, 0.0722]), (0, 0), 3)
+    light = np.clip(lum / 0.55, 0.42, 1.05)[..., None]
+    col = H('#F4F0E6')[None, None] * light + H('#AFC3E8')[None, None] * (1 - light) * 0.35
+    return img + (col - img) * (mk * 0.95)[..., None]
 
 
 RAW['B-bridge1-02'] = bridge1_02
+OVER['B-bridge1-02'] = bridge1_02_over
 
 
 # ---- bridge1-04: top-down -- the wave takes his half, a halftone question mark rises in its place
