@@ -317,7 +317,32 @@ def install():
             tl.OWN_TYPE.add(sid)
         else:
             tl.OWN_TYPE.discard(sid)           # v1 recipes typeset their own lines; v2 uses the default column
+        if sid in FADE_IN or sid in FADE_OUT:
+            tl.RECIPES[sid] = _with_fades(tl.RECIPES[sid], sid)
     return n
+
+
+# the film's light relays: the cut happens inside a flash of light (the sun in the card -> noon; the moon bursting
+# into the festival; the headlight's halo -> the sunrise); seconds and colour
+FADE_IN = {'B-hook-01': (0.30, '#FFF4DC'), 'B-chorus3-01': (0.22, '#FFF2C8'), 'B-outro-01': (0.42, '#FFF4DC')}
+FADE_OUT = {'B-bridge1-07': (0.16, '#FFF2C8')}
+
+
+def _with_fades(fn, sid):
+    def recipe(s, t, local, fi):
+        img = fn(s, t, local, fi)
+        if sid in FADE_IN:
+            d, col = FADE_IN[sid]
+            k = 1 - clamp(local / d)
+            if k > 0:
+                img = img + (pf.hexc(col)[None, None] - img) * np.float32(k * k)
+        if sid in FADE_OUT:
+            d, col = FADE_OUT[sid]
+            k = clamp((local - (s['end'] - s['start'] - d)) / d)
+            if k > 0:
+                img = img + (pf.hexc(col)[None, None] - img) * np.float32(k * k)
+        return img
+    return recipe
 
 
 V2_OWN_TYPE = set()      # v2 recipes that draw their own Japanese lines

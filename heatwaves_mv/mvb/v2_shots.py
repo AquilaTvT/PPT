@@ -675,7 +675,7 @@ LYRIC.update({
     'B-hook-02': dict(x=330, y=230),
     'B-hook-04': dict(x=1760, y=150),
     'B-chorus1-01': dict(x=1080, y=140),
-    'B-chorus1-02': dict(x=1820, y=470, size=86),
+    'B-chorus1-02': dict(x=1850, y=130, size=86),
     'B-chorus1-04': dict(x=1820, y=140),
     'B-chorus2-02': dict(x=160, y=150),
     'B-chorus1-05': dict(x=150, y=150),

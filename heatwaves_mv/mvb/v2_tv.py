@@ -326,7 +326,7 @@ def _cached_card(key, fn):
 RAW['B-verse-07'] = verse07
 
 
-LYRIC = {'B-verse-01': dict(x=1830, y=560, size=84), 'B-verse-03': dict(x=180), 'B-verse-04': dict(x=1700, y=200)}
+LYRIC = {'B-verse-01': dict(x=1845, y=120, size=84), 'B-verse-03': dict(x=180), 'B-verse-04': dict(x=1700, y=200)}
 
 
 def install():

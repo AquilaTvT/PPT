@@ -863,3 +863,65 @@ def install():
         s = v2.tl.BY_ID[sid]
         if v2.clip_path(v2.b2_id(s)) or (v2.STANDIN and v2.kf_path(v2.b2_id(s))):
             v2.GRAPHIC[sid] = fn
+
+
+# ------------------------------------------------------------------ outro-04: the morning pool -- the 君s go out, English scrolls
+def detect_panel(rgb, y_max=0.62, min_area=12000):
+    """the big dark scoreboard panel: the largest dark, low-saturation, roughly rectangular blob in the upper part"""
+    hsv = cv2.cvtColor((np.clip(rgb, 0, 1) * 255).astype(np.uint8), cv2.COLOR_RGB2HSV)
+    m = ((hsv[..., 2] < 80) & (hsv[..., 1] < 140)).astype(np.uint8)
+    m[int(H_ * y_max):] = 0
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best, ba = None, 0
+    for c in cs:
+        a = cv2.contourArea(c)
+        if a < min_area:
+            continue
+        x, y, w, h = cv2.boundingRect(c)
+        if a < 0.6 * w * h or w < 1.2 * h:
+            continue
+        if a > ba:
+            best, ba = c, a
+    if best is None:
+        return None
+    return fx._quad(best)
+
+
+@functools.lru_cache(maxsize=1)
+def o04_panel():
+    f = v2.footage('B2-outro-04')
+    rgb = f.at(0.0) if hasattr(f, 'c') else f.img
+    q = detect_panel(rgb)
+    return None if q is None else q.tolist()
+
+
+def outro_04_over(img, s, t, local):
+    q = o04_panel()
+    if q is None:
+        return img
+    from . import print_fx as pf
+    nb0 = math.floor((s['start'] - BEAT0) / BEAT + 0.02)
+    k = math.floor((t - BEAT0) / BEAT) - nb0
+    n_lit = int(clamp(8 - k, 0, 8))
+    if k < 4:
+        board = _scoreboard(n_lit)
+    else:
+        txt = "CAN'T MAKE YOU HAPPIER NOW"
+        rgb, _ = pf.led_board('   ' + txt + '   ', rows=14, dot=6, on='#FF9A3C', off='#2A1A10', bg='#0A0C14', font='silk', glow=0.6)
+        ref = _scoreboard(0)
+        bw = ref.shape[1]
+        off = int(clamp((t - (BEAT0 + (nb0 + 4) * BEAT)) / (s['end'] - (BEAT0 + (nb0 + 4) * BEAT))) * max(1, rgb.shape[1] - bw))
+        row = rgb[:, off:off + bw]
+        board = ref.copy()
+        y0 = (board.shape[0] - row.shape[0]) // 2
+        board[y0:y0 + row.shape[0], :row.shape[1]] = row
+    plate = v2.plate(s, local)
+    lum = plate @ np.float32([0.2126, 0.7152, 0.0722])
+    keep = img.copy()
+    pasted = fx.quad_paste(img.copy(), board, q, feather=1.2)
+    dark = cv2.GaussianBlur(np.clip((0.42 - lum) / 0.12, 0, 1), (0, 0), 1.2)
+    return keep + (pasted - keep) * dark[..., None]
+
+
+OVER['B-outro-04'] = outro_04_over
