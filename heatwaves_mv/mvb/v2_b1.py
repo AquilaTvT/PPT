@@ -257,10 +257,14 @@ def bridge1_06_over(img, s, t, local):
     return out * (1 - a[..., None]) + m * a[..., None]
 
 
-@functools.lru_cache(maxsize=1)
 def b107_moon():
-    """the moon on the shot's first frame: the largest bright round blob in the upper half"""
-    f = v2.footage('B2-bridge1-07')
+    return find_moon('B2-bridge1-07')
+
+
+@functools.lru_cache(maxsize=8)
+def find_moon(sid2):
+    """the moon on the clip's first frame: the largest bright round blob in the upper half (zoom-1 plate px)"""
+    f = v2.footage(sid2)
     rgb = f.at(0.0) if hasattr(f, 'c') else f.img
     y = rgb @ np.float32([0.2126, 0.7152, 0.0722])
     m = (y > 0.55).astype(np.uint8)
@@ -279,6 +283,8 @@ def bridge1_07(s, t, local):
     d = s['end'] - s['start']
     k = clamp(local / d)
     cx, cy, R = b107_moon()
+    m = v2.frame_map(s, local)
+    (cx, cy), R = m([(cx, cy)])[0], R * m.scale
     sc = 1.0 + 0.30 * k * k
     # pulses: once a beat at first, then twice, then four times
     nb = (t - BEAT0) / BEAT

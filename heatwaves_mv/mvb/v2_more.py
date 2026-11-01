@@ -615,6 +615,9 @@ B201_CAPTION = (0, 1032, 475, 1072)
 def bridge2_01_raw(s, t, local):
     img = strip_box(base(s, t, local), B201_CAPTION)
     box = board_at(s, local)
+    if box is not None:                                        # into the frame (the shot's camera, a still's zoom)
+        q = v2.frame_map(s, local)([(box[0], box[1]), (box[2], box[3])])
+        box = (float(q[0, 0]), float(q[0, 1]), float(q[1, 0]), float(q[1, 1]))
     if local < 1.3:
         img = put_board(img, box, '夢　行')
     else:
@@ -876,7 +879,17 @@ RAW['B-outro_hook-02'] = outro_hook_02
 LYRIC.update({'B-chorus3-02': dict(x=200, y=150), 'B-chorus3-03': dict(x=1760), 'B-chorus3-07': dict(x=200, y=150)})
 
 
+def _moon_size(sid2):
+    def fn(s, local):
+        from .v2_b1 import find_moon
+        cx, cy, r = find_moon(sid2)
+        return cx, cy, 2 * r
+    return fn
+
+
 def install():
+    from .v2_shots import pull_out
+    v2.CAM['B-chorus2-01'] = pull_out(_moon_size('B2-chorus2-01'))   # out of the moon (from verse-07's test card)
     v2.RAW.update(RAW)
     v2.OVER.update(OVER)
     v2.V2_OWN_TYPE.update(OWN)

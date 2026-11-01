@@ -133,27 +133,63 @@ def kf_path(sid2):
 STANDIN = os.environ.get('HW_V2_STANDIN', '') == '1'
 
 
-def zoom_map(sid2, zoom=1.0, cx=0.5, cy=0.5, t_src=0.0):
-    """map points measured on the zoom-1 plate (1920x1080) to the frame of plate(..., zoom, cx, cy)"""
-    f = footage(sid2)
+CAM = {}                 # shot id -> fn(s, local) -> (zoom, X, Y) or None: a camera move on the footage, centred (as far
+                         # as the frame allows) on the zoom-1 plate point (X, Y) -- push-ins, the circle relays
+
+
+def _geom(f):
+    """(w, h, s0) of a footage source: its size and the cover-fit scale at zoom 1"""
     if isinstance(f, Still):
-        w, h = W, H
-        zoom = zoom * (1.0 + 0.012 * t_src)
-        dy0 = 0.0
-    else:
-        w, h = f.c.w, f.c.h
-        dy0 = (h * max(W / w, H / h) - H) / 2 / max(W / w, H / h)      # rows cropped off the top at zoom 1
-    s0 = max(W / w, H / h)
-    s = s0 * zoom
+        return W, H, 1.0
+    w, h = f.c.w, f.c.h
+    return w, h, max(W / w, H / h)
+
+
+def _plate_to_src(f, p):
+    w, h, s0 = _geom(f)
+    return np.stack([w / 2 + (p[:, 0] - W / 2) / s0, h / 2 + (p[:, 1] - H / 2) / s0], 1)
+
+
+def cam_params(s, local, sid2=None):
+    """fit() arguments (zoom, cx, cy) of the shot's camera at `local` (identity without a CAM entry)"""
+    sid2 = sid2 or b2_id(s)
+    f = footage(sid2)
+    fn = CAM.get(s['id'])
+    if fn is None or f is None:
+        return 1.0, 0.5, 0.5
+    c = fn(s, local)
+    if c is None:
+        return 1.0, 0.5, 0.5
+    z, X, Y = c
+    w, h, _ = _geom(f)
+    src = _plate_to_src(f, np.float32([[X, Y]]))[0]
+    return float(z), float(src[0] / w), float(src[1] / h)
+
+
+def frame_map(s, local, sid2=None):
+    """zoom-1 plate points (keyframe coordinates, after tracking) -> points in the frame plate(s, local) returns
+    (the camera move and a stand-in still's slow zoom included); .scale = frame px per zoom-1 plate px"""
+    sid2 = sid2 or b2_id(s)
+    f = footage(sid2)
+    zoom, cx, cy = cam_params(s, local, sid2)
+    if f is None:
+        m = lambda pts: np.asarray(pts, np.float32).reshape(-1, 2)
+        m.scale = 1.0
+        return m
+    w, h, s0 = _geom(f)
+    if isinstance(f, Still):
+        zoom = zoom * (1.0 + 0.012 * src_time(s, local, sid2=sid2))
+    sc = s0 * zoom
     px, py = cx * w, cy * h
-    half_w, half_h = W / (2 * s), H / (2 * s)
+    half_w, half_h = W / (2 * sc), H / (2 * sc)
     px = min(max(px, half_w), w - half_w) if w > 2 * half_w else w / 2
     py = min(max(py, half_h), h - half_h) if h > 2 * half_h else h / 2
 
     def m(pts):
-        p = np.asarray(pts, np.float32).reshape(-1, 2)
-        src = np.stack([p[:, 0] / s0, p[:, 1] / s0 + dy0], 1)       # plate px -> source px
-        return np.stack([(src[:, 0] - px) * s + W / 2, (src[:, 1] - py) * s + H / 2], 1)
+        q = np.asarray(pts, np.float32).reshape(-1, 2)
+        src = _plate_to_src(f, q)
+        return np.stack([(src[:, 0] - px) * sc + W / 2, (src[:, 1] - py) * sc + H / 2], 1).astype(np.float32)
+    m.scale = zoom
     return m
 
 
@@ -178,9 +214,12 @@ def src_time(s, local, speed=None, in_t=0.08, sid2=None):
     return in_t + local * speed
 
 
-def plate(s, local, speed=None, in_t=0.08, zoom=1.0, cx=0.5, cy=0.5, sid2=None):
-    """this shot's footage at shot-local time; by default the clip is stretched to cover the shot"""
+def plate(s, local, speed=None, in_t=0.08, zoom=None, cx=0.5, cy=0.5, sid2=None):
+    """this shot's footage at shot-local time; by default the clip is stretched to cover the shot and framed by the
+    shot's camera (CAM)"""
     f = footage(sid2 or b2_id(s))
+    if zoom is None:
+        zoom, cx, cy = cam_params(s, local) if (sid2 is None or sid2 == b2_id(s)) else (1.0, 0.5, 0.5)
     return f.at(src_time(s, local, speed, in_t, sid2), zoom, cx, cy)
 
 
@@ -188,19 +227,21 @@ _TRACKS = {}
 
 
 def tracked(s, pts, local, box=None, sid2=None, pad=70):
-    """points measured on the shot's first frame (the keyframe) -> where they are now, following the footage
-    (planar track of the region round them, cached per clip); identity on a keyframe stand-in"""
+    """points measured on the shot's first frame (the keyframe) -> where they are in the frame now: they follow the
+    footage (planar track of the region round them, cached per clip) and the shot's camera"""
+    sid2 = sid2 or b2_id(s)
+    return frame_map(s, local, sid2)(track0(s, pts, local, box=box, sid2=sid2, pad=pad))
+
+
+def track0(s, pts, local, box=None, sid2=None, pad=70):
+    """tracked() without the camera: zoom-1 plate coordinates (for camera moves aimed at a device)"""
     import json
     from . import v2_fx
     sid2 = sid2 or b2_id(s)
     p = np.asarray(pts, np.float32).reshape(-1, 2)
     f = footage(sid2)
-    if f is None:
+    if f is None or isinstance(f, Still):
         return p
-    if isinstance(f, Still):                     # a stand-in still zooms slowly about the centre (Still.at)
-        z = 1.0 + 0.012 * src_time(s, local, sid2=sid2)
-        c = np.float32([W / 2, H / 2])
-        return (p - c) * z + c
     if box is None:
         box = (float(p[:, 0].min()), float(p[:, 1].min()), float(p[:, 0].max()), float(p[:, 1].max()))
     box = tuple(int(round(v)) for v in box)

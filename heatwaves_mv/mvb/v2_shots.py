@@ -121,34 +121,26 @@ def mirror_track(sid2, hints):
     return res
 
 
-def mirrors_at(sid2, hints, s, local, speed=None):
+def mirrors0(sid2, hints, s, local, speed=None):
+    """the tracked mirror ellipses at `local` in zoom-1 plate coordinates: [(((cx, cy), (w, h), ang), conf)]"""
     tr = mirror_track(sid2, hints)
     f = v2.footage(sid2)
     if not hasattr(f, 'c'):
         row = tr[0]
     else:
-        d = s['end'] - s['start']
-        sp = speed if speed is not None else min(1.0, max(0.55, (f.dur - 0.13) / d))
-        i = int(round((0.08 + local * sp) * f.c.fps))
+        i = int(round(v2.src_time(s, local, speed) * f.c.fps))
         row = tr[min(len(tr) - 1, max(0, i))]
+    return [(((cx, cy), (h[1][0] * sc, h[1][1] * sc), h[2]), conf) for (cx, cy, sc, conf), h in zip(row, hints)]
+
+
+def mirrors_at(sid2, hints, s, local, speed=None):
+    """the mirror ellipses where they are in the frame (the shot's camera applied)"""
+    m = v2.frame_map(s, local, sid2)
     out = []
-    for (cx, cy, sc, conf), h in zip(row, hints):
-        out.append((((cx, cy), (h[1][0] * sc, h[1][1] * sc), h[2]), conf))
+    for ((cx, cy), (ew, eh), ang), conf in mirrors0(sid2, hints, s, local, speed):
+        c = m([(cx, cy)])[0]
+        out.append((((float(c[0]), float(c[1])), (ew * m.scale, eh * m.scale), ang), conf))
     return out
-
-
-def ripple(src, amp, t, wl=0.09, speed=7.0):
-    """water rings from the centre of a picture: 'the swimming mirror'; amp in px"""
-    if src is None or amp < 0.2:
-        return src
-    h, w = src.shape[:2]
-    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
-    cx, cy = w / 2, h / 2
-    dx, dy = xs - cx, ys - cy
-    r = np.sqrt(dx * dx + dy * dy) + 1e-3
-    disp = amp * np.sin(r / (wl * max(w, h)) * 2 * math.pi - t * speed)
-    return cv2.remap(src, (xs + disp * dx / r).astype(np.float32), (ys + disp * dy / r).astype(np.float32), cv2.INTER_LINEAR,
-                     borderMode=cv2.BORDER_REFLECT)
 
 
 def insert_in(img, plate, ell, src, alpha=1.0, k=0.35, rip=0.0, t=0.0):
@@ -331,6 +323,12 @@ def mirror_frame_layers():
 def mirror_frame_over(img, s, t, local):
     for m, col in mirror_frame_layers():
         img += (H(col)[None, None] - img) * m[..., None]
+    k = local / RELAY_OPEN
+    if k < 1:                       # the relay: the mirror we flew into in hook-01 opens out to fill the frame
+        sig = RELAY_D / 1145.0 + (1 - RELAY_D / 1145.0) * (1 - (1 - k) ** 3)
+        M = cv2.getRotationMatrix2D((W / 2, H_ / 2), 0.0, sig)
+        img = cv2.warpAffine(img, M, (W, H_), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT,
+                             borderValue=tuple(float(c) for c in H('#2C4C9A')))
     return img
 
 
@@ -523,32 +521,27 @@ C107_CARD = [(687, 807), (1057, 729), (1320, 940), (804, 1067)]
 
 
 def _c107_cam(s, local):
+    """a slow push from the room to the card's sixth cell (zoom-1 plate coordinates)"""
     d = s['end'] - s['start']
     k = clamp(local / d)
     e = k * k * (3 - 2 * k)
-    z = 1.0 + 1.25 * e
-    q = np.asarray(C107_CARD, np.float32)
     from . import card2
+    q = v2.track0(s, C107_CARD, local)
     u, v = card2.CELL_C[5][0] / card2.CW, card2.CELL_C[5][1] / card2.CH
     top = q[0] + (q[1] - q[0]) * u
     bot = q[3] + (q[2] - q[3]) * u
-    c6 = top + (bot - top) * v                              # the sixth cell on the plate
-    return z, 0.5 + (c6[0] / W - 0.5) * e, 0.5 + (c6[1] / H_ - 0.5) * e
+    c6 = top + (bot - top) * v
+    return 1.0 + 1.25 * e, W / 2 + (c6[0] - W / 2) * e, H_ / 2 + (c6[1] - H_ / 2) * e
 
 
 def chorus1_07(s, t, local):
-    """a slow push from the room to the card: the sixth cell, where a paper sun tries twice to rise and fails"""
-    z, cx, cy = _c107_cam(s, local)
-    return dream(v2.plate(s, local, zoom=z, cx=cx, cy=cy), s, t, local)
+    """the card waits on the floor; a paper sun tries twice to rise in the sixth cell and fails"""
+    return dream(v2.plate(s, local), s, t, local)
 
 
 def chorus1_07_over(img, s, t, local):
-    z, cx, cy = _c107_cam(s, local)
-    sid2 = v2.b2_id(s)
-    f = v2.footage(sid2)
-    d = s['end'] - s['start']
-    sp = min(1.0, max(0.55, (f.dur - 0.13) / d))
-    qz = v2.zoom_map(sid2, z, cx, cy, t_src=0.08 + local * sp)(v2.tracked(s, C107_CARD, local))
+    z = v2.cam_params(s, local)[0]
+    qz = v2.tracked(s, C107_CARD, local)
 
     def bump(t0, peak, up=0.30, down=0.42):
         if t < t0:
@@ -693,6 +686,62 @@ LYRIC.update({
 })
 
 
+# ------------------------------------------------------------------ the circle relays: a camera move across a cut
+RELAY_D = 600.0                     # the circle's size on screen at the cut (px)
+RELAY_IN, RELAY_OPEN = 0.42, 0.36
+
+
+def push_in(size_fn, dur=RELAY_IN, end_at=None):
+    """camera pushing into a circle over the shot's last `dur` s: size_fn(s, local) -> (X, Y, diameter), zoom-1 plate.
+    end_at() -> the screen point where the circle must sit at the cut (where the next shot's circle starts);
+    default the centre of the frame"""
+    def cam(s, local):
+        d = s['end'] - s['start']
+        k = clamp((local - (d - dur)) / dur)
+        if k <= 0:
+            return None
+        X, Y, dia = size_fn(s, local)
+        e = k ** 2.2
+        z = 1.0 + (RELAY_D / max(1.0, dia) - 1.0) * e
+        if end_at is not None:
+            sx, sy = end_at()
+            X, Y = X - (sx - W / 2) * e / z, Y - (sy - H_ / 2) * e / z
+        return z, X, Y
+    return cam
+
+
+def pull_out(size_fn, dur=0.55):
+    """camera that starts inside a circle (RELAY_D on screen) and pulls back to the plate over `dur` s"""
+    def cam(s, local):
+        k = clamp(local / dur)
+        if k >= 1:
+            return None
+        X, Y, dia = size_fn(s, local)
+        z0 = RELAY_D / max(1.0, dia)
+        return z0 + (1.0 - z0) * (1 - (1 - k) ** 3), X, Y
+    return cam
+
+
+def _mirror_size(sid2, hints, j):
+    def fn(s, local):
+        ((cx, cy), (ew, eh), _), _ = mirrors0(sid2, hints, s, local)[j]
+        return cx, cy, max(ew, eh)
+    return fn
+
+
+def _quad_size(q0):
+    def fn(s, local):
+        q = v2.track0(s, q0, local)
+        c = q.mean(0)
+        return float(c[0]), float(c[1]), float(np.hypot(*(q[1] - q[0])))
+    return fn
+
+
+CAM = {'B-hook-01': push_in(_mirror_size('B2-hook-01', HOOK01_M, 0)),          # into the mirror -> hook-02 opens it
+       'B-chorus1-01': push_in(_mirror_size('B2-chorus1-01', C101_M, 0)),      # into her mirror ->
+       'B-chorus1-02': pull_out(_quad_size(C102_TV)),                          # -> out of the CRT showing her face
+       'B-chorus1-07': _c107_cam}
+
 OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over, 'B-chorus2-01': chorus2_01_over,
         'B-chorus2-04': chorus2_04_over, 'B-verse-06': verse06_over, 'B-intro-03': intro03_over,
         'B-chorus1-02': chorus1_02_over, 'B-chorus2-02': chorus2_02_over, 'B-chorus1-07': chorus1_07_over}
@@ -703,6 +752,7 @@ def install():
     v2.RAW.update(RAW)
     v2.OVER.update(OVER)
     v2.STAGE.update(STAGE)
+    v2.CAM.update(CAM)
     v2.V2_OWN_TYPE.update(OWN)
     v2.ENGLISH.update(ENGLISH_OVR)
     for sid, fn in GRAPHIC_FOOT.items():

@@ -166,7 +166,7 @@ def verse01(s, t, local):
     tv = fx.crt(content, t, tint='#DDF2FF', curve=0.05, bloom=0.3)
     lum = plate @ np.float32([0.2126, 0.7152, 0.0722])
     lit = cv2.GaussianBlur(np.clip((lum - 0.42) / 0.18, 0, 1), (0, 0), 1.5)       # the hand and knob stay in front
-    q = np.asarray(V01_SCREEN, np.float32)
+    q = v2.tracked(s, V01_SCREEN, local, box=(392, 0, 1602, 658))
     keep = img.copy()
     img = fx.quad_paste(img, tv, q, feather=3.0)
     img = keep + (img - keep) * lit[..., None]
@@ -326,9 +326,30 @@ def _cached_card(key, fn):
 RAW['B-verse-07'] = verse07
 
 
+def _tv07_size(s, local):
+    q = v2.track0(s, V07_SCREEN, local)
+    c = q.mean(0)
+    return float(c[0]), float(c[1]), float(np.hypot(*(q[1] - q[0])))
+
+
+@functools.lru_cache(maxsize=1)
+def _c201_moon_screen():
+    """where chorus2-01's moon is on screen at its first frame (its camera starts inside the moon)"""
+    from .v2_b1 import find_moon
+    cx, cy, r = find_moon('B2-chorus2-01')
+    p = v2.frame_map(v2.tl.BY_ID['B-chorus2-01'], 0.0)([(cx, cy)])[0]
+    return float(p[0]), float(p[1])
+
+
+def _cams():
+    from .v2_shots import push_in
+    return {'B-verse-07': push_in(_tv07_size, end_at=_c201_moon_screen)}   # into the test card's circle -> the moon
+
+
 LYRIC = {'B-verse-01': dict(x=1845, y=120, size=84), 'B-verse-03': dict(x=180), 'B-verse-04': dict(x=1700, y=200)}
 
 
 def install():
+    v2.CAM.update(_cams())
     v2.RAW.update(RAW)
     v2.LYRIC_POS.update(LYRIC)
