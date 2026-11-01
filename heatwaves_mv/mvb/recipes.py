@@ -904,12 +904,16 @@ def chorus3_01(s, t, local, fi):
     # the burst: a giant chrysanthemum where the moon was, sliding up out of frame as the camera dives
     dk = clamp(local / 0.75) ** 3
     by = 420 - 1700 * dk
+    # lantern ignition dot flash (vermilion -> orange) on 111.79, under the burst so the relay reads through it
+    if local < 5 / 24:
+        img = kit.dot_flash(img, 0.8 * (1 - local / (5 / 24)), '#F08A3C', 24)
     img = fw.burst(img, t, 111.79, 960, by, 900, 'chrysanthemum', '#F5C842', '#FFF2C8', seed=11, life=2.6)
+    if local < 3 / 24:                                    # the moon's disc becomes the burst's core
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (960, int(by)), int(80 * (1 - local / (3 / 24)) + 10), 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#FFF2C8')[None, None] - img) * m[..., None]
     if 0.3 < local < 0.75:
         img = kit.dir_blur(img, 0, 50 * (local - 0.3) / 0.45)
-    # lantern ignition dot flash (vermilion -> orange) on 111.79
-    if local < 5 / 24:
-        img = kit.dot_flash(img, 1 - local / (5 / 24), '#F08A3C', 24)
     # hero lanterns carry L38 glyphs, one per mora
     gt = once('gt38', lambda: __import__('json').load(open(tl.os.path.join(tl.ROOT, 'assets', 'glyph_times.json')))['38'])
     word = '思い浮かぶの君ばかり'
@@ -1032,7 +1036,10 @@ def bridge1_07(s, t, local, fi):
     pulse = np.exp(-ph * 4) * (0.7 if t < 111.05 else 0.3)
     can_h = 2000
     y0 = can_h - 1080 - int(tilt)
-    img = moon_with_halo(img, 1320, 520 - y0 * 0.0 + (tilt - 120) * 0.9, 80, pulse)
+    # the moon drifts to (960, 420) by the cut, where chorus3-01's chrysanthemum bursts (relay 4)
+    mx = 1320 - 360 * _ease_io(clamp(local / (s['end'] - s['start'])))
+    my = 180 + (tilt - 120) * 0.63
+    img = moon_with_halo(img, mx, my, 80, pulse)
     img = fw.rocket(img, t, 109.57, 111.05, 700, hor + 20, 760, 300 + (tilt - 120) * 0.5, '#F5C842')
     wall_y = (can_h - 166) - y0
     if wall_y < 1120:
