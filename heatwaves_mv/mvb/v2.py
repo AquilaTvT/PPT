@@ -13,6 +13,7 @@ Shots without B2 footage yet fall back to their v1 recipe (mvb.recipes), so the 
 """
 import functools
 import math
+import json
 import os
 
 import cv2
@@ -313,6 +314,8 @@ def printer_for(s, raw_fn):
         src = clip_path(sid2) or kf_path(sid2) or ''
         tag = hashlib.md5((src + str(int(os.path.getmtime(src)) if src else '') + repr(sorted(kw.items()))).encode()).hexdigest()[:8]
         pr = Printer(world_inks(s['id']), name=f'{sid2}_{tag}', **kw)
+        if 'skin' not in kw and sid2 in no_humans():
+            pr.skin_ok = False             # nobody in the shot: no skin pass (and no character mask to compute)
         if pr.pal is None:
             d = s['end'] - s['start']
             pr.fit([raw_fn(s, s['start'] + d * f, d * f) for f in (0.15, 0.5, 0.85)])
@@ -321,6 +324,16 @@ def printer_for(s, raw_fn):
 
 
 SHOT_PRINT = {}          # per-shot printer overrides (filled by the recipes below)
+_NOHUM = None
+
+
+def no_humans():
+    """shots generated as 'no humans' scenery (design/mv_b/gpu_shots_v2.json)"""
+    global _NOHUM
+    if _NOHUM is None:
+        d = json.load(open(os.path.join(ROOT, 'design', 'mv_b', 'gpu_shots_v2.json')))
+        _NOHUM = {x['id'] for x in d['shots'] if 'no humans' in x.get('keyframe_prompt', '')}
+    return _NOHUM
 
 
 # ------------------------------------------------------------------ English lines on a dot-matrix strip

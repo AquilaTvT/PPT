@@ -21,7 +21,9 @@ and at the end the print runs backwards to bare paper, leaving only the sun stam
 - **The print:** every frame of generated anime footage is printed by `mvb/print2.py`: ~22 flat inks fitted per shot
   and harmonised with the section's colour world, a 45° halftone screen carrying the shading, a 15° light screen,
   AM halos around light sources, key lines (gold on dark inks), cream paper, grain and gate weave
-  (measured from the reference, `design/ref_study/forensics.md`). Faces print clean on a warm cream.
+  (measured from the reference, `design/ref_study/forensics.md`). Faces print clean on a warm cream -- only on
+  people: anime person / face detection and character segmentation gate it (`mvb/people.py`), and the detected
+  faces anchor the skin colour, so a sunset cloud, a lantern or a wall in dusk light keeps its own ink.
 - **The town is real:** the map and the stamp card are drawn from OpenStreetMap data of the Enoden coast
   (Koshigoe – Shichirigahama – Enoshima), renamed 潮見 (Shiomi): every building footprint, the coastal railway,
   the streets the stamp route follows (`mvb/shiomi_map.py`, `mvb/card2.py`).
@@ -56,7 +58,9 @@ TITLE="Heat Waves" bash tools/deliver.sh out/hw.mp4 HeatWaves
 - Map data © OpenStreetMap contributors, available under the Open Database License (ODbL 1.0).
 - Fonts: Shippori Mincho, Zen Old Mincho, Zen Kaku Gothic New, DotGothic16, EB Garamond, Silkscreen and others under
   the SIL Open Font License (`assets/fonts/`).
-- Models: Anima (keyframes), Wan 2.2 TI2V 5B (video), RIFE (frame interpolation), an anime upscaler.
+- Models: Anima (keyframes), Wan 2.2 TI2V 5B (video), RIFE (frame interpolation), an anime upscaler;
+  for the print, SkyTNT anime-segmentation ISNet (Apache-2.0) and deepghs anime person / face detection (MIT),
+  fetched by `python3 -m mvb.people`.
 
 ## Earlier versions in this repository
 

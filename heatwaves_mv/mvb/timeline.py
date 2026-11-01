@@ -11,6 +11,7 @@ import numpy as np
 
 from mv import text
 from mv.timing import LYRICS
+from . import people
 from . import print_fx as pf
 from .typo import VLyric
 
@@ -65,6 +66,7 @@ def default_lyrics(s, img, t):
 def render(t, frame_idx):
     s = shot_at(t)
     local = t - s['start']
+    people.FRAME = (s['id'], frame_idx)          # the print's character gate is cached per frame group
     fn = RECIPES.get(s['id'], placeholder)
     img = fn(s, t, local, frame_idx)
     if s['id'] not in OWN_TYPE:

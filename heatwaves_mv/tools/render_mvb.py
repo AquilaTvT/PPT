@@ -58,6 +58,9 @@ def drop_caches():
     m = sys.modules.get('mvb.v2')                 # MV-B v2: footage decoders are reopened per worker
     if m is not None:
         m._CLIPS.clear()
+    m = sys.modules.get('mvb.people')             # ONNX sessions do not survive fork(): one per worker
+    if m is not None:
+        m._SESS = {}
     gc.collect()
 
 
@@ -89,6 +92,7 @@ def main():
                 if a.t0 <= tm < a.t1:
                     tl.render(tm, int(round(tm * FPS)))
     drop_caches()            # the workers rebuild what they touch from disk; a fat parent is copied into every worker
+    os.environ.setdefault('HW_SEG_THREADS', str(max(1, (os.cpu_count() or 4) // a.workers)))
     with mp.get_context('fork').Pool(a.workers, maxtasksperchild=1) as pool:
         parts = pool.map(work, jobs)
     lst = os.path.join(tmpd, 'list.txt')

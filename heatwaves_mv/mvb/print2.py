@@ -69,12 +69,13 @@ def flatten(rgb):
 
 class Printer:
     def __init__(self, inks, name=None, k=22, period=7.0, harmonize=0.38, line='#1A1110', gold='#D2B06E',
-                 night=False, lines=1.0, shade=1.0, glow=1.0, sat=1.0, dot_dark=0.5):
+                 night=False, lines=1.0, shade=1.0, glow=1.0, sat=1.0, dot_dark=0.5, skin=True):
         self.inks_lab = to_lab(np.stack([hexc(h) for h in inks])[None])[0]
         self.name, self.k, self.period = name, k, period
         self.harmonize, self.night, self.lines_amt, self.shade_amt, self.glow_amt, self.sat = harmonize, night, lines, shade, glow, sat
         self.line, self.gold = hexc(line), hexc(gold)
         self.dot_dark = dot_dark
+        self.skin_ok = skin            # False where coloured light (sunset, sunrise) makes 'skin' colour ambiguous
         self.pal = self.pal_g = None
         if name:
             p = os.path.join(CACHE, f'{name}.json')
@@ -134,7 +135,7 @@ class Printer:
         self._i1 = i1.reshape(h, w)
         return base.reshape(h, w, 3), refL.reshape(h, w)
 
-    def __call__(self, rgb, light_mask=None, skin=True, stage=None):
+    def __call__(self, rgb, light_mask=None, skin=True, stage=None, people=None):
         """stage (optional) runs the press part-way: {'inks': k} lays the palette inks light -> dark, the k-th one
         still being rolled across left -> right; 'dots', 'lines', 'halo' in 0..1 fade those plates"""
         assert self.pal is not None, 'fit() the printer on a few frames of the shot first'
@@ -144,8 +145,11 @@ class Printer:
         flat_h = cv2.bilateralFilter(cv2.pyrMeanShiftFiltering(half, 5, 16), 5, 24, 4).astype(np.float32) / 255.0
         base_lab_h, refL_h = self._assign(to_lab(flat_h))
         skin_h = None
-        if skin:          # faces and hands print on a warm cream; the screen carries their shading (manga print)
-            sk = skin_regions(flat_h)
+        if skin and self.skin_ok:   # faces and hands print on a warm cream; the screen carries their shading (manga print)
+            if people is None:      # only on people: the character mask of this frame (mvb/people.py)
+                from .people import mask as people_mask
+                people = people_mask(rgb, name=self.name)
+            sk = skin_regions(flat_h, people=people)
             if sk is not None:
                 sm, skin_lab_map, ref_map = sk
                 sm3 = sm[..., None]
@@ -210,17 +214,64 @@ class Printer:
         return np.clip(out, 0, 1)
 
 
-def skin_regions(flat, grow_de=24.0, cream_mix=0.58):
+SKIN_AB, SKIN_L = 9.0, 20.0        # how close (Lab) a region away from a face must be to that face's skin
+
+
+def _face_anchor(lab, X0, Y0, X1, Y1):
+    """the skin colour of a detected face: the warm, reasonably bright pixels of its cheeks and nose (under the
+    fringe, inside the jaw), their dominant colour (median Lab; eyes, mouth and blush fall away) -- or None"""
+    h, w = lab.shape[:2]
+    ix0, iy0 = max(0, int(X0 + 0.2 * (X1 - X0))), max(0, int(Y0 + 0.35 * (Y1 - Y0)))
+    ix1, iy1 = min(w, int(X1 - 0.2 * (X1 - X0))), min(h, int(Y1 - 0.1 * (Y1 - Y0)))
+    if ix1 - ix0 < 3 or iy1 - iy0 < 3:
+        return None
+    win = lab[iy0:iy1, ix0:ix1].reshape(-1, 3)
+    ch = np.hypot(win[:, 1], win[:, 2])
+    hue = np.degrees(np.arctan2(win[:, 2], win[:, 1]))
+    sel = win[(win[:, 0] > 28) & (ch > 8) & (hue > -10) & (hue < 85)]
+    if len(sel) < max(20, 0.25 * len(win)):
+        return None
+    m = np.median(sel, axis=0)
+    near = sel[np.hypot(sel[:, 1] - m[1], sel[:, 2] - m[2]) < 10]
+    return np.median(near, axis=0) if len(near) >= 20 else m
+
+
+def skin_regions(flat, grow_de=24.0, cream_mix=0.58, people=None):
     """whole faces / hands as consistent regions, so a face half in lantern light does not print half cream, half tan:
     strict skin cores (skin_mask_scene) are grown into neighbouring pixels of similar colour (Lab distance to the
     core's median), within a radius of the core. Each region gets ONE ink -- its median colour pulled toward the
     paper's warm cream -- and one reference lightness (its lit side), so the halftone carries its shading.
+    people (mvb/people.py: {'gate', 'faces'}) confines cores and growth to the characters -- a sunset cloud, a lantern,
+    dusk light on a wall or a wooden floor have skin colours too -- and the faces anchor the colour: away from a face,
+    a region is skin only if its colour matches a face's skin in the same light (a white shirt under lanterns is not).
     Returns (soft mask, ink Lab map, reference L map) at the input's resolution, or None."""
     sm, core = skin_mask_scene(flat)
+    h, w = core.shape
+    gate, faces, anchors = None, [], []
+    lab = to_lab(flat)
+    if people is not None:
+        from .people import OUT as P_OUT, gate as people_gate
+        g = people['gate'] if isinstance(people, dict) else people
+        gate = people_gate(g, core.shape)
+        core = core & gate
+        fx, fy = w / P_OUT[0], h / P_OUT[1]
+        for x0, y0, x1, y1, _ in (people.get('faces', []) if isinstance(people, dict) else []):
+            X0, Y0, X1, Y1 = x0 * fx, y0 * fy, x1 * fx, y1 * fy
+            faces.append((int(X0), int(Y0), int(math.ceil(X1)), int(math.ceil(Y1))))
+            a = _face_anchor(lab, X0, Y0, X1, Y1)
+            if a is None:
+                continue
+            anchors.append(a)
+            # the face itself is skin wherever it has its own colour -- also a tanned face in lantern light that
+            # the generic detector misses
+            bx0, by0 = max(0, int(X0 - 0.05 * (X1 - X0))), max(0, int(Y0 - 0.05 * (Y1 - Y0)))
+            bx1, by1 = min(w, int(math.ceil(X1 + 0.05 * (X1 - X0)))), min(h, int(math.ceil(Y1 + 0.05 * (Y1 - Y0))))
+            win = lab[by0:by1, bx0:bx1]
+            own = ((np.hypot(win[..., 1] - a[1], win[..., 2] - a[2]) < SKIN_AB * 1.3) &
+                   (np.abs(win[..., 0] - a[0]) < SKIN_L * 1.5) & gate[by0:by1, bx0:bx1])
+            core[by0:by1, bx0:bx1] |= own
     if not core.any():
         return None
-    h, w = core.shape
-    lab = to_lab(flat)
     n, lab_c, st, _ = cv2.connectedComponentsWithStats(core.astype(np.uint8), 8)
     region = np.zeros((h, w), np.float32)
     ink = np.zeros((h, w, 3), np.float32)
@@ -235,6 +286,9 @@ def skin_regions(flat, grow_de=24.0, cream_mix=0.58):
         x0, y0, x1, y1 = max(0, x - r), max(0, y - r), min(w, x + ww + r), min(h, y + hh + r)
         comp = (lab_c[y0:y1, x0:x1] == i).astype(np.uint8)
         m = np.median(lab[y0:y1, x0:x1][comp > 0], axis=0)
+        if anchors and not any(fx0 < x + ww and x < fx1 and fy0 < y + hh and y < fy1 for fx0, fy0, fx1, fy1 in faces):
+            if not any(np.hypot(m[1] - a[1], m[2] - a[2]) < SKIN_AB and abs(m[0] - a[0]) < SKIN_L for a in anchors):
+                continue
         near = cv2.dilate(comp, ker) > 0
         win = lab[y0:y1, x0:x1]
         d = np.sqrt(((win - m) ** 2).sum(-1))
@@ -243,6 +297,8 @@ def skin_regions(flat, grow_de=24.0, cream_mix=0.58):
         # skin keeps its warm chroma in any light; grey asphalt or a motion-blurred edge next to a leg does not
         warm = (chroma >= max(7.0, 0.45 * float(np.hypot(m[1], m[2])))) & (hue > -5) & (hue < 105)
         cand = ((d < grow_de) & near & warm & (win[..., 0] > 22)).astype(np.uint8) | comp
+        if gate is not None:
+            cand &= gate[y0:y1, x0:x1].astype(np.uint8)
         nn, lab_g = cv2.connectedComponents(cand, 8)
         keep = np.unique(lab_g[comp > 0])
         keep = keep[keep > 0]
