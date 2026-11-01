@@ -36,7 +36,7 @@ def load_cfg(path):
         'tokens': {},          # e.g. {"<kimi>": "kimi_hw, 1girl, black hair, bob cut, ...", "<boku>": "..."}
         'video': {'engine': 'wan22', 'w': 1280, 'h': 720, 'lightning': False, 'steps': 20, 'cfg': 3.5, 'split': 10,
                   'shift': 5.0},
-        'finish': {'interp_model': 'rife_v4.26.safetensors', 'multiplier': 2},
+        'finish': {'interp_model': 'rife_v4.26.safetensors', 'multiplier': 3},   # 16 fps x3 = 48: every 2nd frame is 24 fps
     }
     if path and os.path.exists(path):
         user = json.load(open(path))

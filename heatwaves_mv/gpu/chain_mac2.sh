@@ -29,7 +29,8 @@ free_vram
 disk_ok || { log "low disk, stopping"; exit 1; }
 log "B videos start"
 retry "B videos" bash -c "$PY gpu/run_shots.py videos --shots design/mv_b/gpu_shots.json --cfg gpu/config_mac_b.json --n 1 >> work/vid_B.log 2>&1"
-log "B videos complete; upscaling B"
+log "B videos complete; RIFE x3 (finish) + upscaling B"
+$PY gpu/run_shots.py finish --shots design/mv_b/gpu_shots.json --cfg gpu/config_mac_b.json >> work/vid_B.log 2>&1 || log "B finish failed (upscaling the 16 fps clips)"
 free_vram
 $PY gpu/upscale_clips.py work/B >> work/up.log 2>&1
 log "B upscaled"
@@ -37,7 +38,8 @@ disk_ok || { log "low disk, stopping"; exit 1; }
 free_vram
 log "A videos resume"
 retry "A videos" bash -c "$PY gpu/run_shots.py videos --shots design/mv_a/shots.json --cfg gpu/config_mac.json --n 1 >> work/vid_A.log 2>&1"
-log "A videos complete; upscaling A"
+log "A videos complete; RIFE x3 (finish) + upscaling A"
+$PY gpu/run_shots.py finish --shots design/mv_a/shots.json --cfg gpu/config_mac.json >> work/vid_A.log 2>&1 || log "A finish failed (upscaling the 16 fps clips)"
 free_vram
 $PY gpu/upscale_clips.py work/A >> work/up.log 2>&1
 log "chain2 done"

@@ -53,7 +53,7 @@ def world_inks(sid):
 
 def media_path(sid):
     d = os.path.join(WORK, sid)
-    for name in ('final.mp4', 'v_0_24.mp4', 'v_0_up.mp4', 'v_0.mp4'):
+    for name in ('final_up.mp4', 'v_0_up.mp4', 'final.mp4', 'v_0_24.mp4', 'v_0.mp4'):
         p = os.path.join(d, name)
         if os.path.exists(p):
             return 'video', p
