@@ -5012,3 +5012,151 @@ def chorus4_04(s, t, local, fi):
 
 R['B-chorus4-04'] = chorus4_04
 tl.OWN_TYPE.add('B-chorus4-04')
+
+
+# ---- B-outro-01: the third burst -- the headlight becomes the rising sun; the dawn prints over the night; he turns -------
+def _o01_plate():
+    s = tl.BY_ID['B-outro-01']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [0.0, 2.0, 20.0], 'look': [40.0, 30.0, 720.0], 'fov': 34},
+            {'t': 1.48, 'pos': [-6.0, 3.0, 12.0], 'look': [8.0, 2.4, 60.0], 'fov': 44, 'ease': 'inout'},
+            {'t': 2.59, 'pos': [-6.6, 3.0, 13.0], 'look': [8.6, 2.4, 60.0], 'fov': 44, 'ease': 'linear'},
+            {'t': d, 'pos': [-6.6, 3.0, 13.0], 'look': [8.6, 40.0, 70.0], 'fov': 44, 'ease': 'in'}]
+    return plate('B-outro-01', 's2_coast', {'world': 'dawnprint', 'day': True, 'path': path, 'wallH': 0.5,
+                                           'poleSpacing': 16.3, 'mirrors': [], 'vending': [], 'moonPos': [40.0, 30.0, 720.0]},
+                 0.0, d, fps=24)
+
+
+def outro_01(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    pl = once('o01', _o01_plate)
+    img = pl.frame(local).copy()
+    # dawn printing over the night: orange 162.17, yellow 162.91, silver 163.65, each wiping outward from the sun
+    sx, sy = 960, 540
+    night = np.empty_like(img)
+    night[:] = H('#1E2550')
+    d_ = np.sqrt((kit._XS - sx) ** 2 + (kit._YS - sy) ** 2)
+    cover = np.ones((1080, 1920), np.float32)
+    for tp in (162.17, 162.91, 163.65):
+        if t >= tp:
+            r = 2400 * _ease_out_c(clamp((t - tp) / 0.6))
+            cover *= np.clip((d_ - r) / 30.0, 0, 1)
+    img = img + (night - img) * (cover * 0.85)[..., None]
+    # the relay landing: sun disc with rays + AM glare at frame centre, then it rises out of frame with the pull-back
+    k = _ease_io(clamp(local / 1.48))
+    cx, cy = 960 - 300 * k, 540 - 420 * k
+    rr = 400 * (1 - k) + 90 * k
+    kit.halo(img, cx, cy, rr * 2.4, '#F5C842', 0.7, period=14.0)
+    m = np.zeros((1080, 1920), np.float32)
+    for j in range(12):
+        a = j * math.pi / 6 + t * 0.6
+        pts = np.array([[cx + math.cos(a - 0.1) * rr * 1.1, cy + math.sin(a - 0.1) * rr * 1.1],
+                        [cx + math.cos(a) * rr * 1.6, cy + math.sin(a) * rr * 1.6],
+                        [cx + math.cos(a + 0.1) * rr * 1.1, cy + math.sin(a + 0.1) * rr * 1.1]], np.int32)
+        cv2.fillConvexPoly(m, pts, 1.0, cv2.LINE_AA)
+    img = img + (H('#F08A3C')[None, None] - img) * m[..., None]
+    m = np.zeros((1080, 1920), np.float32)
+    cv2.circle(m, (int(cx), int(cy)), int(rr), 1.0, -1, cv2.LINE_AA)
+    img = img + (H('#FFF2C8')[None, None] - img) * m[..., None]
+    if t < 162.17 + 5 / 24:
+        img = kit.dot_flash(img, 1 - (t - 162.17) / (5 / 24), '#F5C842', 24)
+    # the train passing on the coastal track behind him, its LED board scrolling L55
+    if local > 1.2:
+        u = (local - 1.2) / 1.9
+        tx = 2200 - 2600 * u
+        body = np.zeros((1080, 1920), np.float32)
+        cv2.rectangle(body, (int(tx), 520), (int(tx) + 1100, 700), 1.0, -1)
+        img = img + (H('#EDE3CF')[None, None] - img) * body[..., None]
+        band = np.zeros((1080, 1920), np.float32)
+        cv2.rectangle(band, (int(tx), 660), (int(tx) + 1100, 680), 1.0, -1)
+        img = img + (H('#D9402B')[None, None] - img) * band[..., None]
+        for j in range(8):
+            wx = int(tx + 40 + j * 130)
+            cv2.rectangle(img, (wx, 545), (wx + 90, 620), tuple(float(v) for v in H('#F5C842')), -1)
+        brd, _ = print_fx.led_board("SOMETIMES, ALL I THINK ABOUT IS YOU   ", cols=80, rows=8, dot=8, on='#F08A3C',
+                                    off='#2A1C14', bg='#141018', font='silk', scroll=int((t - 162.30) * 24 * 2) % 300 - 80)
+        bh, bw = brd.shape[:2]
+        bx = int(tx + 200)
+        xa, xb = max(0, bx), min(1920, bx + bw)
+        if xa < xb:
+            img[492:492 + bh, xa:xb] = brd[:, xa - bx:xb - bx]
+    # him on the seawall, turning to the light (mid shot), sun-yellow hairline rim, gold halftone light on his lit side
+    cl = once('o01_char', lambda: chars.CharLayer('B-outro-01', rim_hair='#F5C842'))
+    if cl.ok and local > 0.9:
+        rgb, a = cl.frame(local, x=560, y=1080, cx=0.5, cy=0.7, height=1100)
+        lit = np.clip((kit._XS - 480) / 200.0, 0, 1) * a * _dots_k(0.45, 8.0)
+        rgb = rgb + (H('#F5C842')[None, None] - rgb) * (lit * 0.5)[..., None]
+        img = chars.over(img, rgb, a * clamp((local - 0.9) / 0.4), shadow='#2C4C9A')
+    # 'SOMETIMES' across the sky band, one letter per 16th
+    if t >= 162.30:
+        n = min(9, int((t - 162.30) / (BEAT / 4)) + 1)
+        from mv import text
+        gl, _ = text.layout_h('SOMETIMES'[:n], 1500, 160, 72, 'mincho', tracking=0.5, align='center')
+        f, _ = text.render_glyphs(gl)
+        if f is not None:
+            img = img + (H('#D9402B')[None, None] - img) * f[..., None]
+    # whip-up 164.76-165.13 (30 px vertical blur)
+    if t >= 164.76:
+        k = clamp((t - 164.76) / 0.37)
+        img = cv2.blur(img, (1, int(1 + 60 * k)))
+    return _zh_fixed(img, t, 55, 162.3, ink='#1A1416', halo_col='#EDE3CF')
+
+
+def _ease_out_c(x):
+    return 1 - (1 - x) ** 3
+
+
+R['B-outro-01'] = outro_01
+tl.OWN_TYPE.add('B-outro-01')
+
+
+# ---- B-outro-03: he runs along the seawall road; six vending machines, each lights one word as he passes ---------------
+def _o03_plate():
+    s = tl.BY_ID['B-outro-03']
+    d = s['end'] - s['start']
+    v = 5.0
+    beats = [168.09, 168.83, 169.57, 170.31, 170.68, 171.05]
+    zs = [round(20.0 + v * (b - s['start']) + 2.6, 2) for b in beats]
+    path = [{'t': 0.0, 'pos': [-1.6, 1.3, 20.0], 'look': [-6.5, 1.25, 23.4], 'fov': 46},
+            {'t': d, 'pos': [-1.6, 1.3, 20.0 + v * d], 'look': [-6.5, 1.25, 23.4 + v * d], 'fov': 46, 'ease': 'linear'}]
+    return plate('B-outro-03', 's2_coast', {'world': 'dawnprint', 'day': True, 'path': path, 'wallH': 0.5,
+                                           'poleSpacing': 16.3, 'mirrors': [], 'vending': zs}, 0.0, d, fps=24), zs
+
+
+def outro_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    pl, zs = once('o03', _o03_plate)
+    img = pl.frame(local).copy()
+    words = [('HEAT', 168.09), ('WAVES', 168.83), ('BEEN', 169.57), ("FAKIN'", 170.31), ('ME', 170.68), ('OUT', 171.05)]
+    # each machine's mint ticker: the word lights as he passes (screen-space ticker band on the machine nearest him)
+    lit = [w for w, b in words if t >= b - 0.05]
+    if lit:
+        w = lit[-1]
+        brd, _ = print_fx.led_board(w, cols=max(24, len(w) * 9 + 6), rows=10, dot=12, on='#7FC8B8', off='#16302E',
+                                    bg='#0B1414', font='silk', glow=0.6)
+        bh, bw = brd.shape[:2]
+        x0, y0 = 960 - bw // 2 + 260, 300
+        img[y0:y0 + bh, x0:x0 + bw] = brd
+        kit.halo(img, 960 + 260, y0 + bh / 2, bw * 0.8, '#7FC8B8', 0.3, period=10.0)
+    cl = once('o03_char', lambda: chars.CharLayer('B-outro-03'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=700, y=1080, cx=0.5, cy=0.98, height=700)
+        img = chars.over(img, rgb, a, shadow='#2C4C9A')
+    # foreground poles whipping past at 2x
+    off = (local * 5.0 * 2 * 120) % 900
+    m = np.zeros((1080, 1920), np.float32)
+    for x0 in np.arange(1920 - off, -400, -900):
+        cv2.rectangle(m, (int(x0), 0), (int(x0) + 60, 1080), 1.0, -1)
+    m = cv2.blur(m, (41, 1))
+    img = img + (H('#1A1416')[None, None] - img) * (m * 0.9)[..., None]
+    return _zh_fixed(img, t, 57, 168.05, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro-03'] = outro_03
+tl.OWN_TYPE.add('B-outro-03')
