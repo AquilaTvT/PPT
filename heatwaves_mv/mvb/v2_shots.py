@@ -246,6 +246,16 @@ def intro01_stage(s, t, local):
             'halo': clamp((t - 2.2) / 0.4)}
 
 
+def intro01_over(img, s, t, local):
+    """the film opens on the proof sheet it ends on: marks and colour bar on bare paper, lifting as the inks roll in"""
+    a = 1.0 - clamp((t - 1.10) / 0.9)
+    if a <= 0:
+        return img
+    mk = proof_marks(True)
+    al = mk[..., 3:4] * a
+    return img * (1 - al) + mk[..., :3] * al
+
+
 RAW['B-intro-01'] = intro01
 STAGE = {'B-intro-01': intro01_stage}
 
@@ -771,7 +781,7 @@ CAM = {'B-hook-01': push_in(_mirror_size('B2-hook-01', HOOK01_M, 0)),          #
        'B-chorus1-02': pull_out(_quad_size(C102_TV)),                          # -> out of the CRT showing her face
        'B-chorus1-07': _c107_cam}
 
-OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over, 'B-chorus2-01': chorus2_01_over,
+OVER = {'B-intro-01': intro01_over, 'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over, 'B-chorus2-01': chorus2_01_over,
         'B-chorus2-04': chorus2_04_over, 'B-verse-06': verse06_over, 'B-intro-03': intro03_over,
         'B-chorus1-02': chorus1_02_over, 'B-chorus2-02': chorus2_02_over, 'B-chorus1-07': chorus1_07_over}
 OWN = {'B-chorus2-01', 'B-chorus2-04'}
@@ -813,9 +823,10 @@ def oh3_stage(s, t, local):
             'dots': 1 - clamp((t - b[3] - 0.3) / 0.45), 'halo': 1 - clamp((t - b[3]) / 0.6)}
 
 
-@functools.lru_cache(maxsize=1)
-def proof_marks():
-    """printer's proof furniture: crop marks, registration targets, a colour bar"""
+@functools.lru_cache(maxsize=2)
+def proof_marks(opening=False):
+    """printer's proof furniture: crop marks, registration targets, a colour bar; the colophon (song, cover, map
+    data, fan work) -- at the opening only the song and the cover"""
     import skia
     from .card2 import INK
     surf = skia.Surface(W, H_)
@@ -839,8 +850,10 @@ def proof_marks():
     c.drawString('潮見観光協会　昭和六十年夏　第一刷', 110, H_ - 48, text.font('mincho_sb', 22), ink)
     # the colophon: song, cover, map data (OpenStreetMap attribution), fan work
     f = text.font('garamond', 19)
-    for k, line in enumerate(('Heat Waves - Glass Animals  /  Japanese cover and lyrics: Lime',
-                              'Map data (c) OpenStreetMap contributors, ODbL  /  a fan-made music video')):
+    lines = ('Heat Waves - Glass Animals  /  Japanese cover and lyrics: Lime',) if opening else \
+        ('Heat Waves - Glass Animals  /  Japanese cover and lyrics: Lime',
+         'Map data (c) OpenStreetMap contributors, ODbL  /  a fan-made music video')
+    for k, line in enumerate(lines):
         line = line.replace('(c)', '\u00a9')
         c.drawString(line, W - 110 - f.measureText(line), 112 + k * 26, f, ink)
     arr = np.empty((H_, W, 4), np.uint8)
