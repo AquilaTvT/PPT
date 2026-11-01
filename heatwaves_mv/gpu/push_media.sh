@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Push generated media to the repo's separate `hw-media` branch so the cloud compositor can fetch it.
 # The branch lives in its own folder (~/Heat Waves/hw-media); the code checkout is never touched.
-#   bash gpu/push_media.sh work/A/A-intro-01 work/bench.json ...      (paths relative to the project)
+#   bash gpu/push_media.sh work/B work/A          (per shot: best video + picked keyframe + manifest)
+#   bash gpu/push_media.sh work/A/A-intro-01 ...  (any other path is mirrored as is)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PROJ="$PWD"
@@ -12,10 +13,16 @@ if [ ! -d "$MEDIA/.git" ]; then
   git -C "$MEDIA" checkout -q -b hw-media
   git -C "$MEDIA" fetch -q origin hw-media 2>/dev/null && git -C "$MEDIA" reset -q --soft FETCH_HEAD || true
 fi
+PY="$PROJ/.hw/venv/bin/python"
+[ -x "$PY" ] || PY=python3
 for p in "$@"; do
   [ -e "$p" ] || { echo "missing: $p"; continue; }
-  mkdir -p "$MEDIA/$(dirname "$p")"
-  if [ -d "$p" ]; then rsync -a --exclude '*.tmp' "$p/" "$MEDIA/$p/"; else cp -p "$p" "$MEDIA/$p"; fi
+  p="${p%/}"
+  case "$p" in
+    work/A|work/B) "$PY" "$PROJ/gpu/stage_media.py" "$MEDIA" "$p" ;;     # best video + picked keyframe per shot
+    *) mkdir -p "$MEDIA/$(dirname "$p")"
+       if [ -d "$p" ]; then rsync -a --exclude '*.tmp' "$p/" "$MEDIA/$p/"; else cp -p "$p" "$MEDIA/$p"; fi ;;
+  esac
 done
 git -C "$MEDIA" add -A
 if git -C "$MEDIA" diff --cached --quiet; then echo "nothing new"; exit 0; fi
