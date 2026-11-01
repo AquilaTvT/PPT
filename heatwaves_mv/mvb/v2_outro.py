@@ -47,6 +47,15 @@ def printer2(s, key, world_from, raw_fn, **kw):
     return _PR[name]
 
 
+def day_for_night(raw):
+    """the night plate of the same view: darker, cooler, the sky deep indigo, sunlit surfaces fall to moonlight"""
+    y = np.clip(raw @ np.float32([0.2126, 0.7152, 0.0722]), 0, 1)
+    lum = 0.10 + 0.50 * y ** 1.35
+    tint = np.float32([0.42, 0.52, 0.95])
+    out = lum[..., None] * tint[None, None] + np.float32([0.02, 0.03, 0.08])[None, None]
+    return np.clip(out, 0, 1)
+
+
 def tl_section(sid):
     return v2.tl.BY_ID[sid]['section']
 
@@ -66,21 +75,22 @@ def bridge2_04(s, t, local, fi):
     if p >= 1:
         return clean
     top = pr(raw)
-    return peel(top, clean, p, angle=-30.0, curl=110.0, back='#EFE8DA')
+    return peel(top, clean, p, angle=-30.0, curl=150.0, mode='film')
 
 
 def outro_02(s, t, local, fi):
     from .v2_print import peel
     raw = _raw(s, t, local)
-    night = printer2(s, 'night', 'B-chorus2-04', _raw, glow=1.1, night=True)
+    night = printer2(s, 'night', 'B-chorus2-04', lambda s_, t_, l_: day_for_night(_raw(s_, t_, l_)), glow=1.1, night=True)
     dawn = v2.printer_for(s, _raw)
+    nraw = day_for_night(raw)
     p = clamp((t - 165.7) / 1.9)
     if p <= 0:
-        img = night(raw)
+        img = night(nraw)
     elif p >= 1:
         img = dawn(raw)
     else:
-        img = peel(night(raw), dawn(raw), p, angle=-24.0, curl=150.0, back='#1E2550')
+        img = peel(night(nraw), dawn(raw), p, angle=-24.0, curl=170.0, back='#E4D7BC', mode='paper')
     return v2.english_lines(img, s, t)
 
 

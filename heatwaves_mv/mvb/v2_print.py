@@ -61,30 +61,49 @@ def split_masks(x_split, soft=70.0, left_first=True):
     return (a, 1 - a) if left_first else (1 - a, a)
 
 
-def peel(top, under, p, angle=-35.0, curl=90.0, back='#E4D7BC'):
-    """p in 0..1: the fold travels across the frame along `angle` (degrees); past the fold the under image shows,
-    the curled sheet (its paper back, shaded) lies just behind the fold, a soft shadow falls on the revealed side"""
+def peel(top, under, p, angle=-35.0, curl=90.0, back='#E4D7BC', mode='paper'):
+    """p in 0..1: a sheet is peeled back along a fold that travels across the frame (direction `angle`, degrees).
+    Behind the fold (already peeled) the under image shows; the peeled part is folded back over the rest as a flap
+    of width <= curl showing its back, with a soft shadow beyond its edge.
+      mode='paper': the flap is the sheet's paper back (colour `back`, shaded, the print faintly showing through)
+      mode='film' : the sheet is a transparent screentone film -- the flap carries the mirrored dots of the top
+                    print (top / under), with a sheen"""
     ys, xs = _grid()
     a = math.radians(angle)
-    d = xs * math.cos(a) + ys * math.sin(a)
-    lo, hi = float(d.min()) - curl * 2, float(d.max()) + curl
-    f = lo + (hi - lo) * p                                   # fold position along d
-    rel = d - f                                              # < 0: already peeled (revealed)
-    revealed = np.clip(-rel / 1.5, 0, 1)
+    nx, ny = math.cos(a), math.sin(a)
+    d = xs * nx + ys * ny
+    lo, hi = float(d.min()), float(d.max())
+    f = lo - 4 + (hi - lo + curl + 8) * p                    # fold position along d
+    rel = d - f                                              # < 0: peeled (revealed), > 0: still on the paper
+    peeled_len = max(0.0, f - lo)
+    wf = min(curl, peeled_len)
+    revealed = np.clip(-rel / 1.2 + 0.5, 0, 1)
     out = top * (1 - revealed[..., None]) + under * revealed[..., None]
-    # the shadow of the lifted sheet on the revealed side
-    sh = np.exp(-np.clip(-rel, 0, None) / (curl * 0.9)) * (rel < 0) * 0.45
-    out = out * (1 - sh[..., None])
-    # the curl: the sheet's back, a band just on the revealed side of the fold
-    band = (rel < 0) & (rel > -curl)
-    u = np.clip(-rel / curl, 0, 1)
-    shade = 0.70 + 0.30 * np.sin(u * math.pi)
-    backc = H(back)[None, None] * shade[..., None]
-    bm = band.astype(np.float32)
-    bm = cv2.GaussianBlur(bm, (0, 0), 0.8)
-    out = out * (1 - bm[..., None]) + backc * bm[..., None]
-    edge = np.exp(-(rel / 1.6) ** 2) * 0.5
-    return np.clip(out * (1 - edge[..., None] * 0.6), 0, 1)
+    # a little lift shadow on the revealed side next to the fold
+    out = out * (1 - (np.exp(np.clip(rel, None, 0) / 18.0) * (rel < 0) * 0.25)[..., None])
+    if wf > 1:
+        flap = (rel > 0) & (rel < wf)
+        u = np.clip(rel / wf, 0, 1)                          # 0 at the fold, 1 at the flap's free edge
+        mx = (xs - 2 * rel * nx).astype(np.float32)
+        my = (ys - 2 * rel * ny).astype(np.float32)
+        fm = flap.astype(np.float32)
+        fm = cv2.GaussianBlur(fm, (0, 0), 0.8)
+        if mode == 'film':
+            ratio = np.clip(top / np.maximum(under, 1e-3), 0, 1)
+            rm = cv2.remap(ratio, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+            sheen = 1.0 + 0.10 * np.sin(u * math.pi)[..., None]
+            film = top * rm * sheen + 0.05 * (1 - u)[..., None]
+            out = out * (1 - fm[..., None]) + film * fm[..., None]
+        else:
+            mt = cv2.remap(top, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+            shade = (0.78 + 0.22 * np.sin(u * math.pi * 0.9 + 0.2))[..., None]
+            paper = H(back)[None, None] * shade
+            show = paper * 0.86 + (1 - mt) * -0.10 + mt * 0.10      # the print faintly through the paper
+            out = out * (1 - fm[..., None]) + np.clip(show, 0, 1) * fm[..., None]
+        edge = np.exp(-((rel - wf) / 1.4) ** 2) * 0.35 + np.exp(-(rel / 1.4) ** 2) * 0.25
+        sh = np.exp(-np.clip(rel - wf, 0, None) / 16.0) * (rel > wf) * 0.32
+        out = out * (1 - (edge + sh)[..., None])
+    return np.clip(out, 0, 1)
 
 
 @functools.lru_cache(maxsize=1)
