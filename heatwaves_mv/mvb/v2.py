@@ -355,13 +355,8 @@ OVER = {}                # shot id -> over(img, s, t, local) override (graphics 
 
 
 def default_raw(s, t, local):
-    img = plate(s, local)
-    world = SECTION_WORLD.get(s['section'], '')
-    if world in ('正午刷り Noon Print',):
-        img = heat(img, t, 0.005)
-    if world in ('夜刷り Night Print', 'ブラウン管 CRT Glow', '月刷り Moon Print', '祭 Festival', '黎明前 Blue Hour'):
-        img = glow(img, 0.22)
-    return img
+    from .v2_shots import dream                 # noon heat shimmer (+ the mirage band), night glow
+    return dream(plate(s, local), s, t, local)
 
 
 def english_lines(img, s, t):

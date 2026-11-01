@@ -172,12 +172,30 @@ def base(s, t, local):
     return v2.plate(s, local)
 
 
+# the mirage band: stronger shimmer just above the hot asphalt where the road meets the horizon (plate rows)
+# shot id -> (centre x, centre y, half-width x, sigma y, amp)
+MIRAGE = {'B-hook-01': (1500, 860, 520, 70, 0.012), 'B-hook-03': (960, 472, 380, 38, 0.013),
+          'B-chorus1-01': (900, 840, 520, 55, 0.011), 'B-outro_hook-01': (1030, 520, 380, 55, 0.012),
+          'B-outro_hook-03': (980, 640, 520, 65, 0.014)}
+
+
+@functools.lru_cache(maxsize=8)
+def _mirage_mask(sid):
+    cx, cy, hx, sy, _ = MIRAGE[sid]
+    ys, xs = fx_grid()
+    gy = np.exp(-0.5 * ((ys - cy) / sy) ** 2)
+    gx = np.clip(1.0 - np.abs(xs - cx) / hx, 0, 1) ** 0.6
+    return (gy * gx).astype(np.float32)
+
+
 def dream(img, s, t, local):
     """the dreamcore light after the devices: noon heat shimmer, night glow (as v2.default_raw)"""
     from .chars import SECTION_WORLD
     world = SECTION_WORLD.get(s['section'], '')
     if world in ('正午刷り Noon Print',):
         img = v2.heat(img, t, 0.005)
+        if s['id'] in MIRAGE and v2.cam_params(s, local)[0] < 1.05:
+            img = v2.heat(img, t * 1.6 + 3.7, MIRAGE[s['id']][4], region=_mirage_mask(s['id']))
     if world in ('夜刷り Night Print', 'ブラウン管 CRT Glow', '月刷り Moon Print', '祭 Festival', '黎明前 Blue Hour'):
         img = v2.glow(img, 0.22)
     return img

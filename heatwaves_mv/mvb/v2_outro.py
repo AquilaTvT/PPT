@@ -198,7 +198,9 @@ def outro_hook_01(s, t, local, fi):
     noon = np.float32([1.02, 1.03, 1.06])
     raw = raw * (warm * (1 - day) + noon * day) + 0.04 * day
     if day > 0.5:
+        from .v2_shots import MIRAGE, _mirage_mask
         raw = v2.heat(raw, t, 0.004 * day)
+        raw = v2.heat(raw, t * 1.6 + 3.7, MIRAGE['B-outro_hook-01'][4] * (day - 0.5) * 2, region=_mirage_mask('B-outro_hook-01'))
     img = v2.printer_for(s, lambda s_, t_, l_: v2.plate(s_, l_))(raw)
     e = k
     img = draw_card(img, -900 + 1900 * e, -60 + 90 * math.sin(e * 4), 1700 - 300 * e, 30 * math.sin(t * 2.4), 60 + 20 * math.sin(t * 3.1),
