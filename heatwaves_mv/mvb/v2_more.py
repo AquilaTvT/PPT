@@ -817,11 +817,15 @@ def mirror_hints(sid2, n=6, min_r=30):
     return [((float(e[0][0]), float(e[0][1])), (float(e[1][0]), float(e[1][1])), float(e[2])) for e in found]
 
 
+OUT05_HINTS = [((475, 346), (359, 460), 0.0), ((890, 423), (255, 379), 0.0), ((1200, 477), (192, 300), 0.0),
+               ((1393, 507), (147, 240), 0.0), ((1577, 540), (113, 214), 0.0), ((1728, 567), (90, 200), 0.0)]
+
+
 def outro_05(s, t, local):
     from .v2_shots import mirrors_at, insert_in, her
     img = base(s, t, local)
     plate = img.copy()
-    hints = mirror_hints(v2.b2_id(s))
+    hints = OUT05_HINTS
     if not hints:
         return _dream(img, s, t, local)
     order = sorted(range(len(hints)), key=lambda j: hints[j][0][0])
@@ -906,12 +910,11 @@ def detect_panel(rgb, y_max=0.62, min_area=12000):
     return fx._quad(best)
 
 
-@functools.lru_cache(maxsize=1)
+O04_PANEL = [(694, 174), (1256, 174), (1256, 376), (694, 376)]       # measured on the picked keyframe
+
+
 def o04_panel():
-    f = v2.footage('B2-outro-04')
-    rgb = f.at(0.0) if hasattr(f, 'c') else f.img
-    q = detect_panel(rgb)
-    return None if q is None else q.tolist()
+    return O04_PANEL
 
 
 def outro_04_over(img, s, t, local):

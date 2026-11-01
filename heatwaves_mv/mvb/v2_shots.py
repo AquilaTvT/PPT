@@ -906,7 +906,13 @@ def oh3_english(img, s, t):
     return img
 
 
-RAW['B-outro_hook-03'] = lambda s, t, local: dream(base(s, t, local), s, t, local)
+def outro_hook_03_raw(s, t, local):
+    from .v2_more import strip_box
+    img = strip_box(base(s, t, local), (956, 0, 1006, 374))          # a stray light beam the model drew in the sky
+    return dream(img, s, t, local)
+
+
+RAW['B-outro_hook-03'] = outro_hook_03_raw
 STAGE['B-outro_hook-03'] = oh3_stage
 OVER['B-outro_hook-03'] = oh3_over
 ENGLISH_OVR = {'B-outro_hook-03': oh3_english}

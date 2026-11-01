@@ -170,9 +170,12 @@ def outro_08_over(img, s, t, local):
     if k <= 0:
         return img
     e = clamp(k)
-    x = -380 + 1100 * e + 60 * math.sin(e * 7.0)
-    y = 520 - 1100 * e ** 0.8 + 40 * math.sin(e * 9.0 + 1)
-    z = 900 + 5200 * e ** 1.6
+    # from below the frame on his right, up past his shoulder (never across his face), lingering, then away toward
+    # the sun at the upper right; positions planned on screen, depth grows
+    sx = 1500 + 150 * e - 100 * math.sin(math.pi * e) + 25 * math.sin(e * 11.0)
+    sy = 1150 - 1030 * (1 - (1 - e) ** 2) + 20 * math.sin(e * 9.0 + 1)
+    z = 900 + 6100 * e ** 1.8
+    x, y = (sx - 960) * z / 1400.0, (sy - 540) * z / 1400.0
     yaw = 35 * math.sin(t * 2.9) + 20
     pitch = 50 * math.sin(t * 3.7 + 0.4) - 25
     roll = -25 + 40 * math.sin(t * 2.1)
