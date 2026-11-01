@@ -592,8 +592,10 @@ def a_chorus1_04(s, t, local, fi):
 def a_chorus1_05(s, t, local, fi):
     sid = s['id']
     img = plate(s, local)
-    # circle match in: a ripple ring where the mirror disc was
-    e = _cache.get('c104_disc', REG('A-chorus1-04', 'mirror', [960, 420, 150, 150]))
+    # circle match in: a ripple ring where the mirror disc was (chorus1-04's last frame, computed, not cached)
+    s4 = tl.BY_ID['A-chorus1-04']
+    l4 = s4['end'] - s4['start'] - 1 / 24
+    e = disc_of('A-chorus1-04', l4, plate(s4, l4), REG('A-chorus1-04', 'mirror', [960, 420, 150, 150]))
     if local < 0.6:
         img = fx.ripple(img, e[0], e[1], t, s['start'], speed=600.0, wavelength=50.0, amp=10.0, decay=2.0)
     ca = fx.caustics(t, scale=120.0)
@@ -889,7 +891,8 @@ def burst(img, t, t0, cx, cy, R=260, col='#FFD166', n=90, seed=0, life=1.4):
 
 def a_chorus2_01(s, t, local, fi):
     img = plate(s, local)
-    sx, sy = _cache.get('spark_pos', tuple(REG('A-verse-08', 'spark', [1240, 220])))
+    sx, sy0 = REG('A-verse-08', 'spark', [1240, 600])
+    sy = sy0 - 380                                         # where verse-08's rising spark ends (k = 1)
     img = burst(img, t, s['start'], sx, sy, 300, '#FFD166', seed=21)
     kicks = beats_in(s)
     img = firework_light(img, t, kicks, ('#FFD166', '#EF476F', '#2EC4B6'))
