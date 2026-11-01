@@ -378,15 +378,17 @@ HITS = [28.83, 76.24, 111.79, 147.35, 162.17]
 
 
 def registration_hit(img, k):
-    """inks out of register by up to ~11 px (red plate one way, blue the other), k in 0..1"""
+    """a double impression: the sheet takes a second, misregistered hit of the same plates (ink multiplies on ink, the
+    paper stays paper), offset by up to ~10 px and settling back as k -> 0"""
     if k <= 0.02:
         return img
-    dx, dy = 11.0 * k, 4.0 * k
-    out = img.copy()
-    for ch, (sx, sy) in ((0, (dx, -dy)), (2, (-dx, dy))):
-        M = np.float32([[1, 0, sx], [0, 1, sy]])
-        out[..., ch] = cv2.warpAffine(img[..., ch], M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
-    return out
+    dx, dy = 10.0 * k, -5.0 * k
+    M = np.float32([[1, 0, dx], [0, 1, dy]])
+    ghost = cv2.warpAffine(img, M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    paper = pf.hexc('#EDE3CF')[None, None]
+    ratio = np.clip(ghost / paper, 0, 1)
+    w = 0.8 * min(1.0, k * 1.3)
+    return img * (1 - w * (1 - ratio))
 
 
 def _with_hit(fn):
