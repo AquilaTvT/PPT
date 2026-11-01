@@ -29,7 +29,7 @@ CUT = os.path.join(WORK, 'cut')
 SPEC = json.load(open(os.path.join(ROOT, 'design', 'mv_b', 'shots.json')))
 BY_ID = {s['id']: s for s in SPEC['shots']}
 W, H = 1920, 1080
-VERSION = 3          # bump to invalidate cached cut-outs after changing the processing below
+VERSION = 8          # bump to invalidate cached cut-outs after changing the processing below
 
 WORLDS = {k: [c.split()[0] for c in v] for k, v in SPEC['colour_worlds'].items()}
 SECTION_WORLD = {'intro': '夜刷り Night Print', 'hook': '正午刷り Noon Print', 'chorus1': '正午刷り Noon Print',
@@ -129,7 +129,7 @@ def sticker(rgb, a, line='#1A1416', cream='#EDE3CF', hair='#D9402B', w_line=2.0,
 class CharLayer:
     def __init__(self, sid, inks=None, period=8.0, in_t=0.15, speed=1.0, loop=False, pingpong=False, rim=True,
                  rim_cream='#EDE3CF', rim_hair='#D9402B', rim_w=(2.0, 5.0, 1.5), shade=0.85, dot_gain=1.0,
-                 line_w=1.0, max_cov=None, src=None, dead=0.07):
+                 line_w=1.0, max_cov=None, src=None, dead=0.07, skin='#EDE3CF'):
         self.sid = sid
         self.kind, self.path = (('video', src) if src and src.endswith('.mp4') else ('still', src)) if src else media_path(sid)
         if self.kind is None and os.environ.get('HW_CHAR_STANDIN'):      # preview only: a stand-in figure
@@ -138,7 +138,7 @@ class CharLayer:
         self.inks = inks or world_inks(sid)
         self.in_t, self.speed, self.loop, self.pingpong = in_t, speed, loop, pingpong
         self.rim, self.rim_cream, self.rim_hair, self.rim_w = rim, rim_cream, rim_hair, rim_w
-        self.style = dict(period=period, shade_strength=shade, dot_gain=dot_gain, line_w=line_w, dead=dead)
+        self.style = dict(period=period, shade_strength=shade, dot_gain=dot_gain, line_w=line_w, dead=dead, skin=skin)
         self.max_cov = max_cov
         self._ps = None
         self._mem = {}
