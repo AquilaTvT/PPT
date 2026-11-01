@@ -84,6 +84,10 @@ def main():
     for s in tl.SHOTS:
         if s['end'] > a.t0 and s['start'] < a.t1:
             tl.render(max(a.t0, s['start']) + 0.01, 0)
+            if a.mv == 'b2':           # devices that start later in a shot (tracks, second presses): cache them now too
+                tm = s['start'] + 0.7 * (s['end'] - s['start'])
+                if a.t0 <= tm < a.t1:
+                    tl.render(tm, int(round(tm * FPS)))
     drop_caches()            # the workers rebuild what they touch from disk; a fat parent is copied into every worker
     with mp.get_context('fork').Pool(a.workers, maxtasksperchild=1) as pool:
         parts = pool.map(work, jobs)
