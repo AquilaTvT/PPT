@@ -174,6 +174,44 @@ def dream(img, s, t, local):
     return img
 
 
+# ---- intro-01: the station prints itself plate by plate; the train's sign is a real LED board
+INTRO01_SIGN = [(704, 410), (835, 411), (834, 457), (705, 456)]
+
+
+@functools.lru_cache(maxsize=1)
+def _intro01_board():
+    from . import print_fx as pf
+    rgb, _ = pf.led_board('潮見', rows=12, dot=12, on='#FF9A3C', off='#3A1A10', bg='#140A06', font='dot', glow=0.7)
+    return rgb
+
+
+def intro01(s, t, local):
+    img = base(s, t, local)
+    img = fx.quad_paste(img, _intro01_board(), INTRO01_SIGN, feather=1.2)
+    return dream(img, s, t, local)
+
+
+def intro01_stage(s, t, local):
+    """paper, then four passes of ink (light -> dark) rolled across on the beats, the halftone, the key line as
+    the voice comes in at 2.45"""
+    if t >= 2.6:
+        return None
+    passes = [(0.10, 0.62), (0.70, 1.36), (1.44, 2.08), (2.16, 2.40)]
+    k = 0.0
+    for i, (a, b) in enumerate(passes):
+        if t >= b:
+            k = i + 1.0
+        elif t > a:
+            k = i + (t - a) / (b - a)
+            break
+    return {'inks': k, 'group': 6, 'dots': clamp((t - 2.10) / 0.3), 'lines': clamp((t - 2.38) / 0.12),
+            'halo': clamp((t - 2.2) / 0.4)}
+
+
+RAW['B-intro-01'] = intro01
+STAGE = {'B-intro-01': intro01_stage}
+
+
 # ---- intro-03: the clock says 23:59, the card waits on the table with its sixth cell empty
 INTRO03_LED = (741, 300, 957, 384)
 INTRO03_CARD = [(891, 607), (1063, 649), (920, 691), (749, 640)]
@@ -466,4 +504,5 @@ OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over}
 def install():
     v2.RAW.update(RAW)
     v2.OVER.update(OVER)
+    v2.STAGE.update(STAGE)
     v2.LYRIC_POS.update(LYRIC)

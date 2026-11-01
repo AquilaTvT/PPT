@@ -129,9 +129,12 @@ class Printer:
         base = self.pal_g[i1] * a[:, None] + self.pal_g[i2] * (1 - a[:, None])
         refL = pal[i1][:, 0] * a + pal[i2][:, 0] * (1 - a)
         h, w = lab_h.shape[:2]
+        self._i1 = i1.reshape(h, w)
         return base.reshape(h, w, 3), refL.reshape(h, w)
 
-    def __call__(self, rgb, light_mask=None, skin=True):
+    def __call__(self, rgb, light_mask=None, skin=True, stage=None):
+        """stage (optional) runs the press part-way: {'inks': k} lays the palette inks light -> dark, the k-th one
+        still being rolled across left -> right; 'dots', 'lines', 'halo' in 0..1 fade those plates"""
         assert self.pal is not None, 'fit() the printer on a few frames of the shot first'
         hw, hh = W // 2, H // 2
         u8 = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
@@ -147,21 +150,34 @@ class Printer:
                 sm3 = sm[..., None]
                 base_lab_h = base_lab_h * (1 - sm3) + skin_lab[None, None] * sm3
                 refL_h = refL_h * (1 - sm) + min(lit + 3.0, 92.0) * sm
+        if stage is not None and stage.get('inks', 1e9) < len(self.pal):
+            k = max(0.0, float(stage['inks']))
+            order = np.argsort(-self.pal_g[:, 0])                 # lightest ink first
+            rank = np.empty(len(order), np.int32)
+            rank[order] = np.arange(len(order))
+            r = rank[self._i1] // max(1, int(stage.get('group', 1)))
+            xs = np.linspace(0, 1, r.shape[1], dtype=np.float32)[None, :]
+            frac = k - math.floor(k)
+            vis = (r < math.floor(k)).astype(np.float32) + (r == math.floor(k)) * np.clip((frac * 1.15 - xs) / 0.06, 0, 1)
+            paper = to_lab((np.float32(CREAM) / 255)[None, None])[0, 0]
+            vis = cv2.GaussianBlur(vis.astype(np.float32), (0, 0), 0.8)[..., None]
+            base_lab_h = paper[None, None] + (base_lab_h - paper[None, None]) * vis
         base_lab = cv2.resize(base_lab_h, (W, H), interpolation=cv2.INTER_LINEAR)
         ref_L = cv2.resize(refL_h, (W, H), interpolation=cv2.INTER_LINEAR)
         base = from_lab(base_lab)
+        st = stage or {}
         # shading: the real image darker / lighter than its flat ink -> halftone
         L = to_lab(rgb)[..., 0]
         dark = np.clip((ref_L - L - 3.0) / 26.0, 0, 1) * self.shade_amt
         light = np.clip((L - ref_L - 4.0) / 28.0, 0, 1) * self.shade_amt
         p = self.period
-        dk = dots(dark, screen(p, 45.0), p)
+        dk = dots(dark, screen(p, 45.0), p) * st.get('dots', 1.0)
         shade_col = base * (1 - self.dot_dark) + np.float32(BLACK) / 255 * self.dot_dark
         out = base + (shade_col - base) * dk[..., None]
-        lt = dots(light * 0.85, screen(p, 15.0), p)
+        lt = dots(light * 0.85, screen(p, 15.0), p) * st.get('dots', 1.0)
         out = out + (np.float32(CREAM) / 255 - out) * (lt[..., None] * 0.6)
         # AM halos around light sources (lamps, windows, sun, moon, fireworks)
-        if self.glow_amt > 0:
+        if self.glow_amt > 0 and st.get('halo', 1.0) > 0:
             bright = np.clip((L - 78.0) / 18.0, 0, 1) if light_mask is None else light_mask
             bq = cv2.resize(bright, (W // 4, H // 4), interpolation=cv2.INTER_AREA)
             halo = cv2.GaussianBlur(bq, (0, 0), 5.5) * 1.6 + cv2.GaussianBlur(bq, (0, 0), 1.8) * 0.6
@@ -169,9 +185,9 @@ class Printer:
             hp = p * 1.35
             hd = dots(halo * 0.8, screen(hp, 45.0), hp)
             gcol = hexc('#F5C842') * 0.55 + np.float32(CREAM) / 255 * 0.45
-            out = out + (gcol - out) * (hd[..., None] * 0.55)
+            out = out + (gcol - out) * (hd[..., None] * 0.55 * st.get('halo', 1.0))
         # ink linework (XDoG); gold / cream on dark inks (the reference's night architecture)
-        if self.lines_amt > 0:
+        if self.lines_amt > 0 and st.get('lines', 1.0) > 0:
             y = cv2.cvtColor(u8, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255
             g1 = cv2.GaussianBlur(y, (0, 0), 0.95)
             g2 = cv2.GaussianBlur(y, (0, 0), 1.6 * 0.95)
@@ -180,7 +196,7 @@ class Printer:
             ln = cv2.GaussianBlur(ln, (0, 0), 0.55) * self.lines_amt
             on_dark = np.clip((34.0 - base_lab[..., 0]) / 14.0, 0, 1)[..., None]
             lcol = self.line[None, None] * (1 - on_dark) + self.gold[None, None] * on_dark
-            la = ln[..., None] * (0.92 - 0.25 * on_dark)
+            la = ln[..., None] * (0.92 - 0.25 * on_dark) * st.get('lines', 1.0)
             out = out + (lcol - out) * la
         return np.clip(out, 0, 1)
 
