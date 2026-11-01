@@ -3920,3 +3920,102 @@ def chorus2_01(s, t, local, fi):
 
 R['B-chorus2-01'] = chorus2_01
 tl.OWN_TYPE.add('B-chorus2-01')
+
+
+# ---- B-chorus2-02: the vending machine at midnight -- ticker, roulette stopping 0 0 1 2, moths; melt into the map -------
+def vending_face(t, ticker, t0, digits, stops, seed=3, on='#7FC8B8'):
+    """flat vending-machine front (720 x 1300): 12 can dummies in halftone, 16-dot ticker band, 4-digit roulette"""
+    import cv2
+    from . import print_fx
+    from .print_fx import hexc as H, clock_grid, dot_matrix
+    key = ('vendbase', seed)
+    if key not in _cache:
+        im = np.empty((1300, 720, 3), np.float32)
+        im[:] = H('#EDE3CF')
+        cv2.rectangle(im, (40, 40), (680, 700), tuple(float(v) for v in H('#141018')), -1)
+        rng = np.random.default_rng(seed)
+        cans = ['#D9402B', '#2C4C9A', '#F5C842', '#7FC8B8', '#F08A3C', '#EDE3CF']
+        for r in range(3):
+            for c in range(4):
+                x, y = 80 + c * 150, 70 + r * 210
+                col = cans[rng.integers(len(cans))]
+                cv2.rectangle(im, (x, y), (x + 100, y + 150), tuple(float(v) for v in H(col)), -1)
+                cv2.rectangle(im, (x, y + 160), (x + 100, y + 180), tuple(float(v) for v in H('#F6F2E7')), -1)
+        dk = np.tile(_dots_k(0.3, 8.0)[:, :720], (2, 1))[:1300]
+        im[40:700, 40:680] = im[40:700, 40:680] * (1 - dk[40:700, 40:680, None] * 0.25)
+        cv2.rectangle(im, (40, 1060), (680, 1220), tuple(float(v) for v in H('#141018')), -1)
+        _cache[key] = im
+    im = _cache[key].copy()
+    sc = int(max(0.0, t - t0) * 24) * 2 - 60
+    tk, _ = print_fx.led_board(ticker, cols=60, rows=16, dot=10, on=on, off='#16302E', bg='#0B1414', scroll=sc)
+    tk = cv2.resize(tk, (640, 170), interpolation=cv2.INTER_AREA)
+    im[740:910, 40:680] = tk
+    shown = ''
+    for j, (dg, st) in enumerate(zip(digits, stops)):
+        shown += dg if t >= st else str(int((t * 24 * 4 + j * 3)) % 10)       # spinning on 16ths until it stops
+    rl = np.asarray(dot_matrix(clock_grid(shown, colon_on=False), pitch=9, on='#F08A3C', bg='#0B1414'), np.float32)
+    rl = cv2.resize(rl, (560, 130), interpolation=cv2.INTER_AREA)
+    im[1075:1205, 80:640] = rl
+    return im
+
+
+def _c202_plate():
+    s = tl.BY_ID['B-chorus2-02']
+    d = s['end'] - s['start']
+    zc = 40.0
+    path = [{'t': 0.0, 'pos': [-2.05, 1.35, zc - 1.25], 'look': [-4.2, 1.05, zc - 0.55], 'fov': 50},
+            {'t': 1.48, 'pos': [-2.15, 1.35, zc - 1.10], 'look': [-4.2, 1.05, zc - 0.58], 'fov': 48.5, 'ease': 'inout'},
+            {'t': d, 'pos': [-2.35, 1.35, zc - 0.85], 'look': [-4.2, 1.05, zc - 0.6], 'fov': 48, 'ease': 'linear'}]
+    return plate('B-chorus2-02', 's2_coast', {'world': 'night', 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3,
+                                             'mirrors': [70.0], 'vending': [zc]}, 0.0, d, fps=24)
+
+
+def chorus2_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('c202', _c202_plate)
+    img = pl.frame(local).copy()
+    q = pl.anchor(local, 'vend')
+    stops = [79.94, 80.68, 81.42, 82.16]
+    fl = 0.9 + 0.1 * ((int((t - 0.682) / (BEAT / 2)) % 2))
+    if q and all(0 < p[2] < 1.001 for p in q):
+        face = vending_face(t, '初夏零時過ぎたばかり', 79.25, '0012', stops)
+        quad = _quad_sorted(q)
+        img = led_on_quad(img, quad, face * fl)
+        cx, cy = float(quad[:, 0].mean()), float(quad[:, 1].mean())
+        kit.halo(img, cx, cy, 520, '#F08A3C', 0.35 * fl, period=10.0)
+        # moths circling the light, flapping on 2s; they scatter on 80.68
+        rng = np.random.default_rng(12)
+        for j in range(12):
+            a0, r0, sp = rng.uniform(0, 6.28), rng.uniform(90, 240), rng.uniform(1.5, 3.2)
+            sc = 1.0 + (3.0 * clamp((t - 80.68) / 0.6) if t >= 80.68 else 0.0)
+            ang = a0 + sp * t
+            x = cx + math.cos(ang) * r0 * sc
+            y = cy - 120 + math.sin(ang * 1.3) * r0 * 0.6 * sc
+            flap = (int(t * 12) + j) % 2
+            m = np.zeros((1080, 1920), np.float32)
+            cv2.ellipse(m, (int(x - 5), int(y)), (7, 3 if flap else 6), 30 if flap else 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+            cv2.ellipse(m, (int(x + 5), int(y)), (7, 3 if flap else 6), -30 if flap else 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+            img = img + (H('#EDE3CF')[None, None] - img) * (m * 0.85)[..., None]
+    # him: waist-up, screen-left half, heat-orange light on the machine side
+    cl = once('c202_char', lambda: chars.CharLayer('B-chorus2-02'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=470, y=1080, cx=0.5, cy=0.7, height=1150)
+        side = np.clip((kit._XS - 430) / 160.0, 0, 1) * a * _dots_k(0.45 * fl, 8.0)
+        rgb = rgb + (H('#F08A3C')[None, None] - rgb) * (side * 0.55)[..., None]
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    ly = once('c202_ly', lambda: VLyric(27, x=880, y=110, size=86, accent='#D9402B'))
+    img = ly.draw(img, t)
+    # 81.80-82.16: the ticker's mint dots spread over the frame and re-form as the night town map
+    if t >= 81.80:
+        k = clamp((t - 81.80) / 0.36)
+        dots = led_dots(img, pitch=8 + 18 * k, ripple=5 * k, t=t, gap='#0B1414')
+        mint = dots.mean(-1, keepdims=True) * H('#7FC8B8')[None, None] * 1.4
+        img = img + (mint - img) * k
+    return img
+
+
+R['B-chorus2-02'] = chorus2_02
+tl.OWN_TYPE.add('B-chorus2-02')
