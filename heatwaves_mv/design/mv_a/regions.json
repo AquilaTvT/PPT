@@ -588,5 +588,14 @@
  },
  "A-bridge2-01": {
   "lyric_slot": "far_right"
+ },
+ "A-chorus3-06": {
+  "lyric_slot": "far_right"
+ },
+ "A-chorus3-07": {
+  "lyric_slot": "left"
+ },
+ "A-chorus4-02": {
+  "lyric_slot": "left"
  }
 }

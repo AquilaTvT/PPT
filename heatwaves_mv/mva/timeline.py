@@ -157,10 +157,10 @@ def _handover(idx):
     a, b = LYRICS[idx], LYRICS[idx + 1]
     if b['t'] > a['end'] + 0.05:
         return False
-    sa = next((x for x in SHOTS if idx in x.get('lyric', [])), None)
-    sb = next((x for x in SHOTS if idx + 1 in x.get('lyric', [])), None)
-    if sa is None or sb is None:
+    ha, hb = home_shot(idx), home_shot(idx + 1)
+    if ha is None or hb is None:
         return False
+    sa, sb = ha[0], hb[0]
     if a['lang'] == 'en' and b['lang'] == 'en':
         return True
     if is_present(sa) and is_present(sb):               # both translations sit centred in the bottom bar
@@ -240,27 +240,41 @@ def letterbox_open(t):
 LYRICS_CACHE = {}
 
 
+_HOME = {}
+
+
+def home_shot(idx):
+    """the one shot that typesets line idx: of the shots listing it, the one it is sung over longest (a line
+    listed by two shots used to switch columns at the second shot's window)"""
+    if idx not in _HOME:
+        from mv.timing import LYRICS
+        ln = LYRICS[idx]
+        cands = [x for x in SHOTS if idx in x.get('lyric', []) and x['id'] not in OWN_LYRICS]
+        if not cands:
+            _HOME[idx] = None
+        else:
+            ov = lambda x: min(x['end'], ln['end']) - max(x['start'], ln['t'])
+            home = max(cands, key=ov)
+            _HOME[idx] = (home, min(x['start'] for x in cands) - 0.3, max(x['end'] for x in cands) + 0.6)
+    return _HOME[idx]
+
+
 def lyrics_at(t):
+    from mv.timing import LYRICS
     out = []
-    for s in SHOTS:
-        if s['id'] in OWN_LYRICS:
+    for idx, ln in enumerate(LYRICS):
+        if not (ln['t'] - 0.1 <= t <= ln['end'] + 0.5):
             continue
-        for idx in s.get('lyric', []):
+        h = home_shot(idx)
+        if h is None:
+            continue
+        s, w0, w1 = h
+        if w0 <= t < w1:
             key = (s['id'], idx)
-            from mv.timing import LYRICS
-            ln = LYRICS[idx]
-            if ln['t'] - 0.1 <= t <= ln['end'] + 0.5 and s['start'] - 0.3 <= t < s['end'] + 0.6:
-                if key not in LYRICS_CACHE:
-                    LYRICS_CACHE[key] = lyric_for(s, idx)
-                out.append((s, LYRICS_CACHE[key]))
-    # a line sung across a cut is drawn by the shot it started in only
-    seen, res = set(), []
-    for s, ly in out:
-        if ly.idx in seen:
-            continue
-        seen.add(ly.idx)
-        res.append(ly)
-    return res
+            if key not in LYRICS_CACHE:
+                LYRICS_CACHE[key] = lyric_for(s, idx)
+            out.append(LYRICS_CACHE[key])
+    return out
 
 
 def render(t, frame_idx):

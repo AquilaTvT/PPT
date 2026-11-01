@@ -34,6 +34,19 @@ def _cov_rgb(cov, color):
     return fx.hexc(color)[None, None] * cov[..., None]
 
 
+_SCRIM = None
+
+
+def _foot_scrim():
+    """0..1 mask: a soft band along the bottom of the frame, densest under the English line"""
+    global _SCRIM
+    if _SCRIM is None:
+        y = np.arange(1080, dtype=np.float32)[:, None]
+        band = np.clip((y - 820.0) / 140.0, 0, 1) ** 1.6
+        _SCRIM = np.ascontiguousarray(np.broadcast_to(band, (1080, 1920))).astype(np.float32)
+    return _SCRIM
+
+
 class Lyric:
     def __init__(self, idx, slot='right', world='memory', font=None, size=None, out_t=None, letterboxed=False,
                  zh='foot', color=None, halo=None, special=(), x=None, y=None, fade_out=0.35, colors=None,
@@ -228,9 +241,15 @@ class Lyric:
     def _draw_en(self, img, t, anim):
         fill, _ = text.render_glyphs(self.glyphs, anim=anim)
         out = img
+        if not self.letterboxed:      # full frame: a soft foot scrim so the thin italic reads over bright footage
+            k = clamp((t - (self.times[0] - 0.1)) / 0.3)
+            if t > self.out_t:
+                k *= 1 - clamp((t - self.out_t) / self.fade_out)
+            if k > 0:
+                out = out * (1 - _foot_scrim()[..., None] * np.float32(0.42 * k))
         if fill is not None:
-            halo = cv2.GaussianBlur(fill, (0, 0), 3.0)
-            out = fx.over(out, np.broadcast_to(fx.hexc('#000000'), img.shape), halo * 0.5)
+            halo = cv2.GaussianBlur(fill, (0, 0), 3.5)
+            out = fx.over(out, np.broadcast_to(fx.hexc('#000000'), img.shape), np.clip(halo * 0.75, 0, 1))
             col = self.colors.get('_all', '#F2EDE4')
             out = fx.over(out, np.broadcast_to(fx.hexc(col), img.shape), fill)
         if self.zh and self.idx in lyrics.ZH:
