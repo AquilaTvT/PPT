@@ -1943,6 +1943,9 @@ def outro_06(s, t, local, fi):
     from mv.core import clamp
     pl = once('o06', _o06_plate)
     img = pl.frame(local).copy()
+    if local < 0.3:                                       # the lens flash handed over from outro-05's last mirror
+        k = 1 - local / 0.3
+        kit.halo(img, 960, 470, 200 + 900 * k * k, '#F6F2E7', 0.95 * k, period=14.0)
     # him arriving at the door (pedestrian-signal dot figure), stops at 177.72
     a0, a1 = pl.anchor(local, 'doorFar'), pl.anchor(local, 'door')
     if a0 and a1:
@@ -5275,6 +5278,10 @@ def outro_05(s, t, local, fi):
                 img = img + (H('#EDE3CF')[None, None] - img) * f[..., None]
         if g > 0.5:
             kit.halo(img, C[0], C[1], r * 2.5 * g, '#F6F2E7', 0.8 * g, period=12.0)
+    # the last mirror's glare swells into a flash at frame centre -> outro-06 opens on the lighthouse lens flash
+    k = clamp((t - (s['end'] - 0.3)) / 0.3)
+    if k > 0:
+        kit.halo(img, 960, 470, 200 + 900 * k * k, '#F6F2E7', 0.95 * k, period=14.0)
     return _zh_fixed(img, t, 59, 174.15, ink='#1A1416', halo_col='#EDE3CF')
 
 
