@@ -368,7 +368,36 @@ def install():
             tl.OWN_TYPE.discard(sid)           # v1 recipes typeset their own lines; v2 uses the default column
         if sid in FADE_IN or sid in FADE_OUT:
             tl.RECIPES[sid] = _with_fades(tl.RECIPES[sid], sid)
+        if any(s['start'] - 0.01 <= h < s['end'] for h in HITS):
+            tl.RECIPES[sid] = _with_hit(tl.RECIPES[sid])
     return n
+
+
+# the press hits on the big downbeats (the choruses, the outro): the plates jump out of register and settle
+HITS = [28.83, 76.24, 111.79, 147.35, 162.17]
+
+
+def registration_hit(img, k):
+    """inks out of register by up to ~11 px (red plate one way, blue the other), k in 0..1"""
+    if k <= 0.02:
+        return img
+    dx, dy = 11.0 * k, 4.0 * k
+    out = img.copy()
+    for ch, (sx, sy) in ((0, (dx, -dy)), (2, (-dx, dy))):
+        M = np.float32([[1, 0, sx], [0, 1, sy]])
+        out[..., ch] = cv2.warpAffine(img[..., ch], M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    return out
+
+
+def _with_hit(fn):
+    def recipe(s, t, local, fi):
+        img = fn(s, t, local, fi)
+        for h in HITS:
+            if 0 <= t - h < 0.30:
+                u = (t - h) / 0.30
+                img = registration_hit(img, (1 - u) ** 2 * (1 if u > 0.03 else 0.6))
+        return img
+    return recipe
 
 
 # the film's light relays: the cut happens inside a flash of light (the sun in the card -> noon; the moon bursting
