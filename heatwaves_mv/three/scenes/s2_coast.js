@@ -109,6 +109,22 @@ export async function build(THREE, P, params = {}) {
     }
   }
 
+  // furin under the eaves of a house row (params.furin: {z0, dz, n, x}): glass bells with tanzaku, anchors per bell
+  const furin = [];
+  if (params.furin) {
+    const F = params.furin, fx0 = F.x ?? -6.0;
+    const eaveM = P.ink(Wd.roof, { ambient: 0.5 });
+    const eave = P.outlined(box(1.4, 0.18, F.n * F.dz + 6, eaveM), Wd.ink, 0.02); eave.position.set(fx0 - 0.4, 3.05, F.z0 + (F.n - 1) * F.dz / 2); scene.add(eave);
+    const glassM = P.ink('#C9D3DC', { flat: 0.6, shade: Wd.wallShade });
+    for (let i = 0; i < F.n; i++) {
+      const z = F.z0 + i * F.dz;
+      const g = new THREE.Group(); g.position.set(fx0, 2.95, z); scene.add(g);
+      const bell = P.outlined(new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.6), glassM), Wd.ink, 0.01);
+      bell.position.y = -0.12; g.add(bell);
+      const str = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.28, 4), P.ink(Wd.ink, { flat: 1 })); str.position.y = -0.3; g.add(str);
+      furin.push(g);
+    }
+  }
   // curve mirrors + vending machines along the road
   const mpMat = P.ink(Wd.mirrorPole, { ambient: 0.55 });
   const mirMat = P.ink(Wd.mirror, { hi: '#FFFFFF', flat: 0.4, shade: Wd.wallShade });
@@ -125,10 +141,12 @@ export async function build(THREE, P, params = {}) {
     mirrors.push(grp);
   }
   const vendMat = P.ink(Wd.vend, { emissive: 0.85 });
+  const vendFaces = [];
   for (const z of (params.vending || [40, 205, 380, 555])) {
     const v = P.outlined(box(1.0, 1.85, 0.75, vendMat), Wd.ink, 0.025); v.position.set(-4.7, 0.92, z); scene.add(v);
     const face = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 1.3), P.vendingFront(Wd.vend, Wd.led, Wd.vendGlow, Math.floor(z)));
     face.position.set(-4.19, 1.05, z); face.rotation.y = Math.PI / 2; scene.add(face);
+    vendFaces.push([[-4.18, 1.70, z - 0.36], [-4.18, 1.70, z + 0.36], [-4.18, 0.40, z + 0.36], [-4.18, 0.40, z - 0.36]]);
     const led = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.1), P.ink(Wd.led, { emissive: 1.0 }));
     led.position.set(-4.18, 0.95, z); led.rotation.y = Math.PI / 2; scene.add(led);
     const g = P.glow(Wd.vendGlow, 2.2, { strength: 0.55 }); g.position.set(-3.9, 1.0, z); scene.add(g);
@@ -199,7 +217,11 @@ export async function build(THREE, P, params = {}) {
   const anchors = () => {
     const f = new THREE.Vector3(); camera.getWorldDirection(f);
     const vp = camera.position.clone().add(new THREE.Vector3(f.x, 0, f.z).normalize().multiplyScalar(800)); vp.y = 0;
+    const wp = (x, y, z) => scene.localToWorld(new THREE.Vector3(x, y, z));
     return { vp: [vp], mirrors: mirrors.map(m => m.getWorldPosition(new THREE.Vector3())),
+             furin: furin.map(g => g.getWorldPosition(new THREE.Vector3())),
+             vend: vendFaces.length ? vendFaces[0].map(p => wp(...p)) : [],
+             lighthouse: [wp(90, 27, (params.length || 900) + 80)],
              mirrorTop: mirrors.map(m => m.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.55, 0))) };
   };
   return { scene: root, camera, update, anchors };

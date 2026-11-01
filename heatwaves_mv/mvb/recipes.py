@@ -3840,3 +3840,83 @@ def verse_04(s, t, local, fi):
 
 R['B-verse-04'] = verse_04
 tl.OWN_TYPE.add('B-verse-04')
+
+
+# ---- B-chorus2-01: under the eaves -- ten furin light one per syllable as he walks; relay from the test-card circle ----
+def _c201_plate():
+    s = tl.BY_ID['B-chorus2-01']
+    d = s['end'] - s['start']
+    v = 1.3
+    path = []
+    for i in range(int(round(d * 24)) + 1):
+        tt = i / 24
+        u = min(1.0, tt / 1.1)
+        e = u * u * (3 - 2 * u)
+        z = 14.0 + v * tt
+        y = 6.2 + (1.5 - 6.2) * e
+        look_y = 9.0 + (1.9 - 9.0) * e
+        path.append({'t': tt, 'pos': [-2.6, round(y, 4), round(z, 4)], 'look': [-6.4, round(look_y, 4), round(z + 1.2 - 0.6 * e, 4)],
+                     'fov': 44, 'ease': 'linear'})
+    return plate('B-chorus2-01', 's2_coast', {'world': 'night', 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3, 'mirrors': [],
+                                             'vending': [], 'furin': {'z0': 14.6, 'dz': 0.62, 'n': 10, 'x': -5.6},
+                                             'moonPos': [-60.0, 110.0, 360.0]}, 0.0, d, fps=24)
+
+
+def chorus2_01(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('c201', _c201_plate)
+    img = pl.frame(local).copy()
+    # relay landing: the paper-cut moon sits where the test-card circle was, then the crane carries it up and away
+    k = _ease_io(clamp(local / 1.1))
+    mx, my = 820 + 140 * k, 467 - 560 * k
+    img = moon_with_halo(img, mx, my, 57 + 10 * k, 0.4 + 0.3 * math.exp(-local * 2))
+    gt = _map_gt(26)
+    word = '思い浮かぶの君ばかり'
+    F = pl.anchor(local, 'furin') or []
+    for i, ch in enumerate(word):
+        if i >= len(F) or not (0 < F[i][2] < 1.001):
+            continue
+        x, y = F[i][0], F[i][1]
+        if not (-100 < x < 2020 and -200 < y < 1200):
+            continue
+        tg = gt[min(i, len(gt) - 1)]
+        on = t >= tg
+        swing = 6.0 * math.sin(2 * math.pi * 1.4 * (t - tg)) * math.exp(-(t - tg) * 1.5) if on else 1.5 * math.sin(t * 2 + i)
+        lit = clamp((t - tg) / (6 / 24)) if on else 0.0
+        col = '#D9402B' if ch == '君' else ('#7FC8B8' if lit > 0 else '#C9D3DC')
+        if lit > 0:
+            kit.halo(img, x, y + 20, 70 * lit + 10, col, 0.8 * lit, period=7.0)
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.ellipse(m, (int(x), int(y + 22)), (24, 22), 0, 180, 360, 1.0, -1, cv2.LINE_AA)
+        img = img + (H(col)[None, None] - img) * (m * (0.55 + 0.45 * lit))[..., None]
+        # tanzaku strip with its glyph, swinging from the bell
+        tx, ty = x + swing * 3, y + 118
+        m = np.zeros((1080, 1920), np.float32)
+        pts = cv2.boxPoints(((tx, ty), (64, 150), swing))
+        cv2.fillConvexPoly(m, pts.astype(np.int32), 1.0, cv2.LINE_AA)
+        img = img + (H('#EDE3CF')[None, None] - img) * m[..., None]
+        kit.map_glyph(img, ch, tx, ty, 58, -swing, 1.0, '#1A1416' if ch != '君' else '#D9402B', '#EDE3CF', 1.0)
+        if on and t - tg < 0.12:                         # the ring: a glass glint
+            kit.halo(img, x + 8, y + 14, 26, '#F6F2E7', 1.0, period=5.0)
+    # him walking left, side-on, moonlight on his right side
+    cl = once('c201_char', lambda: chars.CharLayer('B-chorus2-01'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=760, y=1060, cx=0.5, cy=0.98, height=640)
+        side = np.clip((kit._XS - 700) / 120.0, 0, 1) * a * _dots_k(0.35, 8.0)
+        rgb = rgb + (H('#C9D3DC')[None, None] - rgb) * (side * 0.5)[..., None]
+        img = chars.over(img, rgb, a * clamp((local - 0.7) / 0.4), shadow='#141A33')
+    # eave edge in the foreground passing at 2x
+    fx_ = (-local * 2 * 260) % 520
+    m = np.zeros((1080, 1920), np.float32)
+    for x0 in np.arange(-520 + fx_, 1920 + 520, 520):
+        cv2.rectangle(m, (int(x0), 0), (int(x0) + 34, 70), 1.0, -1)
+    cv2.rectangle(m, (0, 0), (1920, 26), 1.0, -1)
+    img = img + (H('#141018')[None, None] - img) * (m * clamp((local - 0.5) / 0.6))[..., None]
+    return _zh_fixed(img, t, 26, 76.2, ink='#EDE3CF', halo_col='#141A33')
+
+
+R['B-chorus2-01'] = chorus2_01
+tl.OWN_TYPE.add('B-chorus2-01')
