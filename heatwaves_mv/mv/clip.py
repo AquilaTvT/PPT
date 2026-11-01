@@ -9,11 +9,28 @@ reader keeps one VideoCapture open and only re-opens on a backwards seek.
 """
 import functools
 import os
+import weakref
 
 import cv2
 import numpy as np
 
 from . import core
+
+
+_LIVE = weakref.WeakSet()       # every Clip, so a forked render worker can drop the parent's decoders
+_ORPHANS = []                   # inherited VideoCaptures: never touched (or garbage-collected) in the child
+
+
+def _after_fork_in_child():
+    """a decoder opened in the parent carries its threads' locks across fork() and hangs on the first read in the
+    child: forget it (kept referenced so its destructor never runs here) and let the worker open its own"""
+    for c in list(_LIVE):
+        if c._cap is not None:
+            _ORPHANS.append(c._cap)
+        c._cap, c._idx, c._last = None, -1, None
+
+
+os.register_at_fork(after_in_child=_after_fork_in_child)
 
 
 class Clip:
@@ -31,6 +48,7 @@ class Clip:
         self._idx = -1
         self._last = None
         self.alpha = Clip(alpha, speed, loop, pingpong, start) if alpha else None
+        _LIVE.add(self)
 
     @property
     def duration(self):

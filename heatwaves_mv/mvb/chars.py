@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 import re
+import weakref
 
 import cv2
 import numpy as np
@@ -100,6 +101,24 @@ def despill(rgb, a):
 
 
 _matter = None
+_LIVE = weakref.WeakSet()       # CharLayers, so a forked render worker can drop the parent's decoders / ONNX session
+_ORPHANS = []                   # inherited handles: kept referenced so their destructors never run in the child
+
+
+def _after_fork_in_child():
+    """a VideoCapture or ONNX session created in the parent carries its threads' locks across fork() and hangs in
+    the child: forget them and let each worker open its own"""
+    global _matter
+    if _matter is not None:
+        _ORPHANS.append(_matter)
+        _matter = None
+    for cl in list(_LIVE):
+        if getattr(cl, '_cap', None) is not None:
+            _ORPHANS.append(cl._cap)
+        cl._cap, cl._ci = None, -1
+
+
+os.register_at_fork(after_in_child=_after_fork_in_child)
 
 
 def isnet(rgb):
@@ -142,6 +161,8 @@ class CharLayer:
         self.max_cov = max_cov
         self._ps = None
         self._mem = {}
+        self._cap, self._ci = None, -1
+        _LIVE.add(self)
         if not self.ok:
             return
         key = json.dumps([VERSION, self.path, os.path.getmtime(self.path), self.inks, self.style, rim, rim_cream, rim_hair,
