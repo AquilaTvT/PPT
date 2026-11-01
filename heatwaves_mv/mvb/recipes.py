@@ -5160,3 +5160,213 @@ def outro_03(s, t, local, fi):
 
 R['B-outro-03'] = outro_03
 tl.OWN_TYPE.add('B-outro-03')
+
+
+# ---- B-outro-05: four curve mirrors catch the sunrise; each shows one memory of her for one beat, then sun glare --------
+def _o05_plate():
+    s = tl.BY_ID['B-outro-05']
+    d = s['end'] - s['start']
+    v = 8.0
+    beats = [174.02, 174.76, 175.50, 176.24]
+    zs = [round(10.0 + v * (b - s['start']) + 4.0, 2) for b in beats]
+    path = [{'t': 0.0, 'pos': [-1.2, 3.0, 10.0], 'look': [-4.0, 2.95, 14.0], 'fov': 46},
+            {'t': d, 'pos': [-1.2, 3.0, 10.0 + v * d], 'look': [-4.0, 2.95, 14.0 + v * d], 'fov': 46, 'ease': 'linear'}]
+    return plate('B-outro-05', 's2_coast', {'world': 'dawnprint', 'day': True, 'path': path, 'wallH': 0.5,
+                                           'poleSpacing': 16.3, 'mirrors': zs, 'vending': []}, 0.0, d, fps=24), zs
+
+
+def outro_05(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    pl, zs = once('o05', _o05_plate)
+    img = pl.frame(local).copy()
+    srcs = ['B-hook-02', 'B-chorus1-01', 'B-chorus3-02', 'B-chorus3-07']
+    beats = [174.02, 174.76, 175.50, 176.24]
+    phrases = ['SOMETIMES,', 'ALL I THINK', 'ABOUT', 'IS YOU']
+    ms = pl.anchor(local, 'mirrors') or []
+    mt = pl.anchor(local, 'mirrorTop') or []
+    for j, (C, T) in enumerate(zip(ms, mt)):
+        if not (0 < C[2] < 1.001):
+            continue
+        r = abs(C[1] - T[1])
+        if r < 10 or not (-r < C[0] < 1920 + r):
+            continue
+        b = beats[j] if j < len(beats) else 1e9
+        cont = np.empty((640, 640, 3), np.float32)
+        cont[:] = H('#2D6BE0')
+        cl = once(('o05cl', j), lambda j=j: chars.CharLayer(srcs[j % len(srcs)]))
+        if cl.ok:
+            rgb, a = cl.frame((t - b) % 1.5, x=960, y=560, cx=0.5, cy=0.5, height=720)
+            cont = cont + (rgb[220:860, 640:1280] - cont) * a[220:860, 640:1280][..., None]
+        # one beat of memory, then sun-glare whiteout in AM halftone (never plain white)
+        g = clamp((t - (b + BEAT * 0.6)) / (BEAT * 0.4)) if t >= b else 0.0
+        cont = cont + (H('#F6F2E7')[None, None] - cont) * (_dots_k(g, 10.0)[:640, :640, None] * 0.95)
+        X = (C[0] + r, C[1], C[2])
+        Y = (C[0], C[1] - r, C[2])
+        img, m = mirror_insert(img, cont, C, X, Y, sat=1.0, k=0.4)
+        if t >= b - 0.05 and j < len(phrases):
+            gl, _ = text.layout_h(phrases[j], C[0], C[1] + r + 80, 64, 'mincho', tracking=0.45, align='center')
+            f, _ = text.render_glyphs(gl)
+            if f is not None:
+                img = img + (H('#2C4C9A')[None, None] - img) * np.roll(np.roll(f, 5, 0), 5, 1)[..., None]
+                img = img + (H('#EDE3CF')[None, None] - img) * f[..., None]
+        if g > 0.5:
+            kit.halo(img, C[0], C[1], r * 2.5 * g, '#F6F2E7', 0.8 * g, period=12.0)
+    return _zh_fixed(img, t, 59, 174.15, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro-05'] = outro_05
+tl.OWN_TYPE.add('B-outro-05')
+
+
+# ---- B-outro-08: his face at sunrise -- he smiles, eyes wet; the card lifts out of frame and flies off like a kite ------
+def outro_08(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    from . import card as C
+    tilt = _ease_in(clamp((t - 185.13) / 0.74)) * 900
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = np.clip((kit._YS + tilt) / 1600.0, 0, 1)[..., None]
+    img[:] = H('#2C4C9A') * (1 - g) + H('#F5C842') * g
+    hy = int(720 + tilt)
+    if hy < 1080:
+        img[hy:] = H('#2C4C9A')
+        kit.halo(img, 1500, hy - 80, 520, '#F5C842', 0.6, period=14.0)
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (1500, hy - 80), 90, 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#FFF2C8')[None, None] - img) * m[..., None]
+        # the train far behind, its board scrolling L62 ('NOW' last as it leaves frame at 185.5)
+        tx = int(-200 + (t - 182.91) * 700)
+        if tx < 1920:
+            body = np.zeros((1080, 1920), np.float32)
+            cv2.rectangle(body, (tx - 500, hy - 60), (tx, hy - 10), 1.0, -1)
+            img = img + (H('#EDE3CF')[None, None] - img) * body[..., None]
+            brd, _ = print_fx.led_board("CAN'T MAKE YOU HAPPIER NOW", cols=60, rows=8, dot=5, on='#F08A3C', off='#2A1C14',
+                                        bg='#141018', font='silk', scroll=int((t - 182.9) * 24 * 1.6) - 60)
+            bh, bw = brd.shape[:2]
+            bx = tx - 480
+            xa, xb = max(0, bx), min(1920, bx + bw)
+            if xa < xb and hy - 60 - bh > 0:
+                img[hy - 60 - bh:hy - 60, xa:xb] = brd[:, xa - bx:xb - bx]
+    cl = once('o08_char', lambda: chars.CharLayer('B-outro-08', rim_hair='#F5C842'))
+    if cl.ok:
+        push = 1.0 + 0.03 * clamp(local / 2.2)
+        rgb, a = cl.frame(local, x=1200, y=1080 + tilt, cx=0.5, cy=0.62, height=1450 * push)
+        lit = np.clip((kit._XS - 1100) / 260.0, 0, 1) * a * _dots_k(0.45, 8.0)
+        rgb = rgb + (H('#F5C842')[None, None] - rgb) * (lit * 0.5)[..., None]
+        img = chars.over(img, rgb, a, shadow='#1E2550')
+    # the stamp card lifts from the bottom on 183.65 and flies up, tumbling
+    if t >= 183.65:
+        if 'o08_card' not in _cache:
+            card = C.render_card(stamp_k=(1, 1, 1, 1, 1), footer_n=0)
+            lay = sun_stamp_layer()
+            card = card * (1 - lay[..., 3:4]) + lay[..., :3] * lay[..., 3:4]
+            _cache['o08_card'] = cv2.resize(card, (640, 360), interpolation=cv2.INTER_AREA)
+        cd = _cache['o08_card']
+        k = t - 183.65
+        cx = 520 + 260 * math.sin(k * 1.4) + 200 * k
+        cy = 1180 - 420 * k - 60 * k * k + tilt * 0.4
+        ang = 25 * math.sin(k * 2.3) + 40 * k
+        sc = 0.9 - 0.12 * k
+        sq = 0.35 + 0.65 * abs(math.cos(k * 2.6))          # tumbling: foreshortened as it turns
+        M = cv2.getRotationMatrix2D((320, 180), ang, sc)
+        M[1] *= sq
+        M[0, 2] += cx - 320
+        M[1, 2] += cy - 180 * sq
+        lay = cv2.warpAffine(cd, M, (1920, 1080))
+        am = cv2.warpAffine(np.ones((360, 640), np.float32), M, (1920, 1080))
+        img = img + (lay - img) * am[..., None]
+    return _zh_fixed(img, t, 62, 182.9, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro-08'] = outro_08
+tl.OWN_TYPE.add('B-outro-08')
+
+
+# ---- B-outro_hook-02: inside the curve mirror at noon -- she walks into the haze, glances back, smiles; the glass ripples
+def outro_hook_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mva import fx
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    img = noon_sky(t)
+    push = 1.0 + 0.05 * clamp(local / (s['end'] - s['start']))
+    cx, cy, R0 = 960, 500, int(450 * push)
+    pole = np.zeros((1080, 1920), np.float32)
+    cv2.rectangle(pole, (cx - 16, cy + R0), (cx + 16, 1080), 1.0, -1)
+    img = img + (H('#F08A3C')[None, None] - img) * pole[..., None]
+    road = once('hook03', _hook03_plate).frame(1.0)[:, ::-1].copy()
+    road = kit.mirage_band(road, t, 540, 600, 1320, 30)
+    cl = once('oh2_char', lambda: chars.CharLayer('B-outro_hook-02', rim_w=(1.5, 3.0, 0.0)))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=960, y=700, cx=0.5, cy=0.97, height=420)
+        road = chars.over(road, rgb, a)
+    road = fx.fisheye(cv2.resize(road, (2 * R0, 2 * R0)), k=0.42)
+    ys, xs = np.mgrid[0:2 * R0, 0:2 * R0].astype(np.float32)
+    rip = (6 * np.sin(2 * math.pi * 1.2 * t + ys / 40.0)).astype(np.float32)
+    road = cv2.remap(road, xs + rip, ys + rip * 0.5, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    disc = np.zeros((1080, 1920), np.float32)
+    cv2.circle(disc, (cx, cy), R0, 1.0, -1, cv2.LINE_AA)
+    canvas = img.copy()
+    y0, x0 = cy - R0, cx - R0
+    ya, yb, xa, xb = max(0, y0), min(1080, y0 + 2 * R0), max(0, x0), min(1920, x0 + 2 * R0)
+    canvas[ya:yb, xa:xb] = road[ya - y0:yb - y0, xa - x0:xb - x0]
+    img = img + (canvas - img) * disc[..., None]
+    cv2.circle(img, (cx, cy), R0 + 16, tuple(float(v) for v in H('#F08A3C')), 30, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), R0 + 32, tuple(float(v) for v in H('#1A1416')), 3, cv2.LINE_AA)
+    # the flying card caught on the rim
+    if 'oh2_card' not in _cache:
+        from . import card as C
+        card = C.render_card(stamp_k=(1, 1, 1, 1, 1), footer_n=0)
+        lay = sun_stamp_layer()
+        card = card * (1 - lay[..., 3:4]) + lay[..., :3] * lay[..., 3:4]
+        _cache['oh2_card'] = cv2.resize(card, (320, 180), interpolation=cv2.INTER_AREA)
+    cd = _cache['oh2_card']
+    flut = 6 * math.sin(t * 7)
+    M = cv2.getRotationMatrix2D((160, 90), -18 + flut, 1.0)
+    M[0, 2] += cx + R0 * 0.62 - 160
+    M[1, 2] += cy - R0 * 0.78 - 90
+    lay = cv2.warpAffine(cd, M, (1920, 1080))
+    am = cv2.warpAffine(np.ones((180, 320), np.float32), M, (1920, 1080))
+    img = img + (lay - img) * am[..., None]
+    # L64 swimming across the convex surface with the ripple, one word per 8th; each swims by and fades; MIRROR settles
+    gt = _map_gt(64)
+    words = ['HEAT,', 'HEAT', 'WAVES,', "I'M", "SWIMMIN'", 'IN', 'A', 'MIRROR']
+    for i, w in enumerate(words):
+        t0 = gt[min(i, len(gt) - 1)]
+        if t < t0:
+            continue
+        settle = w == 'MIRROR'
+        life = (t - t0)
+        if not settle and life > 0.9:
+            continue
+        alpha = 1.0 if settle else clamp(1.0 - (life - 0.55) / 0.35)
+        lane = [-220, -80, 60, 200][i % 4]
+        if settle:
+            k = clamp((t - t0) / max(0.05, 191.05 - t0))
+            e = k * k * (3 - 2 * k)
+            x, y = cx - 300 + 300 * e, cy + 180 - 140 * e
+        else:
+            x = cx - 320 + 560 * life / 0.9
+            y = cy + lane + 12 * math.sin(2 * math.pi * 1.2 * t + i)
+        gl, _ = text.layout_h(w, x, y, 64 if not settle else 84, 'mincho', tracking=0.4, align='center')
+        f, _ = text.render_glyphs(gl)
+        if f is None:
+            continue
+        if not (settle and t >= 191.05):
+            f = cv2.remap(f, kit._XS, (kit._YS + 6 * np.sin(kit._XS / 50.0 + t * 7)).astype(np.float32), cv2.INTER_LINEAR)
+        f = f * disc * alpha
+        img = img + (H('#2C4C9A')[None, None] - img) * np.roll(np.roll(f, 5, 0), 5, 1)[..., None]
+        img = img + (H('#EDE3CF')[None, None] - img) * f[..., None]
+    return _zh_fixed(img, t, 64, 188.848, ink='#1A1416', halo_col='#EDE3CF')
+
+
+R['B-outro_hook-02'] = outro_hook_02
+tl.OWN_TYPE.add('B-outro_hook-02')
