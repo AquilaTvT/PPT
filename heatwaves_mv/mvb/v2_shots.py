@@ -116,6 +116,7 @@ def mirror_track(sid2, hints):
         for j in range(a.shape[1]):
             a[:, j, :3] = fx._gauss1d(a[:, j, :3], 1.5)
     res = a.tolist()
+    os.makedirs(os.path.dirname(key), exist_ok=True)
     json.dump(res, open(key, 'w'))
     return res
 

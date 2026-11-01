@@ -271,8 +271,9 @@ def install():
     v2_shots.install()
     v2_tv.install()
     v2_b1.install()
-    from . import v2_outro
+    from . import v2_outro, v2_more
     v2_outro.install()
+    v2_more.install()                    # after v2_outro: the dream's duotone bridge2-04 replaces the print2 peel
     own = set(v2_card.OWN_TYPE) | V2_OWN_TYPE
     n = 0
     for s in tl.SHOTS:
