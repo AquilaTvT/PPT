@@ -4466,6 +4466,58 @@ def _fest_plate(sid, path, **kw):
     return plate(sid, 's3_festival', params, 0.0, d, fps=24)
 
 
+def _proj(pos, look, fov, X):
+    """project world point X through a three.js-style camera (vertical fov, 16:9, 1920x1080): (sx, sy, depth, px/m)"""
+    P, L = np.asarray(pos, float), np.asarray(look, float)
+    f = L - P
+    f /= np.linalg.norm(f)
+    r = np.cross(f, [0.0, 1.0, 0.0])
+    r /= np.linalg.norm(r)
+    u = np.cross(r, f)
+    q = np.asarray(X, float) - P
+    zc = float(q @ f)
+    F = 540.0 / math.tan(math.radians(fov / 2))
+    if zc <= 1e-3:
+        return None
+    return 960 + F * float(q @ r) / zc, 540 - F * float(q @ u) / zc, zc, F / zc
+
+
+def _chochin(img, x, y, r, lit, ch=None, glyph_a=1.0):
+    """a paper chochin (body, ribs, black caps) centred at (x, y), radius r px; lit 0..1 warms it from off to glowing"""
+    import cv2
+    from .print_fx import hexc as H
+    ry = r * 1.25
+    caph = max(2.0, r * 0.17)
+    x0, y0 = int(max(0, x - r - 4)), int(max(0, y - ry - caph - 4))
+    x1, y1 = int(min(1920, x + r + 5)), int(min(1080, y + ry + caph + 5))
+    if x1 <= x0 or y1 <= y0:
+        return img
+    sub = img[y0:y1, x0:x1]
+    cx, cy = x - x0, y - y0
+    body = np.zeros(sub.shape[:2], np.float32)
+    cv2.ellipse(body, (int(round(cx * 4)), int(round(cy * 4))), (max(1, int(r * 4)), max(1, int(ry * 4))), 0, 0, 360, 1.0, -1,
+                cv2.LINE_AA, shift=2)
+    off, on = H('#B39B7C'), H('#F5C842')
+    sub += (off + (on - off) * lit - sub) * body[..., None]
+    if r > 12:                                                   # bamboo ribs
+        rib = np.zeros_like(body)
+        for k in range(-3, 4):
+            yy = cy + ry * k / 4.0
+            half = r * math.sqrt(max(0.0, 1 - (k / 4.0) ** 2))
+            cv2.line(rib, (int((cx - half) * 4), int(yy * 4)), (int((cx + half) * 4), int(yy * 4)), 1.0,
+                     max(1, int(r * 0.03)), cv2.LINE_AA, shift=2)
+        rc = H('#5E4441') + (H('#C28A2C') - H('#5E4441')) * lit
+        sub += (rc - sub) * (rib * body * 0.6)[..., None]
+    cap = np.zeros_like(body)
+    for sgn in (-1, 1):
+        yc = cy + sgn * (ry - caph * 0.25)
+        cv2.rectangle(cap, (int(cx - r * 0.6), int(yc - caph / 2)), (int(cx + r * 0.6), int(yc + caph / 2)), 1.0, -1)
+    sub += (H('#1A1416') - sub) * cap[..., None]
+    if ch and glyph_a > 0.01:
+        kit.map_glyph(img, ch, x, y, int(max(12, r * 1.15)), 0.0, 1.0, '#1A1416', '#F5C842', max(1.0, r * 0.05), alpha=glyph_a)
+    return img
+
+
 def _lantern_bokeh(img, t, seed=7, n=14, r=(70, 180)):
     """foreground lantern bokeh: big halftone discs, pulsing on beats"""
     import math
@@ -4551,24 +4603,40 @@ def chorus3_03(s, t, local, fi):
     # uchiwa fans flip to show the glyphs as they pass him, on their mora; the column at right gathers them
     gt = _map_gt(40)
     word = 'ヒートウェイブに迷うのさ'
-    for i, ch in enumerate(word):
-        tg = gt[min(i, len(gt) - 1)]
-        dt = t - tg
-        if dt < -0.3 or dt > 0.5:
-            continue
+    live = [(i, t - gt[min(i, len(gt) - 1)]) for i in range(len(word))]
+    live = [(i, dt) for i, dt in live if -0.3 <= dt <= 0.5]
+    live.sort(key=lambda e: (e[1] >= -0.1, e[0]))         # red backs still rising go under the faces showing glyphs
+    for i, dt in live:
+        ch = word[i]
         side = -1 if i % 2 == 0 else 1                     # fans pass on both sides of him
-        x = 960 + side * (330 + 90 * (i % 3)) + 1100 * dt * side
-        y = 600 + 70 * math.sin(i * 1.7)
-        R0 = 112
+        high = (i // 2) % 2 == 0                           # same-side neighbours alternate high-near / low-far
+        R0 = 158                                           # big uchiwa held up by the near crowd
+        # raised up from below beside him, drifts while it flips on the mora, then swept out of frame
+        e_in = 1 - (1 - clamp((dt + 0.3) / 0.18)) ** 3
+        out = max(0.0, dt - 0.28)
+        off = 430 if high else (600 if side < 0 else 520)  # the right side stays clear of the lyric column
+        x = 960 + side * (off + 160 * (dt + 0.3) + 9000 * out * out)
+        y0 = (560 if high else 760) + 25 * math.sin(i * 1.7)
+        y = (1080 + R0 + 30) + (y0 - (1080 + R0 + 30)) * e_in
         flip = math.cos(math.pi * clamp((dt + 0.1) / 0.2))
+        af = abs(flip)
         m = np.zeros((1080, 1920), np.float32)
-        cv2.ellipse(m, (int(x), int(y)), (max(2, int(R0 * abs(flip))), R0), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
-        cv2.line(m, (int(x), int(y + R0)), (int(x), int(y + R0 + 120)), 1.0, 12, cv2.LINE_AA)
+        cv2.ellipse(m, (int(x), int(y)), (max(2, int(R0 * af)), R0), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        cv2.line(m, (int(x), int(y + R0 - 6)), (int(x), int(y + R0 + 165)), 1.0, 15, cv2.LINE_AA)
         fan_col = '#EDE3CF' if flip < 0 else '#D9402B'
-        img = img + (H('#1A1416')[None, None] - img) * cv2.dilate(m, np.ones((7, 7), np.uint8))[..., None]
+        img = img + (H('#1A1416')[None, None] - img) * cv2.dilate(m, np.ones((9, 9), np.uint8))[..., None]
         img = img + (H(fan_col)[None, None] - img) * m[..., None]
+        if af > 0.25:                                      # bamboo ribs fanning out from the grip
+            rib = np.zeros((1080, 1920), np.float32)
+            gx, gy = x, y + R0 * 0.86
+            for k in range(-6, 7):
+                th = math.radians(13 * k)
+                ex, ey = gx + math.sin(th) * R0 * 1.75 * af, gy - math.cos(th) * R0 * 1.75
+                cv2.line(rib, (int(gx * 4), int(gy * 4)), (int(ex * 4), int(ey * 4)), 1.0, 2, cv2.LINE_AA, shift=2)
+            rib_ink = '#C9B79C' if flip < 0 else '#A8321F'
+            img = img + (H(rib_ink)[None, None] - img) * (rib * m * 0.7)[..., None]
         if flip < -0.2:
-            kit.map_glyph(img, ch, x, y, 120, 0.0, 1.0, sx=-flip, fill='#D9402B', stroke='#1A1416', sw=5.0)
+            kit.map_glyph(img, ch, x, y, 168, 0.0, 1.0, sx=-flip, fill='#D9402B', stroke='#1A1416', sw=6.0)
     ly = once('c303_ly', lambda: VLyric(40, x=1720, accent='#D9402B'))
     return ly.draw(img, t)
 
@@ -4589,37 +4657,47 @@ def chorus3_07(s, t, local, fi):
             {'t': d, 'pos': [0.0, 1.3, 30.0 + v * d], 'look': [0.0, 1.7, v * d], 'fov': 50, 'ease': 'linear'}]
     pl = once('c307', lambda: _fest_plate('B-chorus3-07', path, crowdLane=1.6, wireSpacing=5))
     img = pl.frame(local).copy()
-    # L44 on the right-hand lantern row: each glyph's lantern lights as it enters past the lens, then recedes lit
+    # L44 on two strings of paper chochin hung along both sides of the street: each glyph's lantern swings in past
+    # the lens on its mora (alternating right / left), lights, then recedes lit with the street. Lantern i sits where
+    # the retreating camera is d_e behind it at its onset; on each side long and short cords alternate so the receding
+    # glyphs never cover one another.
     gt = _map_gt(44)
     word = 'ヒートウェイブに迷うのさ'
-    holder = once(('c307_holder',), lambda: {})
-    for i, ch in enumerate(word):
-        tg = gt[min(i, len(gt) - 1)]
-        if t < tg:
+    XS, RW, YS, d_e = 3.0, 0.4, 3.3, 4.3
+    cpos, clook = [0.0, 1.3, 30.0 + v * local], [0.0, 1.7, v * local]
+    lz = [30.0 + v * (gt[min(i, len(gt) - 1)] - s['start']) - d_e for i in range(len(word))]
+    lx = [XS if i % 2 == 0 else -XS for i in range(len(word))]
+    ly_ = [2.1 if (i // 2) % 2 == 0 else 2.62 for i in range(len(word))]
+    wire = np.zeros((1080, 1920), np.float32)
+    for side in (1, -1):
+        zs = [lz[i] for i in range(len(word)) if lx[i] * side > 0]
+        prev = None
+        for z in [zs[0] - 6.0, zs[0] - 3.0] + zs + [zs[-1] + 3.0, zs[-1] + 6.0]:       # far end to the lens
+            q = _proj(cpos, clook, 50, [side * XS, YS, z]) if z < cpos[2] - 0.3 else None
+            if q is not None and prev is not None:
+                cv2.line(wire, (int(prev[0] * 4), int(prev[1] * 4)), (int(q[0] * 4), int(q[1] * 4)), 1.0,
+                         max(1, int(0.02 * q[3])), cv2.LINE_AA, shift=2)
+            prev = q
+    for i in range(len(word)):
+        if lz[i] >= cpos[2] - 0.3:
             continue
-        if i not in holder:
-            row = pl.anchor(tg - s['start'], 'rowR') or []
-            cand = [(j, p) for j, p in enumerate(row) if 0 < p[2] < 1.0 and 960 < p[0] < 1900 and -100 < p[1] < 900
-                    and j not in holder.values()]
-            if not cand:
-                continue
-            holder[i] = max(cand, key=lambda jp: jp[1][0])[0]          # the nearest one just in view
-        j = holder[i]
-        row = pl.anchor(local, 'rowR') or []
-        top = pl.anchor(local, 'rowRTop') or []
-        if j >= len(row) or not (0 < row[j][2] < 1.0):
+        qa, qb = _proj(cpos, clook, 50, [lx[i], YS, lz[i]]), _proj(cpos, clook, 50, [lx[i], ly_[i] + 0.55, lz[i]])
+        if qa and qb:
+            cv2.line(wire, (int(qa[0] * 4), int(qa[1] * 4)), (int(qb[0] * 4), int(qb[1] * 4)), 1.0,
+                     max(1, int(0.012 * qb[3])), cv2.LINE_AA, shift=2)
+    img = img + (H('#1A1416')[None, None] - img) * wire[..., None]
+    for i in sorted(range(len(word)), key=lambda k: lz[k]):          # far to near
+        q = _proj(cpos, clook, 50, [lx[i], ly_[i], lz[i]])
+        if q is None or q[2] < 0.4:
             continue
-        x, y = row[j][0], row[j][1]
-        px = abs(top[j][1] - y) if j < len(top) else 40.0           # pixels per 0.4 m at the lantern
-        r = px * 1.3                                                 # big paper lanterns carry the glyphs
-        if r < 6 or x > 2000:
+        r = RW * q[3]
+        x = q[0] + r * 0.07 * math.sin(2 * math.pi * 0.8 * t + 1.3 * i)
+        y = q[1]
+        if x - r > 1920 or x + r < 0 or r < 4:
             continue
-        lit = clamp((t - tg) / (3 / 24))
-        kit.halo(img, x, y, r * 2.4, '#F08A3C', 0.75 * lit, period=max(7.0, min(16.0, r / 6)))
-        m = np.zeros((1080, 1920), np.float32)
-        cv2.ellipse(m, (int(x), int(y)), (int(r), int(r * 1.25)), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
-        img = img + (H('#F5C842')[None, None] * (0.75 + 0.25 * lit) - img) * (m * lit)[..., None]
-        kit.map_glyph(img, ch, x, y, int(max(14, r * 1.3)), 0.0, 1.0, '#1A1416', '#F5C842', max(1.0, r * 0.06), alpha=lit)
+        lit = clamp((t - gt[min(i, len(gt) - 1)]) / (3 / 24))
+        kit.halo(img, x, y, r * 2.3, '#F08A3C', 0.7 * lit, period=max(7.0, min(16.0, r / 6)))
+        _chochin(img, x, y, r, lit, word[i], glyph_a=lit)
     cl = once('c307_char', lambda: chars.CharLayer('B-chorus3-07'))
     punch = 1.02 if 131.05 <= t < 131.05 + 2 / 24 else 1.0
     if cl.ok:
@@ -4966,13 +5044,19 @@ tl.OWN_TYPE.add('B-bridge2-04')
 
 # ---- B-chorus4-03: blue hour -- he walks the seawall toward the lighthouse, its last sweeps -----------------------------
 def _c403_plate():
+    # side-on track along the seawall at walking speed, looking out over the sea 40 degrees off the road axis:
+    # the lighthouse on its cape sits ahead screen-left, the sea fills the right and the background
     s = tl.BY_ID['B-chorus4-03']
     d = s['end'] - s['start']
     v = 1.3
-    path = [{'t': 0.0, 'pos': [3.0, 1.2, 30.0], 'look': [-3.5, 1.8, 46.0], 'fov': 46},
-            {'t': d, 'pos': [3.0, 1.2, 30.0 + v * d], 'look': [-3.5, 1.8, 46.0 + v * d], 'fov': 46, 'ease': 'linear'}]
+    yaw = math.radians(40.0)
+    pos = lambda tt: [2.0, 1.1, 30.0 + v * tt]
+    look = lambda tt: [2.0 + 20 * math.sin(yaw), 1.5, 30.0 + v * tt + 20 * math.cos(yaw)]
+    path = [{'t': 0.0, 'pos': pos(0.0), 'look': look(0.0), 'fov': 46},
+            {'t': d, 'pos': pos(d), 'look': look(d), 'fov': 46, 'ease': 'linear'}]
     return plate('B-chorus4-03', 's2_coast', {'world': 'dawn', 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3, 'mirrors': [],
-                                             'vending': [], 'length': 260, 'fogNear': 40, 'fogFar': 520}, 0.0, d, fps=24)
+                                             'vending': [], 'length': 120, 'fogNear': 40, 'fogFar': 900,
+                                             'moonPos': [-260, 120, -600]}, 0.0, d, fps=24)     # the moon has set behind the town
 
 
 def chorus4_03(s, t, local, fi):
@@ -4982,19 +5066,20 @@ def chorus4_03(s, t, local, fi):
     from .print_fx import hexc as H
     pl = once('c403', _c403_plate)
     img = pl.frame(local).copy()
-    vp = pl.anchor(local, 'vp')
-    hy = float(np.clip(vp[0][1], 300, 800)) if vp else 585.0
-    lx = 1660.0                                             # the cape at the far end of the coast (road VP ~1470), sea side
-    m = np.zeros((1080, 1920), np.float32)
-    cv2.fillConvexPoly(m, np.array([[lx - 7, int(hy)], [lx + 7, int(hy)], [lx + 4, int(hy - 52)], [lx - 4, int(hy - 52)]], np.int32), 1.0, cv2.LINE_AA)
-    img = img + (H('#EDE3CF')[None, None] - img) * m[..., None]
-    kit.halo(img, lx, hy - 55, 22 + 8 * math.sin(t * 3), '#F7E3C2', 0.9, period=6.0)
-    # beam sweep across the frame on 154.02 (one pass per bar)
-    k = (t - 154.02) / 0.5
-    if -0.6 < k < 0.6:
-        ang = np.arctan2(kit._XS - (1560 - 1600 * (k + 0.5)), -(kit._YS + 700))
-        fan = np.clip(1 - np.abs(ang) / 0.18, 0, 1)
-        img = img + (H('#F7E3C2')[None, None] - img) * (fan * _dots_k(0.55, 12.0) * 0.6)[..., None]
+    lh = pl.anchor(local, 'lighthouse')
+    lamp = (lh[0][0], lh[0][1]) if lh and 0 < lh[0][2] < 1.0 else None
+    k = (t - 154.02) / 0.5                                  # one sweep per bar: the beam crosses him on 154.02
+    if lamp:
+        lx, ly = lamp
+        kit.halo(img, lx, ly, 30 + 6 * math.sin(t * 3) + 170 * math.exp(-(k / 0.16) ** 2), '#F7E3C2', 0.95, period=6.0)
+        if -0.6 < k < 0.6:
+            ax = math.atan2(760 - ly, 1050 + 2600 * k - lx)
+            ang = np.arctan2(kit._YS - ly, kit._XS - lx) - ax
+            ang = (ang + np.pi) % (2 * np.pi) - np.pi
+            dist = np.hypot(kit._XS - lx, kit._YS - ly)
+            fan = np.clip(1 - np.abs(ang) / 0.09, 0, 1) * np.clip(dist / 220.0, 0, 1)
+            amt = 0.65 * math.sqrt(max(0.0, 1 - abs(k) / 0.6))
+            img = img + (H('#F7E3C2')[None, None] - img) * (fan * _dots_k(0.6, 12.0) * amt)[..., None]
     cl = once('c403_char', lambda: chars.CharLayer('B-chorus4-03'))
     if cl.ok:
         gust = 4.0 * math.exp(-max(0.0, t - 154.76) * 3) if t >= 154.76 else 0.0
