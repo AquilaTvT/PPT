@@ -550,6 +550,55 @@ def chorus2_04_over(img, s, t, local):
     return moon_path(img, 29, t, x=1190, y0=360)
 
 
+# ---- verse-06: nigemizu -- the print's dots grow into rippling LED dots, then silver water floods to the lens
+V06_VP = (955.0, 688.0)
+
+
+def verse06_over(img, s, t, local):
+    d = s['end'] - s['start']
+    ys, xs = fx_grid()
+    led_k = clamp((local - 0.55) / 1.5)
+    led_k = led_k * led_k * (3 - 2 * led_k)
+    if led_k > 0:
+        per = 8.0 + 13.0 * led_k
+        gw, gh = int(math.ceil(W / per)), int(math.ceil(H_ / per))
+        small = cv2.resize(img, (gw, gh), interpolation=cv2.INTER_AREA)
+        cell = cv2.resize(small, (int(gw * per), int(gh * per)), interpolation=cv2.INTER_NEAREST)[:H_, :W]
+        lum = cell @ np.float32([0.2126, 0.7152, 0.0722])
+        u, v = (xs % per) - per / 2, (ys % per) - per / 2
+        dist = np.sqrt(u * u + v * v)
+        rr = np.hypot(xs - V06_VP[0], ys - V06_VP[1])
+        ripple = 0.5 + 0.5 * np.sin(rr / 34.0 - t * 7.5)
+        rad = per * 0.46 * (0.30 + 0.70 * lum) * (0.80 + 0.35 * ripple)
+        disc = np.clip(rad - dist + 0.5, 0, 1)
+        col = cell * 0.45 + H('#DCEBFF')[None, None] * 0.55
+        led = H('#0B1430')[None, None] + (col - H('#0B1430')[None, None]) * disc[..., None]
+        led += cv2.GaussianBlur(disc * lum, (0, 0), per * 0.6)[..., None] * H('#9FC4FF')[None, None] * 0.35
+        img = img * (1 - led_k * 0.85) + led * (led_k * 0.85)
+    fk = clamp((local - (d - 1.25)) / 1.18)
+    if fk > 0:
+        fk = fk * fk * (3 - 2 * fk)
+        yw = H_ - fk * (H_ + 60)
+        src = img.copy()
+        wob = 6.0 * np.sin(xs * 0.021 + t * 5.0) + 3.0 * np.sin(xs * 0.07 - t * 3.1)
+        ym = 2 * yw - ys + wob
+        ym = np.abs(ym)                                          # past the top edge the mirror folds back down
+        ym = np.where(ym > H_ - 1, 2 * (H_ - 1) - ym, ym)
+        xm = (xs + 7.0 * np.sin(ys * 0.09 + t * 6.0)).astype(np.float32)
+        refl = cv2.remap(src, xm, np.clip(ym, 0, H_ - 1).astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+        water = refl * 0.55 + H('#DDE6EE')[None, None] * 0.45
+        water *= (0.95 + 0.05 * np.sin(ys * 0.12 + 2.0 * np.sin(xs * 0.011 + t * 1.3) + t * 4.0))[..., None]
+        rng = np.random.default_rng(int(t * 24))
+        sp = (rng.random((H_ // 8, W // 8)) > 0.994).astype(np.float32)
+        sp = cv2.GaussianBlur(cv2.resize(sp, (W, H_), interpolation=cv2.INTER_NEAREST), (0, 0), 2.2) * 2.4
+        water += sp[..., None] * H('#FFFFFF')[None, None] * 0.7
+        line = np.exp(-((ys - yw) / 3.0) ** 2) * 0.9
+        a = np.clip((ys - yw) / 4.0, 0, 1)
+        img = img * (1 - a[..., None]) + water * a[..., None]
+        img += line[..., None] * H('#FFFFFF')[None, None] * 0.6
+    return img
+
+
 # ------------------------------------------------------------------ lyric column placement (off faces)
 LYRIC.update({
     'B-hook-02': dict(x=330, y=230),
@@ -563,7 +612,7 @@ LYRIC.update({
 
 
 OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over, 'B-chorus2-01': chorus2_01_over,
-        'B-chorus2-04': chorus2_04_over}
+        'B-chorus2-04': chorus2_04_over, 'B-verse-06': verse06_over}
 OWN = {'B-chorus2-01', 'B-chorus2-04'}
 
 
