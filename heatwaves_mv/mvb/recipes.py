@@ -2885,7 +2885,7 @@ tl.OWN_TYPE.add('B-chorus1-01')
 def _c102_plate():
     s = tl.BY_ID['B-chorus1-02']
     d = s['end'] - s['start']
-    path = [{'t': 0.0, 'pos': [-0.62, 0.73, 0.16], 'look': [-0.62, 0.73, -0.79], 'fov': 42},
+    path = [{'t': 0.0, 'pos': [-0.62, 0.725, 0.47], 'look': [-0.62, 0.725, -0.79], 'fov': 42},
             {'t': 1.48, 'pos': [-0.15, 0.98, 1.28], 'look': [0.12, 0.52, -0.92], 'fov': 54, 'ease': 'inout'},
             {'t': d, 'pos': [-0.12, 0.98, 1.24], 'look': [0.15, 0.52, -0.92], 'fov': 53.5, 'ease': 'linear'}]
     return plate('B-chorus1-02', 's1_room', {'path': path}, 0.0, d, fps=24)
@@ -5048,7 +5048,7 @@ def outro_01(s, t, local, fi):
     # the relay landing: sun disc with rays + AM glare at frame centre, then it rises out of frame with the pull-back
     k = _ease_io(clamp(local / 1.48))
     cx, cy = 960 - 300 * k, 540 - 420 * k
-    rr = 400 * (1 - k) + 90 * k
+    rr = 365 * (1 - k) + 90 * k                       # = chorus4-05's disc on its last frame
     kit.halo(img, cx, cy, rr * 2.4, '#F5C842', 0.7, period=14.0)
     m = np.zeros((1080, 1920), np.float32)
     for j in range(12):
@@ -5060,9 +5060,9 @@ def outro_01(s, t, local, fi):
     img = img + (H('#F08A3C')[None, None] - img) * m[..., None]
     m = np.zeros((1080, 1920), np.float32)
     cv2.circle(m, (int(cx), int(cy)), int(rr), 1.0, -1, cv2.LINE_AA)
-    img = img + (H('#FFF2C8')[None, None] - img) * m[..., None]
     if t < 162.17 + 5 / 24:
         img = kit.dot_flash(img, 1 - (t - 162.17) / (5 / 24), '#F5C842', 24)
+    img = img + (H('#FFF2C8')[None, None] - img) * m[..., None]
     # the train passing on the coastal track behind him, its LED board scrolling L55
     if local > 1.2:
         u = (local - 1.2) / 1.9

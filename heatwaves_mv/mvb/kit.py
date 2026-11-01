@@ -79,7 +79,7 @@ def dot_flash(img, k, color='#F5C842', period=24.0):
     u = (_XS * c + _YS * s) / period
     v = (-_XS * s + _YS * c) / period
     d = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
-    m = np.clip((0.7 * k - d) * period * 0.5, 0, 1)
+    m = np.clip((0.6 * k - d) * period * 0.5, 0, 1)        # 0.6 < 0.707: even the first frame keeps gaps (never a flat frame)
     return img + (hexc(color)[None, None] - img) * m[..., None]
 
 
