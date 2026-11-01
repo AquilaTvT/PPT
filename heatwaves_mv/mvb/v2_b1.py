@@ -166,11 +166,36 @@ OVER['B-bridge1-02'] = bridge1_02_over
 # ---- bridge1-04: top-down -- the wave takes his half, a halftone question mark rises in its place
 B104_BOX = (330, 585, 650, 790)
 B104_SUN, B104_MOON = (430, 690), (565, 690)
+B104_REF_BOX = (40, 120, 660, 1000)       # still sand and seawall left of the wash: the footage's own slight drift
+_B104_REF = {}
+
+
+def _b104_shift(s, local):
+    """how far the footage has drifted from its first frame (a few pixels of generated hand-held wobble), measured
+    directly against frame 0 on the still sand (ECC, translation) -- a frame-to-frame track of the chalk box drifts
+    away on the wash"""
+    def gray(lc):
+        u8 = (np.clip(v2.plate(s, lc), 0, 1) * 255).astype(np.uint8)
+        x0, y0, x1, y1 = B104_REF_BOX
+        g = cv2.cvtColor(u8[y0:y1, x0:x1], cv2.COLOR_RGB2GRAY)
+        return cv2.resize(g, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA).astype(np.float32)
+    key = v2.clip_path(v2.b2_id(s)) or 'still'
+    if key not in _B104_REF:
+        _B104_REF[key] = gray(0.0)
+    if local <= 0.0:
+        return 0.0, 0.0
+    wm = np.eye(2, 3, dtype=np.float32)
+    try:
+        _, wm = cv2.findTransformECC(_B104_REF[key], gray(local), wm, cv2.MOTION_TRANSLATION,
+                                     (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 1e-5), None, 5)
+    except cv2.error:
+        return 0.0, 0.0
+    return float(np.clip(wm[0, 2] * 2, -25, 25)), float(np.clip(wm[1, 2] * 2, -25, 25))
 
 
 def bridge1_04(s, t, local):
     img = v2.plate(s, local)
-    dx, dy = v2.tracked(s, [(497, 688)], local, box=B104_BOX)[0] - np.float32([497, 688])     # follow the drawing
+    dx, dy = _b104_shift(s, local)                                     # the drawing stays on the sand
     bx = B104_BOX
     img = _inpaint_strokes(img, (int(bx[0] + dx), int(bx[1] + dy), int(bx[2] + dx), int(bx[3] + dy)), v_min=0.70, s_max=0.45, grow=9)
     c = np.zeros((H_, W), np.float32)

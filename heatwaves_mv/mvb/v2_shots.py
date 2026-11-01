@@ -658,7 +658,7 @@ def chorus2_01_over(img, s, t, local):
 
 
 # ---- chorus2-02: the vending machine's ticker and its lottery roulette stopping on 0012
-C202_TICKER = (1012, 706, 1632, 750)
+C202_TICKER = (1330, 706, 1632, 750)       # the panel right of his hands
 C202_ROUL = (1306, 868, 1494, 936)
 
 
@@ -696,7 +696,8 @@ RAW['B-chorus2-02'] = chorus2_02
 # ---- chorus2-04: the line set down the moon's path on the sea, broken by the waves
 def chorus2_04_over(img, s, t, local):
     from .v2_typo import moon_path
-    return moon_path(img, 29, t, x=1190, y0=360)
+    # he stands in the moon's path: the line comes down the glitter at his right, from under the horizon
+    return moon_path(img, 29, t, x=1112, y0=296, size=52, lead=1.0, slant=0.1)
 
 
 # ---- verse-06: nigemizu -- the print's dots grow into rippling LED dots, then silver water floods to the lens

@@ -106,7 +106,7 @@ def tanzaku(img, idx, t, x0=1840, y_top=26, step=-104, size=58):
     return img
 
 
-def moon_path(img, idx, t, x=990, y0=330, size=74, lead=1.18):
+def moon_path(img, idx, t, x=990, y0=330, size=74, lead=1.18, slant=0.0):
     ln = LYRICS[idx]
     gt = glyph_times()[str(idx)]
     chars = [c for c in ln['text'] if not c.isspace()]
@@ -123,9 +123,10 @@ def moon_path(img, idx, t, x=990, y0=330, size=74, lead=1.18):
         persp = 0.8 + 0.5 * (yy - y0) / 700.0                                  # nearer = bigger
         g = cv2.resize(g, (int(w * persp), int(h * persp)), interpolation=cv2.INTER_AREA)
         h, w = g.shape
+        xc = x + slant * (yy - y0)                                             # the column opens out toward us
         # broken by the waves: horizontal slices shifted by the swell, more so nearer the shore
         rows = np.arange(h, dtype=np.float32)
-        amp = (3 + 9 * persp) * (1.0 + 0.6 * math.sin(t * 1.3 + i))
+        amp = (3 + 9 * persp) * (1.0 + 0.6 * math.sin(t * 1.3 + i)) * min(1.0, size / 74.0)   # stays legible small
         shift = amp * np.sin(rows / (5.0 + persp * 3) + t * 5.0 + i * 1.7)
         shift = np.round(shift / 2) * 2
         broken = np.zeros_like(g)
@@ -135,10 +136,10 @@ def moon_path(img, idx, t, x=990, y0=330, size=74, lead=1.18):
         broken *= 1 - gaps * 0.85
         a = clamp(k) * out_a
         glow = cv2.GaussianBlur(broken, (0, 0), 6) * 0.8
-        img = _blend(img, glow, int(x - w / 2), yy, '#9FB8E0', a * 0.6)
-        img = _blend(img, broken, int(x - w / 2), yy, '#F3EBD9', a)
+        img = _blend(img, glow, int(xc - w / 2), yy, '#9FB8E0', a * 0.6)
+        img = _blend(img, broken, int(xc - w / 2), yy, '#F3EBD9', a)
         tw = np.clip(np.sin(rows[:, None] * 2.1 + np.arange(w)[None, :] * 0.7 + t * 11) - 0.93, 0, 1) * 12 * broken
-        img = _blend(img, np.clip(tw, 0, 1), int(x - w / 2), yy, '#FFFFFF', a)
+        img = _blend(img, np.clip(tw, 0, 1), int(xc - w / 2), yy, '#FFFFFF', a)
     return img
 
 
