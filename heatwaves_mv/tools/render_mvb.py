@@ -1,6 +1,6 @@
-"""Render a time range of MV-B to an mp4 (parallel worker processes, then concat + song audio).
+"""Render a time range of MV-B (or MV-A with --mv a) to an mp4 (parallel worker processes, then concat + audio).
 
-  python3 tools/render_mvb.py --t0 0 --t1 28.83 --out /path/preview.mp4 [--workers 3] [--audio]
+  python3 tools/render_mvb.py --t0 0 --t1 28.83 --out /path/preview.mp4 [--workers 3] [--audio] [--mv a|b]
 """
 import argparse
 import multiprocessing as mp
@@ -11,12 +11,21 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 FPS = 24
 AUDIO = os.environ.get('HW_AUDIO', '/tmp/claude-0/song/hw.wav')
+MV = os.environ.get('HW_MV', 'b')
+
+
+def modules():
+    if MV == 'a':
+        from mva import timeline as tl, recipes  # noqa: F401
+    else:
+        from mvb import timeline as tl, recipes  # noqa: F401
+    return tl
 
 
 def work(args):
     f0, f1, path = args
     import numpy as np
-    from mvb import timeline as tl, recipes  # noqa: F401
+    tl = modules()
     p = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '1920x1080',
                           '-r', str(FPS), '-i', '-', '-c:v', 'libx264', '-crf', '15', '-preset', 'medium',
                           '-pix_fmt', 'yuv420p', path], stdin=subprocess.PIPE)
@@ -35,7 +44,10 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--workers', type=int, default=3)
     ap.add_argument('--audio', action='store_true')
+    ap.add_argument('--mv', default=MV, choices=['a', 'b'])
     a = ap.parse_args()
+    globals()['MV'] = a.mv
+    os.environ['HW_MV'] = a.mv
     f0, f1 = int(round(a.t0 * FPS)), int(round(a.t1 * FPS))
     n = a.workers * 2
     step = max(1, (f1 - f0 + n - 1) // n)
@@ -44,7 +56,7 @@ def main():
     os.makedirs(tmpd, exist_ok=True)
     jobs = [(s, min(f1, s + step), os.path.join(tmpd, f'p{i:03d}.mp4')) for i, s in enumerate(range(f0, f1, step))]
     # warm the plate cache once (plates render through node; avoid parallel duplicate renders)
-    from mvb import timeline as tl, recipes  # noqa: F401
+    tl = modules()
     for s in tl.SHOTS:
         if s['end'] > a.t0 and s['start'] < a.t1:
             tl.render(max(a.t0, s['start']) + 0.01, 0)
