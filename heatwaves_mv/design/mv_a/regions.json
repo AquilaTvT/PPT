@@ -220,13 +220,15 @@
   "face": [
    1360,
    410
-  ]
+  ],
+  "lyric_slot": "left"
  },
  "A-verse-04": {
   "movie_man": [
    1360,
    430
-  ]
+  ],
+  "lyric_slot": "right"
  },
  "A-verse-06": {
   "pane": [
@@ -363,13 +365,15 @@
   "cheek": [
    700,
    560
-  ]
+  ],
+  "lyric_slot": "far_left"
  },
  "A-bridge1-08": {
   "gap": [
    1060,
    560
-  ]
+  ],
+  "lyric_slot": "center"
  },
  "A-chorus3-02": {
   "crt": [
@@ -449,7 +453,8 @@
    270,
    930,
    1050
-  ]
+  ],
+  "lyric_slot": "right"
  },
  "A-chorus3-10": {
   "face": [
@@ -469,7 +474,8 @@
   "face": [
    940,
    500
-  ]
+  ],
+  "lyric_slot": "far_right"
  },
  "A-outro-02": {
   "her_box": [
@@ -570,5 +576,17 @@
    690
   ],
   "horizon": 680
+ },
+ "A-verse-02": {
+  "lyric_slot": "right"
+ },
+ "A-verse-03": {
+  "lyric_slot": "center"
+ },
+ "A-chorus3-09": {
+  "lyric_slot": "far_right"
+ },
+ "A-bridge2-01": {
+  "lyric_slot": "far_right"
  }
 }

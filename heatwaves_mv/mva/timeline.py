@@ -123,6 +123,18 @@ def is_present(s):
     return '2.39 letterbox' in c or 'letterbox (present' in c or 'letterbox is still on' in c
 
 
+_REGIONS = None
+
+
+def region_override(sid, key):
+    """per-shot overrides from design/mv_a/regions.json (e.g. lyric_slot), read once"""
+    global _REGIONS
+    if _REGIONS is None:
+        p = os.path.join(ROOT, 'design', 'mv_a', 'regions.json')
+        _REGIONS = json.load(open(p)) if os.path.exists(p) else {}
+    return _REGIONS.get(sid, {}).get(key)
+
+
 def lyric_for(s, idx):
     ty = s.get('typography', '') or ''
     low = ty.lower()
@@ -131,6 +143,7 @@ def lyric_for(s, idx):
         slot = 'left'
     elif 'high center' in low or 'centred' in low or 'centered' in low:
         slot = 'center'
+    slot = region_override(s['id'], 'lyric_slot') or slot      # moved off a face in the real footage
     font = 'hina' if 'hina' in low else 'mincho'
     world = 'memory'
     if 'moon white' in low or (is_present(s) and 'silver' not in low):

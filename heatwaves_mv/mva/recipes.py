@@ -1114,9 +1114,22 @@ def a_bridge1_07(s, t, local, fi):
     img = fx.rain(img, 105.87 + (t - 105.87) * 0.25)
     # 波紋カット insert on 107.35 (0.74 s): her tear lands on a mirror-flat sea and the rings break the surface
     if 107.35 <= t < 107.35 + BEAT:
-        sea = other('A-bridge1-02', 1.2, cy=0.75, zoom=1.4)
-        sea = cv2.GaussianBlur(sea, (1, 41), 0)
-        sea = fx.ripple(sea, W / 2, H * 0.55, t, 107.35, speed=380.0, wavelength=34.0, amp=9.0, decay=1.0)
+        sea = other('A-bridge1-02', 0.1, cx=0.83, cy=0.56, zoom=2.6)      # the open sea right of her, before she turns
+        sea = cv2.GaussianBlur(sea, (0, 0), sigmaX=22, sigmaY=1.2)          # the swell stills into a mirror
+        dt = t - 107.35
+        cx0, cy0 = W / 2, H * 0.64
+        sea = fx.ripple(sea, cx0, cy0, t, 107.35, speed=380.0, wavelength=30.0, amp=6.0, decay=1.0)
+        rings = np.zeros((H, W), np.float32)                # rings on the water plane: ellipses in perspective
+        for j in range(3):
+            r = 430.0 * max(0.0, dt - j * 0.1) ** 0.8
+            if r < 6:
+                continue
+            a = math.exp(-dt * 2.0) * (1.0 - 0.25 * j)
+            rings += np.clip(fx.ellipse_mask(cx0, cy0, r + 3, (r + 3) * 0.26, feather=2.0) -
+                             fx.ellipse_mask(cx0, cy0, r - 3, (r - 3) * 0.26, feather=2.0), 0, 1) * a
+        sea = sea + rings[..., None] * np.float32(0.5)
+        if dt < 0.12:                                       # the drop's entry
+            sea = sea + fx.ellipse_mask(cx0, cy0 - 12, 9, 20, feather=6.0)[..., None] * np.float32(0.8 * (1 - dt / 0.12))
         img = fx.selective_desat(sea, 0.6)
     return img
 
