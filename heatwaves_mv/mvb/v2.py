@@ -257,14 +257,13 @@ def track0(s, pts, local, box=None, sid2=None, pad=70):
     if key not in _TRACKS:
         src = clip_path(sid2)
         fn = os.path.join(WORK2, sid2, f'track_q_{box[0]}_{box[1]}_{box[2]}_{box[3]}_{int(os.path.getmtime(src))}.json')
-        if os.path.exists(fn):
-            _TRACKS[key] = json.load(open(fn))
-        else:
+        from .atomic import load_json, save_json
+        tr = load_json(fn) if os.path.exists(fn) else None
+        if tr is None:
             n = max(1, int(f.c.n))
             tr = v2_fx.track_region(lambda i: f.at(i / f.c.fps), n, box, pad=pad)
-            os.makedirs(os.path.dirname(fn), exist_ok=True)
-            json.dump(tr, open(fn, 'w'))
-            _TRACKS[key] = tr
+            save_json(fn, tr)
+        _TRACKS[key] = tr
     tr = _TRACKS[key]
     i = int(round(src_time(s, local, sid2=sid2) * f.c.fps))
     C = np.float32(tr[min(len(tr) - 1, max(0, i))])

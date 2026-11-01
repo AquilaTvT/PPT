@@ -156,7 +156,8 @@ class MapSheet:
                 self._master = cv2.cvtColor(cv2.imread(self.path_png), cv2.COLOR_BGR2RGB)
             else:
                 self._master = self.render()
-                cv2.imwrite(self.path_png, cv2.cvtColor(self._master, cv2.COLOR_RGB2BGR))
+                from .atomic import save_img
+                save_img(self.path_png, cv2.cvtColor(self._master, cv2.COLOR_RGB2BGR))
         return self._master
 
     # ------------------------------------------------------------------ master sheet

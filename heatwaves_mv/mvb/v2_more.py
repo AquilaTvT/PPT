@@ -532,8 +532,10 @@ def board_track(sid2):
     f = v2.footage(sid2)
     src = v2.clip_path(sid2) or v2.kf_path(sid2)
     key = os.path.join(v2.WORK2, sid2, f'track_board_{int(os.path.getmtime(src))}.json')
-    if os.path.exists(key):
-        return json.load(open(key))
+    from .atomic import load_json, save_json
+    got = load_json(key) if os.path.exists(key) else None
+    if got is not None:
+        return got
     fps = getattr(getattr(f, 'c', None), 'fps', 16.0)
     n = max(1, int(round(f.dur * fps))) if hasattr(f, 'c') else 1
     out, prev = [], None
@@ -551,8 +553,7 @@ def board_track(sid2):
             last = out[i]
         a = fx._gauss1d(np.array(out, np.float32), 1.5)
         out = a.tolist()
-    os.makedirs(os.path.dirname(key), exist_ok=True)
-    json.dump(out, open(key, 'w'))
+    save_json(key, out)
     return out
 
 

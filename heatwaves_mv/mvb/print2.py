@@ -78,8 +78,9 @@ class Printer:
         self.pal = self.pal_g = None
         if name:
             p = os.path.join(CACHE, f'{name}.json')
-            if os.path.exists(p):
-                d = json.load(open(p))
+            from .atomic import load_json
+            d = load_json(p) if os.path.exists(p) else None
+            if d is not None:
                 self.pal, self.pal_g = np.float32(d['pal']), np.float32(d['pal_g'])
 
     # ---------------------------------------------------------------- palette
@@ -96,7 +97,8 @@ class Printer:
         self.pal_g = self.grade(self.pal)
         if self.name:
             os.makedirs(CACHE, exist_ok=True)
-            json.dump({'pal': self.pal.tolist(), 'pal_g': self.pal_g.tolist()}, open(os.path.join(CACHE, f'{self.name}.json'), 'w'))
+            from .atomic import save_json
+            save_json(os.path.join(CACHE, f'{self.name}.json'), {'pal': self.pal.tolist(), 'pal_g': self.pal_g.tolist()})
         return self
 
     def grade(self, pal):

@@ -137,8 +137,10 @@ def track(sid2, kind, frames_fn, n, fps, smooth=2.0):
     d = os.path.join(v2.WORK2, sid2)
     src = v2.clip_path(sid2) or v2.kf_path(sid2) or ''
     key = os.path.join(d, f'track_{kind}_{int(os.path.getmtime(src)) if src else 0}.json')
-    if os.path.exists(key):
-        return json.load(open(key))
+    from .atomic import load_json, save_json
+    got = load_json(key) if os.path.exists(key) else None
+    if got is not None:
+        return got
     det = {'mirrors': detect_mirrors, 'screen': detect_screen, 'led': detect_led, 'paper': detect_paper}[kind]
     raw = []
     for i in range(n):
@@ -150,8 +152,7 @@ def track(sid2, kind, frames_fn, n, fps, smooth=2.0):
         else:
             raw.append(np.asarray(r, np.float32).ravel().tolist())
     out = _smooth_track(raw, kind, smooth)
-    os.makedirs(d, exist_ok=True)
-    json.dump(out, open(key, 'w'))
+    save_json(key, out)
     return out
 
 

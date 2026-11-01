@@ -572,7 +572,8 @@ def base_layer():
         m = mc.get(k, 0) * ((1 - ko) if k != 'navy' else 1.0)
         covs[k] = np.clip(1 - (1 - m) * (1 - fc[k]), 0, 1)
     img = np.clip(lay_inks(paper().copy(), covs), 0, 1)
-    cv2.imwrite(path, cv2.cvtColor((img * 255 + 0.5).astype(np.uint8), cv2.COLOR_RGB2BGR))
+    from .atomic import save_img
+    save_img(path, cv2.cvtColor((img * 255 + 0.5).astype(np.uint8), cv2.COLOR_RGB2BGR))
     return img
 
 
@@ -618,7 +619,8 @@ def stamp_art(i):
         return cv2.imread(key, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
     art = engrave(cv2.imread(p), cx, cy, r)
     os.makedirs(CACHE, exist_ok=True)
-    cv2.imwrite(key, (art * 255).astype(np.uint8))
+    from .atomic import save_img
+    save_img(key, (art * 255).astype(np.uint8))
     return art
 
 

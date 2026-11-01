@@ -96,9 +96,13 @@ def mirror_track(sid2, hints):
     template matching of each mirror's ring + hood (v2_fx.track_mirror_tm)"""
     f = v2.footage(sid2)
     src = v2.clip_path(sid2) or v2.kf_path(sid2)
-    key = os.path.join(v2.WORK2, sid2, f'track_mtm_{abs(hash(json.dumps(hints))) % 10**8}_{int(os.path.getmtime(src))}.json')
-    if os.path.exists(key):
-        return json.load(open(key))
+    import hashlib
+    from .atomic import load_json, save_json
+    hk = hashlib.md5(json.dumps(hints).encode()).hexdigest()[:10]          # stable across processes (not hash())
+    key = os.path.join(v2.WORK2, sid2, f'track_mtm_{hk}_{int(os.path.getmtime(src))}.json')
+    got = load_json(key) if os.path.exists(key) else None
+    if got is not None:
+        return got
     if not hasattr(f, 'c'):
         res = [[[h[0][0], h[0][1], 1.0, 1.0] for h in hints]]
     else:
@@ -113,8 +117,7 @@ def mirror_track(sid2, hints):
             return cache[i]
         per = [fx.track_mirror_tm(frame_at, n, h) for h in hints]
         res = [[per[j][i] for j in range(len(hints))] for i in range(n)]
-    os.makedirs(os.path.dirname(key), exist_ok=True)
-    json.dump(res, open(key, 'w'))
+    save_json(key, res)
     return res
 
 
