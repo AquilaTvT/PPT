@@ -1,0 +1,24 @@
+{
+  "keyframe": {
+    "model": "anima-turbo-v1.1.safetensors",
+    "steps": 10,
+    "cfg": 1.0,
+    "sampler": "euler",
+    "w": 1280,
+    "h": 704,
+    "loras": []
+  },
+  "video": {
+    "engine": "wan5b",
+    "unet": "Wan2_2-TI2V-5B-Turbo-Q6_K.gguf",
+    "te": "umt5-xxl-encoder-Q5_K_M.gguf",
+    "w": 832,
+    "h": 480,
+    "fps": 16,
+    "max_frames": 81,
+    "steps": 4,
+    "cfg": 1.0,
+    "shift": 5.0,
+    "sampler": "euler"
+  }
+}
