@@ -236,15 +236,17 @@ def long_shadow(img, idx, t, quad, size=150, col='#2A1A22', alpha=0.62):
         return img
     n = len(chars[:len(gt)])
     cw, ch_ = int(size * 1.05), int(size * 1.5)
-    sheet = np.zeros((ch_, cw * n), np.float32)
+    pad = int(size)
+    sheet = np.zeros((ch_, cw * n + 2 * pad), np.float32)
     for i, c in enumerate(chars[:n]):
         k = clamp((t - gt[i]) / 0.25)
         if k <= 0:
             continue
         g = glyph_mask(c, size)
         gh, gw = g.shape
-        x = i * cw + (cw - gw) // 2
-        sheet[:min(ch_, gh), x:x + gw] = np.maximum(sheet[:min(ch_, gh), x:x + gw], g[:min(ch_, gh)] * k)
+        x = pad + i * cw + (cw - gw) // 2
+        hh = min(ch_, gh)
+        sheet[:hh, x:x + gw] = np.maximum(sheet[:hh, x:x + gw], g[:hh] * k)
     sheet = cv2.GaussianBlur(sheet, (0, 0), 2.0)
     q = np.asarray(quad, np.float32)
     Hm = cv2.getPerspectiveTransform(np.float32([[0, 0], [sheet.shape[1], 0], [sheet.shape[1], sheet.shape[0]], [0, sheet.shape[0]]]), q)

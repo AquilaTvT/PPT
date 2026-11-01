@@ -265,11 +265,12 @@ def make_recipe(s):
 
 def install():
     """override every shot that has B2 footage (or a v2-only recipe) with its v2 recipe"""
-    from . import v2_card, v2_map, v2_shots, v2_tv
+    from . import v2_card, v2_map, v2_shots, v2_tv, v2_b1
     GRAPHIC.update(v2_card.GRAPHIC)
     GRAPHIC.update(v2_map.GRAPHIC)
     v2_shots.install()
     v2_tv.install()
+    v2_b1.install()
     own = set(v2_card.OWN_TYPE) | V2_OWN_TYPE
     n = 0
     for s in tl.SHOTS:
