@@ -3456,3 +3456,86 @@ def chorus1_04(s, t, local, fi):
 
 R['B-chorus1-04'] = chorus1_04
 tl.OWN_TYPE.add('B-chorus1-04')
+
+
+# ---- B-verse-05: the platform photo -- his cobalt plate peels off like a silkscreen sheet; hers brightens --------------
+def verse_05(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import print_fx
+    from .print_fx import hexc as H
+    pk = clamp((t - 68.09) / (69.57 - 68.09))               # peel progress (45 deg at 68.83)
+    bright = clamp((t - 68.09) / 1.2)
+    key = 'v05_bg'
+    if key not in _cache:
+        bc = np.zeros((1080, 1920), np.float32)
+        bo = np.zeros((1080, 1920), np.float32)
+        cv2.rectangle(bc, (0, 900), (1920, 960), 0.55, -1)                     # platform edge
+        cv2.line(bc, (0, 900), (1920, 900), 1.0, 5, cv2.LINE_AA)
+        cv2.rectangle(bc, (300, 330), (640, 440), 1.0, 4, cv2.LINE_AA)          # station-name board (his plate)
+        cv2.line(bc, (360, 440), (360, 900), 1.0, 6, cv2.LINE_AA)
+        cv2.line(bc, (580, 440), (580, 900), 1.0, 6, cv2.LINE_AA)
+        gl, _ = text.layout_h('潮見', 470, 385, 64, 'mincho', align='center')
+        f, _ = text.render_glyphs(gl)
+        if f is not None:
+            bc = np.maximum(bc, f)
+        for k in range(4):
+            cv2.line(bo, (0, 980 + k * 22), (1920, 980 + k * 22), 0.45, 3, cv2.LINE_AA)
+        _cache[key] = (bc, bo)
+    bc, bo = _cache[key]
+    # her (orange) on the paper; his plate is composited separately so it can peel
+    img, covC, covO = riso_two_person('B-verse-05', t, local, ((0, 0), (0, 0)), layout=(980, 900, 760),
+                                      bg_extra=(bc, bo), fade_c=0.0, fade_o=1.0 - 0.2 * bright)
+    if bright > 0:                                         # a sun-yellow overprint blooms behind her
+        kit.halo(img, 1120, 560, 520 * bright, '#F5C842', 0.55 * bright, period=10.0)
+    _, covC, _ = riso_two_person('B-verse-05', t, local, ((0, 0), (0, 0)), layout=(980, 900, 760), bg_extra=(bc, bo),
+                                 fade_c=1.0, fade_o=0.0)
+    # 僕じゃ ride the cobalt sheet
+    ly = once('v05_ly', lambda: VLyric(23, x=1720, accent='#F08A3C', hide=lambda i, tt: i in (0, 1, 2)))
+    for i in (0, 1, 2):
+        if i < len(ly.glyphs) and t >= ly.times[i]:
+            gl = [dict(ly.glyphs[i])]
+            f, _ = text.render_glyphs(gl)
+            if f is not None:
+                covC = np.maximum(covC, f)
+    # the sheet lifts from its left corner, curls toward camera and slides off top-right
+    if pk > 0:
+        e = pk * pk * (3 - 2 * pk)
+        src = np.float32([[0, 0], [1920, 0], [1920, 1080], [0, 1080]])
+        lift = np.float32([[0 + 900 * e, -380 * e], [1920 + 700 * e, -200 * e], [1920 + 420 * e, 1080 - 120 * e],
+                           [0 + 1250 * e, 1080 - 760 * e]])
+        lift[:, 0] += 1500 * max(0.0, e - 0.5) * 2
+        lift[:, 1] -= 900 * max(0.0, e - 0.5) * 2
+        Hm = cv2.getPerspectiveTransform(src, lift)
+        sheet = cv2.warpPerspective(covC, Hm, (1920, 1080))
+        sm = cv2.warpPerspective(np.ones((1080, 1920), np.float32), Hm, (1920, 1080))
+        shadow = cv2.GaussianBlur(np.roll(np.roll(sm, 40, 0), 30, 1), (0, 0), 24) * 0.30 * (1 - e * 0.6)
+        img = img * (1 - shadow[..., None])
+        backing = sm * 0.18                               # the sheet itself: faint film
+        img = img + (H('#C9D3DC')[None, None] - img) * backing[..., None]
+        covC = sheet
+    cd = np.where(covC > 0.9, 1.0, print_fx._screen(covC, 8.0, 15.0))[..., None]
+    if pk == 0:                                           # in register: overprint where both inks meet
+        od = (np.abs(img - H('#F08A3C')[None, None]).sum(-1, keepdims=True) < 0.12).astype(np.float32)
+        img = img * (1 - cd) + (H('#2C4C9A')[None, None] * (1 - od) + H('#292924')[None, None] * od) * cd
+    else:
+        img = img + (H('#2C4C9A')[None, None] - img) * cd
+    img = reg_marks(img)
+    img = ly.draw(img, t)
+    # paper tilted 12 deg to camera; the camera follows the sheet up 8%
+    up = 0.08 * 1080 * clamp((t - 68.09) / 1.6)
+    srcq = np.float32([[0, 0], [1920, 0], [1920, 1080], [0, 1080]])
+    dstq = np.float32([[60, 20 + up], [1860, 20 + up], [1920 + 40, 1080 + up], [-40, 1080 + up]])
+    img = cv2.warpPerspective(img, cv2.getPerspectiveTransform(srcq, dstq), (1920, 1080), borderMode=cv2.BORDER_REPLICATE)
+    # ポスター抜け: push into the blank where his plate was -> the noon road's glare
+    if t >= 69.94:
+        k = clamp((t - 69.94) / 0.37)
+        M = cv2.getRotationMatrix2D((760, 560), 0, 1 + 2.5 * k * k)
+        img = cv2.warpAffine(img, M, (1920, 1080), borderMode=cv2.BORDER_REPLICATE)
+        kit.halo(img, 960, 540, 300 + 1500 * k, '#F6F2E7', 0.95 * k, period=16.0)
+    return img
+
+
+R['B-verse-05'] = verse_05
+tl.OWN_TYPE.add('B-verse-05')
