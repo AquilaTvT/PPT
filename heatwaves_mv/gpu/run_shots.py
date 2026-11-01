@@ -245,9 +245,12 @@ def do_videos(c, cfg, shots, man, n):
                                  shift=v['shift'], prefix=f"video/{s['id']}")
             t0 = time.time()
             outs = c.outputs(c.run(g))
-            vids = [o for o in outs if o['filename'].endswith(('.mp4', '.webm', '.mkv'))]
+            pick = saved_video(outs, s['id'])
+            if pick is None:
+                log(f"{s['id']} video {i}: no saved video in the outputs")
+                continue
             dst = os.path.join(man.shot_dir(s['id']), f'v_{i}.mp4')
-            c.fetch(vids[0], dst, move=True)
+            c.fetch(pick, dst, move=True)
             st['videos'].append({'path': dst, 'seed': seed, 'engine': v['engine'], 'secs': round(time.time() - t0, 1)})
             if st['video_pick'] is None:
                 st['video_pick'] = dst
@@ -255,6 +258,28 @@ def do_videos(c, cfg, shots, man, n):
             log(f"{s['id']} video {i} {time.time() - t0:.0f}s")
         if st['video_pick']:
             prev_last = last_frame(st['video_pick'], os.path.join(man.shot_dir(s['id']), 'last.png'))
+
+
+def saved_video(outs, name_start):
+    """the video this job saved: history outputs also list previews (an input clip shown by a loader, temp
+    files), so take only type 'output' files whose name starts with the job's own prefix"""
+    vids = [o for o in outs if o.get('filename', '').endswith(('.mp4', '.webm', '.mkv'))]
+    mine = [o for o in vids if o.get('type', 'output') == 'output' and o['filename'].startswith(name_start)]
+    if mine:
+        return mine[-1]
+    out = [o for o in vids if o.get('type', 'output') == 'output']
+    return out[-1] if out else None
+
+
+def video_info(path):
+    """(fps, frame count) from ffmpeg's stream line and a null decode; (None, 0) when unreadable"""
+    import re
+    import subprocess
+    r = subprocess.run([ffmpeg_bin(), '-hide_banner', '-i', path, '-map', '0:v:0', '-f', 'null', '-'],
+                       capture_output=True, text=True)
+    m = re.search(r'Video:.*?(\d+(?:\.\d+)?) fps', r.stderr)
+    fr = re.findall(r'frame=\s*(\d+)', r.stderr)
+    return (float(m.group(1)) if m else None), (int(fr[-1]) if fr else 0)
 
 
 def ffmpeg_bin():
@@ -290,12 +315,21 @@ def do_finish(c, cfg, shots, man):
                            prefix=f"video/{s['id']}_interp")
         t0 = time.time()
         outs = c.outputs(c.run(g))
-        vids = [o for o in outs if o['filename'].endswith(('.mp4', '.webm', '.mkv'))]
+        pick = saved_video(outs, f"{s['id']}_interp")
+        if pick is None:
+            log(f"{s['id']} finish: no saved video in the outputs {[o.get('filename') for o in outs]}")
+            continue
         dst = os.path.join(man.shot_dir(s['id']), 'final.mp4')
-        c.fetch(vids[0], dst)
+        c.fetch(pick, dst)
+        fps, n = video_info(dst)
+        want = 16 * f['multiplier']
+        if fps is None or abs(fps - want) > 0.5:
+            log(f"{s['id']} finish: final.mp4 is {fps} fps / {n} frames, expected {want} fps -- not used")
+            os.remove(dst)
+            continue
         st['final'] = dst
         man.save()
-        log(f"{s['id']} finished {time.time() - t0:.0f}s")
+        log(f"{s['id']} finished {time.time() - t0:.0f}s ({n} frames @ {fps:g} fps)")
 
 
 def main():
