@@ -4296,3 +4296,127 @@ def bridge1_03(s, t, local, fi):
 
 R['B-bridge1-03'] = bridge1_03
 tl.OWN_TYPE.add('B-bridge1-03')
+
+
+# ---- shared: night bokeh backdrop (sea and sky as halftone discs) ----------------------------------------------------
+def bokeh_night(t, seed=4, top='#141A33', bottom='#1E2550', cols=('#C9D3DC', '#F08A3C', '#7FC8B8')):
+    import cv2
+    from .print_fx import hexc as H
+    key = ('bokeh', seed, top, bottom)
+    if key not in _cache:
+        img = np.empty((1080, 1920, 3), np.float32)
+        g = (kit._YS / 1080)[..., None]
+        img[:] = H(top) * (1 - g) + H(bottom) * g
+        rng = np.random.default_rng(seed)
+        for _ in range(26):
+            x, y, r = rng.uniform(0, 1920), rng.uniform(380, 1000), rng.uniform(30, 110)
+            c = cols[rng.integers(len(cols))]
+            kit.halo(img, x, y, r, c, rng.uniform(0.25, 0.6), period=10.0)
+        _cache[key] = img
+    return _cache[key].copy()
+
+
+# ---- B-bridge1-05: now, at night -- the lighthouse beam crosses his face every second beat ----------------------------
+def bridge1_05(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    img = bokeh_night(t)
+    push = 1.0 + 0.05 * clamp(local / (s['end'] - s['start']))
+    # the beam: an AM halftone fan sweeping left -> right, passing on 100.68 and 102.16
+    passes = [100.68, 102.16]
+    bx = None
+    for p in passes:
+        k = (t - p) / 0.62
+        if -0.6 <= k <= 0.6:
+            bx = 960 + 1500 * k
+    if bx is not None:
+        ang = np.arctan2(kit._XS - (bx - 300), -(kit._YS + 900))
+        fan = np.clip(1 - np.abs(ang) / 0.22, 0, 1)
+        img = img + (H('#F6F2E7')[None, None] - img) * (fan * _dots_k(0.6, 12.0) * 0.8)[..., None]
+    cl = once('b105_char', lambda: chars.CharLayer('B-bridge1-05'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=1120, y=1080, cx=0.5, cy=0.62, height=1300 * push)
+        if bx is not None:                                    # a cream halftone band crosses his face
+            band = np.clip(1 - np.abs(kit._XS - bx) / 140.0, 0, 1) * a
+            rgb = rgb + (H('#EDE3CF')[None, None] - rgb) * (band * (0.35 + 0.65 * _dots_k(0.8, 8.0)))[..., None]
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    # L34 left of his face; つらい cracks open in hairline gaps
+    ly = once('b105_ly', lambda: VLyric(34, x=560, y=140, accent='#D9402B'))
+    img = ly.draw(img, t)
+    gt = ly.times
+    if len(ly.glyphs) > 6 and t >= gt[3]:
+        rng = np.random.default_rng(34)
+        crack = np.zeros((1080, 1920), np.float32)
+        for i in (3, 4, 5):
+            if i >= len(ly.glyphs) or t < gt[i]:
+                continue
+            g = ly.glyphs[i]
+            k = clamp((t - gt[i]) / 0.5)
+            for _ in range(5):
+                x0, y0 = g['cx'] + rng.uniform(-30, 30), g['cy'] + rng.uniform(-30, 30)
+                pts = [(x0, y0)]
+                for _ in range(4):
+                    x0 += rng.uniform(-18, 18) * k
+                    y0 += rng.uniform(-18, 18) * k
+                    pts.append((x0, y0))
+                cv2.polylines(crack, [np.array(pts, np.int32)], False, 1.0, 2, cv2.LINE_AA)
+        img = img + (H('#1A1416')[None, None] - img) * crack[..., None]
+    return img
+
+
+R['B-bridge1-05'] = bridge1_05
+tl.OWN_TYPE.add('B-bridge1-05')
+
+
+# ---- B-bridge1-06: she understands, nods, smiles, cries -- her printed edge starts to come apart into dots ----------
+def bridge1_06(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    # sky shifts dusk -> blue in halftone steps on 104.39 / 105.87 / 107.35
+    steps = sum(1 for b in (104.39, 105.87, 107.35) if t >= b)
+    skies = [('#F08A3C', '#F5C842'), ('#C9688A', '#F08A3C'), ('#5A5E86', '#C9688A'), ('#2C4C9A', '#5A5E86')]
+    top, bot = skies[steps]
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = (kit._YS / 1080)[..., None]
+    img[:] = H(top) * (1 - g) + H(bot) * g
+    img = img + (H(bot)[None, None] - img) * (_dots_k(0.3, 10.0) * 0.5)[..., None]
+    push = 1.0 + 0.06 * clamp(local / (s['end'] - s['start']))
+    cl = once('b106_char', lambda: chars.CharLayer('B-bridge1-06', speed=0.68))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=760, y=1080, cx=0.5, cy=0.6, height=1350 * push)
+        # dot-scatter edge from 106.61, reversing after 108.09
+        sc = clamp((t - 106.61) / 1.48) if t < 108.09 else clamp(1 - (t - 108.09) / 0.74)
+        if sc > 0:
+            ring = np.clip(cv2.dilate(a, np.ones((19, 19), np.uint8)) - cv2.erode(a, np.ones((19, 19), np.uint8)), 0, 1)
+            dots = _dots_k(0.6, 9.0) * ring
+            rng = np.random.default_rng(int(local * 24))
+            up = int(60 * sc)
+            drift = np.roll(dots, -up, 0) * sc
+            jitter = np.roll(drift, int(rng.integers(-3, 4)), 1)
+            a = a * (1 - ring * sc * 0.8)
+            img = img + (H('#EDE3CF')[None, None] - img) * (jitter * 0.9)[..., None]
+        # sky light shifts her inks toward blue as the sky does
+        rgb = rgb * (0.9 + 0.1 * H(top)[None, None])
+        img = chars.over(img, rgb, a, shadow='#2B2350')
+    ly1 = once('b106_ly1', lambda: VLyric(35, x=1720, accent='#D9402B'))
+    img = ly1.draw(img, t)
+    ly2 = once('b106_ly2', lambda: VLyric(36, x=1720, accent='#D9402B', hide=lambda i, tt: i == 5 and tt < 107.0 + BEAT))
+    img = ly2.draw(img, t)
+    if len(ly2.glyphs) > 5 and t >= ly2.times[5] and t < ly2.times[5] + BEAT:     # 壊 splits into dots, re-forms a beat later
+        g = ly2.glyphs[5]
+        k = (t - ly2.times[5]) / BEAT
+        tmp = np.zeros((1080, 1920, 3), np.float32)
+        kit.map_glyph(tmp, g['ch'], g['cx'], g['cy'], int(ly2.size), 0.0, 1.0, '#EDE3CF', '#EDE3CF', 0.5)
+        mm = (tmp.mean(-1) > 0.3).astype(np.float32)
+        sp = math.sin(math.pi * k)
+        mm = mm * (1 - _dots_k(1 - 0.6 * sp, 9.0) * 0) * _dots_k(1 - 0.55 * sp, 9.0)
+        img = img + (H('#EDE3CF')[None, None] - img) * mm[..., None]
+    return img
+
+
+R['B-bridge1-06'] = bridge1_06
+tl.OWN_TYPE.add('B-bridge1-06')
