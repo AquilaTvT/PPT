@@ -6,6 +6,7 @@ import argparse
 import multiprocessing as mp
 import os
 import subprocess
+import time
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -57,6 +58,20 @@ def work(args):
     return path
 
 
+def warm(args):
+    """warm one shot's disk caches (plates, palettes, skin verdicts, tracks): its first frame, and 70% in for MV-B v2
+    (devices that start later in a shot)"""
+    sid, u0, u1 = args
+    tl = modules()
+    s = tl.BY_ID[sid]
+    tl.render(max(u0, s['start']) + 0.01, int(round((max(u0, s['start']) + 0.01) * FPS)))
+    if MV == 'b2':
+        tm = s['start'] + 0.7 * (s['end'] - s['start'])
+        if u0 <= tm < u1:
+            tl.render(tm, int(round(tm * FPS)))
+    return sid
+
+
 def drop_caches():
     """free the warm-up's per-shot objects (plates, cut-out layers, decoders, the ONNX matte) before fork()"""
     import gc
@@ -105,18 +120,22 @@ def main():
     todo = [j for j in jobs if not (a.resume and os.path.exists(j[2]) and frames_in(j[2]) == j[1] - j[0])]
     print(f'parts: {len(jobs)}, to render: {len(todo)}', flush=True)
     spans = [(j0 / FPS, j1 / FPS) for j0, j1, _ in todo]
-    # warm the plate cache once (plates render through node; avoid parallel duplicate renders) -- only for the shots
-    # the parts still to render touch
+    # warm the per-shot disk caches once -- only for the shots the parts still to render touch. MV-B v1 renders its
+    # plates through node (no parallel duplicates): one process; MV-B v2 (palettes, skin verdicts, tracks): one shot
+    # per worker, in parallel
     tl = modules()
-    for s in tl.SHOTS:
-        if any(s['end'] > u0 and s['start'] < u1 for u0, u1 in spans):
-            tl.render(max(a.t0, s['start']) + 0.01, 0)
-            if a.mv == 'b2':           # devices that start later in a shot (tracks, second presses): cache them now too
-                tm = s['start'] + 0.7 * (s['end'] - s['start'])
-                if a.t0 <= tm < a.t1:
-                    tl.render(tm, int(round(tm * FPS)))
-    drop_caches()            # the workers rebuild what they touch from disk; a fat parent is copied into every worker
+    shots = [s for s in tl.SHOTS if any(s['end'] > u0 and s['start'] < u1 for u0, u1 in spans)]
     os.environ.setdefault('HW_SEG_THREADS', str(max(1, (os.cpu_count() or 4) // a.workers)))
+    if a.mv == 'b2' and shots:
+        drop_caches()
+        t_w = time.time()
+        with mp.get_context('fork').Pool(a.workers, maxtasksperchild=4) as pool:
+            pool.map(warm, [(s['id'], a.t0, a.t1) for s in shots], chunksize=1)
+        print(f'warm-up {len(shots)} shots {time.time() - t_w:.0f}s', flush=True)
+    else:
+        for s in shots:
+            tl.render(max(a.t0, s['start']) + 0.01, 0)
+    drop_caches()            # the workers rebuild what they touch from disk; a fat parent is copied into every worker
     with mp.get_context('fork').Pool(a.workers, maxtasksperchild=1) as pool:
         parts = pool.map(work, jobs)
     lst = os.path.join(tmpd, 'list.txt')
