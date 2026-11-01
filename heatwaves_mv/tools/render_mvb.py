@@ -25,18 +25,35 @@ def modules():
     return tl
 
 
+RESUME = False
+
+
+def frames_in(path):
+    r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-count_packets', '-show_entries',
+                        'stream=nb_read_packets', '-of', 'csv=p=0', path], capture_output=True, text=True)
+    try:
+        return int(r.stdout.strip())
+    except ValueError:
+        return -1
+
+
 def work(args):
     f0, f1, path = args
+    if RESUME and os.path.exists(path) and frames_in(path) == f1 - f0:
+        return path                       # --resume: this part is already complete (delete a part to re-render it)
     import numpy as np
     tl = modules()
+    tmp = path[:-4] + '.tmp.mp4'
     p = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '1920x1080',
                           '-r', str(FPS), '-i', '-', '-c:v', 'libx264', '-crf', '15', '-preset', 'medium',
-                          '-pix_fmt', 'yuv420p', path], stdin=subprocess.PIPE)
+                          '-pix_fmt', 'yuv420p', tmp], stdin=subprocess.PIPE)
     for f in range(f0, f1):
         img = tl.render(f / FPS, f)
         p.stdin.write((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8).tobytes())
     p.stdin.close()
-    p.wait()
+    if p.wait() != 0:
+        raise RuntimeError(f'ffmpeg failed on {path}')
+    os.replace(tmp, path)
     return path
 
 
@@ -72,20 +89,27 @@ def main():
     ap.add_argument('--workers', type=int, default=3)
     ap.add_argument('--audio', action='store_true')
     ap.add_argument('--mv', default=MV, choices=['a', 'b', 'b2'])
+    ap.add_argument('--jobs', type=int, default=0, help='parts to split the range into (default 2 per worker)')
+    ap.add_argument('--resume', action='store_true', help='keep complete parts from an earlier run of the same range')
     a = ap.parse_args()
+    globals()['RESUME'] = a.resume
     globals()['MV'] = a.mv
     os.environ['HW_MV'] = a.mv
     f0, f1 = int(round(a.t0 * FPS)), int(round(a.t1 * FPS))
-    n = a.workers * 2
+    n = a.jobs or a.workers * 2
     step = max(1, (f1 - f0 + n - 1) // n)
     a.out = os.path.abspath(a.out)
     tmpd = a.out + '.parts'
     os.makedirs(tmpd, exist_ok=True)
     jobs = [(s, min(f1, s + step), os.path.join(tmpd, f'p{i:03d}.mp4')) for i, s in enumerate(range(f0, f1, step))]
-    # warm the plate cache once (plates render through node; avoid parallel duplicate renders)
+    todo = [j for j in jobs if not (a.resume and os.path.exists(j[2]) and frames_in(j[2]) == j[1] - j[0])]
+    print(f'parts: {len(jobs)}, to render: {len(todo)}', flush=True)
+    spans = [(j0 / FPS, j1 / FPS) for j0, j1, _ in todo]
+    # warm the plate cache once (plates render through node; avoid parallel duplicate renders) -- only for the shots
+    # the parts still to render touch
     tl = modules()
     for s in tl.SHOTS:
-        if s['end'] > a.t0 and s['start'] < a.t1:
+        if any(s['end'] > u0 and s['start'] < u1 for u0, u1 in spans):
             tl.render(max(a.t0, s['start']) + 0.01, 0)
             if a.mv == 'b2':           # devices that start later in a shot (tracks, second presses): cache them now too
                 tm = s['start'] + 0.7 * (s['end'] - s['start'])
