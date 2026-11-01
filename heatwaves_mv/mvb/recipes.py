@@ -4420,3 +4420,161 @@ def bridge1_06(s, t, local, fi):
 
 R['B-bridge1-06'] = bridge1_06
 tl.OWN_TYPE.add('B-bridge1-06')
+
+
+# ---- festival shots (chorus3-02 / 03 / 07): the lit street, the dot crowd, her and him -------------------------------
+def _fest_plate(sid, path, **kw):
+    s = tl.BY_ID[sid]
+    d = s['end'] - s['start']
+    params = {'world': 'festival', 'litT': -10.0, 'shutterT': -10.0, 'crowdT': -10.0, 'crowd': 900, 'path': path}
+    params.update(kw)
+    return plate(sid, 's3_festival', params, 0.0, d, fps=24)
+
+
+def _lantern_bokeh(img, t, seed=7, n=14, r=(70, 180)):
+    """foreground lantern bokeh: big halftone discs, pulsing on beats"""
+    import math
+    rng = np.random.default_rng(seed)
+    pulse = 1.0 + 0.25 * math.exp(-(((t - 0.682) / BEAT) % 1.0) * 4)
+    for _ in range(n):
+        x, y, rr = rng.uniform(-100, 2020), rng.uniform(-60, 420), rng.uniform(*r)
+        kit.halo(img, x, y, rr * pulse, '#D9402B' if rng.random() < 0.6 else '#F08A3C', 0.55, period=14.0)
+    return img
+
+
+def _fg_crowd(img, t, speed=2.0, n=5, seed=3, y=1080, h=520):
+    """foreground dot people crossing the lens (big, dark, blurred silhouettes)"""
+    import cv2
+    rng = np.random.default_rng(seed)
+    m = np.zeros((1080, 1920), np.float32)
+    for j in range(n):
+        x0 = rng.uniform(0, 2400)
+        x = (x0 + speed * 400 * t * (1 if j % 2 else -1)) % 2600 - 340
+        cv2.ellipse(m, (int(x), int(y - h * 0.62)), (int(h * 0.16), int(h * 0.18)), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        cv2.ellipse(m, (int(x), int(y)), (int(h * 0.3), int(h * 0.45)), 0, 180, 360, 1.0, -1, cv2.LINE_AA)
+    m = cv2.GaussianBlur(m, (0, 0), 6)
+    return img + (np.array([0.08, 0.06, 0.09], np.float32)[None, None] - img) * (m * 0.92)[..., None]
+
+
+def chorus3_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [1.6, 1.5, 6.0], 'look': [-0.6, 1.9, 30.0], 'fov': 42},
+            {'t': d, 'pos': [2.3, 1.5, 7.2], 'look': [-0.9, 1.9, 30.0], 'fov': 40, 'ease': 'linear'}]
+    pl = once('c302', lambda: _fest_plate('B-chorus3-02', path, crowdLane=1.2))
+    img = cv2.GaussianBlur(pl.frame(local), (0, 0), 2.2)
+    img = _lantern_bokeh(img, t, 7)
+    cl = once('c302_char', lambda: chars.CharLayer('B-chorus3-02'))
+    if cl.ok:
+        push = 1.0 + 0.06 * clamp(local / d)
+        rgb, a = cl.frame(local, x=860, y=1080, cx=0.5, cy=0.68, height=1180 * push)
+        # lantern light pulsing on her lit side, a firework flash on 116.98
+        ph = ((t - 0.682) / BEAT) % 1.0
+        side = np.clip((860 - kit._XS) / 200.0, 0, 1) * a * _dots_k(0.35 + 0.3 * math.exp(-ph * 4), 8.0)
+        rgb = rgb + (H('#F08A3C')[None, None] - rgb) * (side * 0.5)[..., None]
+        if 116.98 <= t < 117.3:
+            fk = 1 - (t - 116.98) / 0.32
+            rgb = rgb + (H('#7FC8B8')[None, None] - rgb) * (a * _dots_k(0.6 * fk, 8.0) * 0.6)[..., None]
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    img = _fg_crowd(img, local, 2.0, 4, 31)
+    ly1 = once('c302_ly1', lambda: VLyric(39, x=1720, accent='#D9402B', hide=lambda i, tt: i in (2, 3)))
+    ly2 = once('c302_ly2', lambda: VLyric(39, x=1720, accent='#D9402B', color='#7FC8B8', zh=False, hide=lambda i, tt: i not in (2, 3)))
+    return ly2.draw(ly1.draw(img, t), t)
+
+
+R['B-chorus3-02'] = chorus3_02
+tl.OWN_TYPE.add('B-chorus3-02')
+
+
+def chorus3_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    d = s['end'] - s['start']
+    # locked on him; on 119.20 a 90-degree stepped orbit (6 frames) around him
+    def cam(tt):
+        k = clamp((tt + s['start'] - 119.20) / (6 / 24))
+        ang = math.radians(90 * k * k * (3 - 2 * k))
+        cx, cz = 0.0, 22.0
+        return [cx + 3.2 * math.sin(ang), 1.6, cz - 3.2 * math.cos(ang)], [cx, 1.5, cz]
+    path = []
+    for i in range(int(round(d * 24)) + 1):
+        p, l = cam(i / 24)
+        path.append({'t': i / 24, 'pos': p, 'look': l, 'fov': 46, 'ease': 'linear'})
+    pl = once('c303', lambda: _fest_plate('B-chorus3-03', path, crowd=1200))
+    img = cv2.GaussianBlur(pl.frame(local), (0, 0), 1.2)
+    cl = once('c303_char', lambda: chars.CharLayer('B-chorus3-03'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=960, y=1080, cx=0.5, cy=0.7, height=1150)
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    # near crowd layer (4x, motion-blurred) flowing past in front of him
+    img = _fg_crowd(img, local, 4.0, 6, 7, h=620)
+    # uchiwa fans flip to show the glyphs as they pass him, on their mora; the column at right gathers them
+    gt = _map_gt(40)
+    word = 'ヒートウェイブに迷うのさ'
+    for i, ch in enumerate(word):
+        tg = gt[min(i, len(gt) - 1)]
+        dt = t - tg
+        if dt < -0.3 or dt > 0.5:
+            continue
+        x = 300 + (i * 137) % 1300 + 900 * dt
+        y = 640 + 60 * math.sin(i * 1.7)
+        flip = math.cos(math.pi * clamp((dt + 0.1) / 0.2))
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.ellipse(m, (int(x), int(y)), (max(2, int(70 * abs(flip))), 70), 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        cv2.line(m, (int(x), int(y + 70)), (int(x), int(y + 150)), 1.0, 8, cv2.LINE_AA)
+        fan_col = '#EDE3CF' if flip < 0 else '#D9402B'
+        img = img + (H(fan_col)[None, None] - img) * m[..., None]
+        if flip < -0.2:
+            kit.map_glyph(img, ch, x, y, 74, 0.0, 1.0, sx=-flip, fill='#D9402B', stroke='#1A1416', sw=4.0)
+    ly = once('c303_ly', lambda: VLyric(40, x=1720, accent='#D9402B'))
+    return ly.draw(img, t)
+
+
+R['B-chorus3-03'] = chorus3_03
+tl.OWN_TYPE.add('B-chorus3-03')
+
+
+def chorus3_07(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    d = s['end'] - s['start']
+    v = 3.0
+    path = [{'t': 0.0, 'pos': [0.0, 1.3, 30.0], 'look': [0.0, 1.7, 0.0], 'fov': 50},
+            {'t': d, 'pos': [0.0, 1.3, 30.0 - v * d], 'look': [0.0, 1.7, -v * d], 'fov': 50, 'ease': 'linear'}]
+    pl = once('c307', lambda: _fest_plate('B-chorus3-07', path, crowdLane=1.6, wireSpacing=5))
+    img = pl.frame(local).copy()
+    # glyphs printed on the right-hand lantern row, one per mora, each lighting as it passes the lens
+    gt = _map_gt(44)
+    word = 'ヒートウェイブに迷うのさ'
+    row = pl.anchor(local, 'rowR') or []
+    vis = [p for p in row if 0 < p[2] < 1.0 and -200 < p[0] < 2120 and -200 < p[1] < 1000]
+    vis.sort(key=lambda p: -abs(p[0] - 960) - abs(p[1] - 540))       # nearest to the lens first
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)] or i >= len(vis):
+            continue
+        j = min(len(word) - 1 - i, len(vis) - 1)          # earlier glyphs further down the row
+        x, y = vis[j][0], vis[j][1]
+        sz = int(np.clip(26 + (abs(x - 960) + abs(y - 540)) * 0.09, 24, 120))
+        kit.halo(img, x, y, sz * 1.4, '#F08A3C', 0.6, period=9.0)
+        kit.map_glyph(img, ch, x, y, sz, 0.0, 1.0, '#1A1416', '#F5C842', 3.0)
+    cl = once('c307_char', lambda: chars.CharLayer('B-chorus3-07'))
+    punch = 1.02 if 131.05 <= t < 131.05 + 2 / 24 else 1.0
+    if cl.ok:
+        rgb, a = cl.frame(local, x=960, y=1080, cx=0.5, cy=0.98, height=700 * punch)
+        img = chars.over(img, rgb, a, shadow='#141A33')
+    if t >= 131.79:                                           # lantern burst
+        k = clamp((t - 131.79) / 0.4)
+        img = kit.dot_flash(img, 0.5 * (1 - k), '#F08A3C', 26)
+    img = _lantern_bokeh(img, t * 2.0, 11, 8, (90, 200))
+    return _zh_fixed(img, t, 44, 129.55, ink='#EDE3CF', halo_col='#141A33')
+
+
+R['B-chorus3-07'] = chorus3_07
+tl.OWN_TYPE.add('B-chorus3-07')

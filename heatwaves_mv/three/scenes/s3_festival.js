@@ -115,7 +115,8 @@ export async function build(THREE, P, params = {}) {
     }
     if (!(params.path && applyPath(camera, params.path, t))) { camera.position.set(0.5, 1.7, -6); camera.lookAt(0, 3.2, 30); }
   }
-  const anchors = () => ({ hero: heroIdx.map(i => lanterns[i] ? lanterns[i].m.position.clone() : new THREE.Vector3()),
+  const anchors = () => ({ rowR: lanterns.filter(L => L.k === 1).map(L => L.m.position.clone()),
+                           hero: heroIdx.map(i => lanterns[i] ? lanterns[i].m.position.clone() : new THREE.Vector3()),
                            heroTop: heroIdx.map(i => lanterns[i] ? lanterns[i].m.position.clone().add(new THREE.Vector3(0, 0.4, 0)) : new THREE.Vector3()) });
   return { scene: root, camera, update, anchors };
 }
