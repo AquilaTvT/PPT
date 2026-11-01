@@ -4578,3 +4578,96 @@ def chorus3_07(s, t, local, fi):
 
 R['B-chorus3-07'] = chorus3_07
 tl.OWN_TYPE.add('B-chorus3-07')
+
+
+# ---- B-chorus3-04: kingyo-sukui -- the goldfish flock into 幸せ; the paper poi tears and they scatter ------------------
+def _fish_targets():
+    import cv2
+    from mv import text
+    gl, _ = text.layout_h('幸せ', 820, 520, 520, 'mincho', tracking=0.05, align='center')
+    f, _ = text.render_glyphs(gl)
+    pts, order = _dot_targets(f, 22, 0.5, 4)
+    return pts[order]                                  # every grid cell of the glyphs gets a fish
+
+
+def chorus3_04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    img = np.empty((1080, 1920, 3), np.float32)
+    img[:] = H('#2C4C9A')
+    caus = np.abs(np.sin(kit._XS / 37.0 + np.sin(kit._YS / 29.0 + t) * 1.5 + t * 0.9) +
+                  np.sin(kit._YS / 41.0 + np.sin(kit._XS / 33.0 - t * 0.8) * 1.7 - t * 0.7)) * 0.5
+    line = (caus < 0.12).astype(np.float32) * (np.sin(kit._YS / 3.0) > 0)
+    img = img + (H('#7FC8B8')[None, None] - img) * (line * 0.8)[..., None]
+    # her face reflected in the water (still), ripple-distorted
+    cl = once('c304_char', lambda: chars.CharLayer('B-chorus3-02', rim=False))
+    if cl.ok:
+        rgb, a = cl.frame(0.0, x=1280, y=760, cx=0.5, cy=0.35, height=1700)
+        rx = (kit._XS + 8 * np.sin(kit._YS / 23.0 + t * 3)).astype(np.float32)
+        ry = (kit._YS + 6 * np.sin(kit._XS / 31.0 - t * 2.5)).astype(np.float32)
+        rgb = cv2.remap(rgb, rx, ry, cv2.INTER_LINEAR)
+        a = cv2.remap(a, rx, ry, cv2.INTER_LINEAR) * 0.22
+        img = img + (rgb * 0.6 + H('#C9D3DC')[None, None] * 0.4 - img) * a[..., None]
+    # 80 goldfish: wander, lock into 幸せ on 121.42, scatter after the tear on 122.91
+    tg = once('fish_tg', _fish_targets)
+    n = len(tg)
+    rng = np.random.default_rng(41)
+    home = np.stack([rng.uniform(200, 1700, n), rng.uniform(150, 950, n)], 1)
+    ph = rng.uniform(0, 6.28, n)
+    wander = home + np.stack([90 * np.sin(t * 0.9 + ph), 70 * np.cos(t * 1.1 + ph * 1.3)], 1)
+    lock = _ease_io(clamp((t - 120.68) / (121.42 - 120.68)))
+    pos = wander * (1 - lock) + tg * lock
+    if t >= 122.91:
+        k = clamp((t - 122.91) / 0.7)
+        dirs = np.stack([np.cos(ph * 3), np.sin(ph * 3)], 1)
+        pos = tg + dirs * (500 * (1 - (1 - k) ** 2)) + np.stack([40 * np.sin(t * 2 + ph), 0 * ph], 1)
+    heading = np.arctan2(np.cos(t * 1.1 + ph * 1.3), np.sin(t * 0.9 + ph)) * (1 - lock) + lock * 0.0
+    if t >= 122.91:
+        heading = ph * 3
+    fm = np.zeros((1080, 1920), np.float32)
+    tm = np.zeros((1080, 1920), np.float32)
+    for (x, y), hd, p in zip(pos, heading, ph):
+        c, s_ = math.cos(hd), math.sin(hd)
+        cv2.ellipse(fm, (int(x), int(y)), (16, 9), math.degrees(hd), 0, 360, 1.0, -1, cv2.LINE_AA)
+        wag = 0.5 * math.sin(t * 14 + p)
+        tx, ty = x - c * 16, y - s_ * 16
+        pts = np.array([[tx, ty], [tx - math.cos(hd + 0.6 + wag) * 15, ty - math.sin(hd + 0.6 + wag) * 15],
+                        [tx - math.cos(hd - 0.6 + wag) * 15, ty - math.sin(hd - 0.6 + wag) * 15]], np.int32)
+        cv2.fillConvexPoly(tm, pts, 1.0, cv2.LINE_AA)
+    img = img + (H('#D9402B')[None, None] - img) * np.clip(fm + tm * 0.85, 0, 1)[..., None]
+    img = img + (H('#F08A3C')[None, None] - img) * (fm * _dots_k(0.35, 6.0))[..., None]
+    # the paper poi dips in on 122.17 and tears on 122.91
+    if t >= 122.0:
+        k = clamp((t - 122.0) / 0.3)
+        px, py = 960 + 600 * (1 - k), 520 + 300 * (1 - k)
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (int(px), int(py)), 230, 1.0, 18, cv2.LINE_AA)
+        cv2.line(m, (int(px + 160), int(py + 160)), (int(px + 520), int(py + 520)), 1.0, 26, cv2.LINE_AA)
+        img = img + (H('#D9402B')[None, None] - img) * m[..., None]
+        tissue = np.zeros((1080, 1920), np.float32)
+        cv2.circle(tissue, (int(px), int(py)), 220, 1.0, -1, cv2.LINE_AA)
+        if t >= 122.91:
+            tk = clamp((t - 122.91) / 0.3)
+            tear = np.zeros((1080, 1920), np.float32)
+            pts = np.array([[px - 30, py - 220], [px + 20, py - 80], [px - 40, py + 10], [px + 30, py + 120], [px - 10, py + 220]], np.int32)
+            cv2.polylines(tear, [pts], False, 1.0, int(4 + 120 * tk), cv2.LINE_AA)
+            tissue = tissue * (1 - tear)
+        img = img + (H('#F6F2E7')[None, None] - img) * (tissue * 0.42)[..., None]
+    # ripples on the surface in halftone
+    if t >= 122.17:                                      # ripples only where the poi breaks the surface
+        k = clamp((t - 122.17) / 1.2)
+        dd = np.sqrt((kit._XS - 960) ** 2 + (kit._YS - 520) ** 2)
+        rr = np.sin(dd / 18.0 - t * 6.0) * np.clip(1 - dd / (200 + 900 * k), 0, 1)
+        img = img + (H('#C9D3DC')[None, None] - img) * ((rr > 0.9) * 0.3)[..., None]
+    # 2% slow rotation, 3% punch-in on 122.91
+    rot = 2.0 * clamp(local / (s['end'] - s['start']))
+    pk = 1.03 if t >= 122.91 else 1.0
+    img = cv2.warpAffine(img, cv2.getRotationMatrix2D((960, 540), rot, pk), (1920, 1080), borderMode=cv2.BORDER_REFLECT)
+    ly = once('c304_ly', lambda: VLyric(41, x=1740, accent='#D9402B', hide=lambda i, tt: i in (2, 3)))
+    return ly.draw(img, t)
+
+
+R['B-chorus3-04'] = chorus3_04
+tl.OWN_TYPE.add('B-chorus3-04')
