@@ -3602,3 +3602,141 @@ def verse_02(s, t, local, fi):
 
 R['B-verse-02'] = verse_02
 tl.OWN_TYPE.add('B-verse-02')
+
+
+# ---- B-verse-03: tonight's roadshow -- a halftone movie poster of the two of them, then its light on his face --------
+ROADSHOW = ['#D9402B', '#F5C842', '#2D6BE0', '#EDE3CF', '#1A1416']
+
+
+def roadshow_poster():
+    """the poster (1920 x 2600): night sky with searchlight bases, slab title, tagline, the two as stars, credits"""
+    import cv2
+    from mv import text
+    from . import chars
+    from .halftone import PrintStyle
+    from .print_fx import hexc as H
+    if 'poster' in _cache:
+        return _cache['poster']
+    W_, H_ = 1920, 2600
+    im = np.empty((H_, W_, 3), np.float32)
+    g = np.linspace(0, 1, H_)[:, None, None]
+    im[:] = H('#2D6BE0') * (1 - g) + H('#1A1416') * g
+    def put(txt, x, y, size, font, col, tr=0.0, align='center', shadow=None):
+        nonlocal im
+        gl, _ = text.layout_h(txt, x, 540, size, font, tracking=tr, align=align)
+        f, _ = text.render_glyphs(gl)
+        if f is None:
+            return
+        canvas = np.zeros((H_, W_), np.float32)
+        r0, r1 = y - 540, y + 540                      # paste the 1080-row text canvas centred on row y
+        a0, a1 = max(0, r0), min(H_, r1)
+        canvas[a0:a1] = f[a0 - r0:a1 - r0]
+        if shadow:
+            sh = np.roll(np.roll(canvas, 12, 0), 12, 1)
+            im = im + (H(shadow)[None, None] - im) * sh[..., None]
+        im = im + (H(col)[None, None] - im) * canvas[..., None]
+    put('HEAT WAVE', 960, 330, 250, 'dela', '#F5C842', 0.04, shadow='#D9402B')
+    put('A SUMMER THAT NEVER ENDS', 960, 560, 54, 'mincho', '#EDE3CF', 0.45)
+    put("TONIGHT'S ROADSHOW", 960, 2380, 46, 'mincho', '#F5C842', 0.5)
+    put('DIRECTED BY  LIME     MUSIC  HEAT WAVES     STARRING  KIMI  &  BOKU', 960, 2470, 30, 'mincho', '#EDE3CF', 0.3)
+    raw = chars.raw_matte('B-verse-05')
+    if raw is not None:
+        rgb, a, parts = raw
+        k = 1500 / rgb.shape[0]
+        art = cv2.resize(rgb, (int(rgb.shape[1] * k), 1500))
+        aa = cv2.resize(a, (int(rgb.shape[1] * k), 1500))
+        sty = PrintStyle(ROADSHOW + ['#F08A3C'], period=8, grain=0.0, dead=0.06)
+        art = sty(art)
+        x0 = (W_ - art.shape[1]) // 2
+        x0c, x1c = max(0, x0), min(W_, x0 + art.shape[1])
+        sub = im[760:2260, x0c:x1c]
+        ac = aa[:, x0c - x0:x1c - x0][..., None]
+        im[760:2260, x0c:x1c] = sub * (1 - ac) + art[:, x0c - x0:x1c - x0] * ac
+    _cache['poster'] = np.clip(im, 0, 1)
+    return _cache['poster']
+
+
+def _v03_plate():
+    s = tl.BY_ID['B-verse-03']
+    d = 64.39 - 61.42
+    path = [{'t': 0.0, 'pos': [-0.62, 0.73, -0.34], 'look': [-0.62, 0.73, -0.79], 'fov': 50},
+            {'t': 1.3, 'pos': [-0.05, 0.86, 1.05], 'look': [0.55, 0.78, -0.55], 'fov': 46, 'ease': 'inout'},
+            {'t': d, 'pos': [0.0, 0.86, 1.02], 'look': [0.58, 0.78, -0.55], 'fov': 45.5, 'ease': 'linear'}]
+    return plate('B-verse-03', 's1_room', {'path': path}, 0.0, d, fps=24)
+
+
+def verse_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from mv import text
+    from . import chars
+    from .print_fx import hexc as H
+    poster = roadshow_poster()
+    passes = [(58.46, '#F5C842'), (59.20, '#D9402B'), (59.94, '#2D6BE0'), (60.68, '#1A1416')]
+    printed = [c for tt, c in passes if t >= tt] + ['#EDE3CF']
+    sep = once('v03_sep', lambda: _separate(poster, ROADSHOW + ['#F08A3C']))
+
+    def poster_now():
+        out = np.empty_like(poster)
+        out[:] = H('#EDE3CF')
+        for ink, cov in sep.items():
+            if ink in printed or (ink == '#F08A3C' and '#D9402B' in printed):
+                out = out + (H(ink)[None, None] - out) * cov[..., None]
+        return out
+    if t < 61.42:
+        # Phase A: crane down the poster, title -> stars, x1.0 -> x1.15, searchlights sweeping
+        k = _ease_io(clamp((t - 58.46) / 2.96))
+        zoom = 0.62 + 0.10 * k                         # the whole poster width fits the TV frame, slow push
+        y_c = 620 + (1650 - 620) * k
+        pimg = poster_now()
+        for j, ph in enumerate((0.0, 1.7)):
+            ang = math.radians(-20 + 40 * (0.5 + 0.5 * math.sin((t - 58.46) / (4 * BEAT) * 2 * math.pi + ph)))
+            bx = 560 + 800 * j
+            pts = np.array([[bx, 2300], [bx + int(math.sin(ang) * 2600) - 110, 2300 - int(math.cos(ang) * 2600)],
+                            [bx + int(math.sin(ang) * 2600) + 110, 2300 - int(math.cos(ang) * 2600)]], np.int32)
+            m = np.zeros(pimg.shape[:2], np.float32)
+            cv2.fillConvexPoly(m, pts, 1.0, cv2.LINE_AA)
+            m = cv2.GaussianBlur(m, (0, 0), 30) * 0.5
+            pimg = pimg + (H('#EDE3CF')[None, None] - pimg) * m[..., None]
+        M = cv2.getRotationMatrix2D((960, y_c), 0, zoom)
+        M[1, 2] += 540 - y_c
+        img = cv2.warpAffine(pimg, M, (1920, 1080), borderMode=cv2.BORDER_REPLICATE)
+        img = crt_glass(img, t, 0.06, osd=4, sheen=0.06)
+        ly = once('v03_ly', lambda: VLyric(20, x=1740, size=120, accent='#D9402B'))
+        return ly.draw(img, t)
+    # Phase B: pull back out through the CRT glass, swing to his face; the poster's light slides across him
+    pl = once('v03', _v03_plate)
+    lb = t - 61.42
+    img = pl.frame(lb).copy()
+    q = pl.anchor(lb, 'tv')
+    tvc = cv2.resize(poster_now()[300:2400], (640, 480))
+    if 64.02 <= t:
+        tvc = cv2.resize(tv_static(int(t * 24)), (640, 480))
+    if q:
+        img = warp_quad(img, tvc, [p[:2] for p in q])
+    cl = once('v03_char', lambda: chars.CharLayer('B-verse-03'))
+    if cl.ok:
+        rgb, a = cl.frame(lb, x=1180, y=1080, cx=0.5, cy=0.98, height=1150)
+        a = a * clamp((lb - 0.55) / 0.5)                # he comes into frame as the camera swings round
+        shutter = 0.75 + 0.25 * (int(t * 24) % 2)
+        proj = cv2.resize(poster_now(), (1920, 2600))[600 + int(30 * lb * 2):1680 + int(30 * lb * 2)]
+        proj = np.roll(proj, int(30 * lb), 1)
+        light = 0.55 + 0.45 * proj * shutter
+        rgb = rgb * (1 - 0.7 * a[..., None]) + rgb * light * (0.7 * a[..., None])
+        img = chars.over(img, rgb, a)
+    # L21 projected on the wall beside his face: cream light, keystoned, flickering; 投影 with a soft ghost
+    gt = _map_gt(21)
+    word = '僕らのことまるで投影'
+    fl = 0.8 + 0.2 * (int(t * 24) % 2)
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)]:
+            continue
+        x, y = 560 + i * 4, 230 + i * 74
+        if ch in '投影':
+            kit.map_glyph(img, ch, x + 12, y + 6, 62, -4.0, 1.04, '#EDE3CF', '#EDE3CF', 1.0, alpha=0.3 * fl)
+        kit.map_glyph(img, ch, x, y, 62, -4.0, 1.0, '#F6F2E7', '#F6F2E7', 1.0, alpha=0.85 * fl)
+    return channel_flip(_zh_fixed(img, t, 21, 61.6, ink='#EDE3CF', halo_col='#141A33'), t, 64.02, 64.39, seed=21)
+
+
+R['B-verse-03'] = verse_03
+tl.OWN_TYPE.add('B-verse-03')
