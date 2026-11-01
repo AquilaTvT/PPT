@@ -204,7 +204,7 @@ def _intro01_board():
 
 def intro01(s, t, local):
     img = base(s, t, local)
-    img = fx.quad_paste(img, _intro01_board(), INTRO01_SIGN, feather=1.2)
+    img = fx.quad_paste(img, _intro01_board(), v2.tracked(s, INTRO01_SIGN, local), feather=1.2)
     return dream(img, s, t, local)
 
 
@@ -241,13 +241,23 @@ def card_tex(stamps=5, sun=0.0, w=960):
     return cv2.resize(c, (w, int(w * card2.CH / card2.CW)), interpolation=cv2.INTER_AREA)
 
 
-def led_over(img, box, txt, on='#FF3B2A', glow=0.6):
-    """a red LED face drawn over the print (the print's palette has no room for its red): box (x0, y0, x1, y1)"""
-    x0, y0, x1, y1 = box
-    face = fx.led_face(txt, x1 - x0, y1 - y0, on=on, glow=glow)
-    img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=2.0)
+def as_quad(q):
+    q = np.asarray(q, np.float32)
+    if q.size == 4:
+        x0, y0, x1, y1 = q
+        q = np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+    return q.reshape(4, 2)
+
+
+def led_over(img, q, txt, on='#FF3B2A', glow=0.6):
+    """a red LED face drawn over the print (the print's palette has no room for its red): box or quad"""
+    q = as_quad(q)
+    w = max(8, int(round(np.hypot(*(q[1] - q[0])))))
+    h = max(8, int(round(np.hypot(*(q[3] - q[0])))))
+    face = fx.led_face(txt, w, h, on=on, glow=glow)
+    img = fx.quad_paste(img, face, q, feather=2.0)
     ys, xs = fx_grid()
-    cx, cy, rx, ry = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) * 0.9, (y1 - y0) * 1.6
+    (cx, cy), rx, ry = q.mean(0), w * 0.9, h * 1.6
     g = np.exp(-(((xs - cx) / rx) ** 2 + ((ys - cy) / ry) ** 2)) * 0.12
     return img + H(on)[None, None] * g[..., None]
 
@@ -258,8 +268,8 @@ def intro03(s, t, local):
 
 def intro03_over(img, s, t, local):
     """the card (its own riso inks, kept out of the scene's palette) lit by the room, then the clock"""
-    img = fx.quad_paste(img, card_tex(), INTRO03_CARD, light=0.8, feather=1.0, blur=0.5)
-    return led_over(img, INTRO03_LED, '23:59' if (t * 2) % 2 < 1 else '23 59')
+    img = fx.quad_paste(img, card_tex(), v2.tracked(s, INTRO03_CARD, local), light=0.8, feather=1.0, blur=0.5)
+    return led_over(img, v2.tracked_box(s, INTRO03_LED, local), '23:59' if (t * 2) % 2 < 1 else '23 59')
 
 
 RAW['B-intro-03'] = intro03
@@ -467,12 +477,12 @@ def chorus1_02(s, t, local):
         w, h = int(q[1, 0] - q[0, 0]), int(q[3, 1] - q[0, 1])
         tv = cv2.resize(face[int(face.shape[0] * 0.05):int(face.shape[0] * 0.80), int(face.shape[1] * 0.12):int(face.shape[1] * 0.88)],
                         (w * 2, h * 2), interpolation=cv2.INTER_AREA)
-        img = fx.quad_paste(img, fx.crt(tv, t, tint='#FFF1C8', curve=0.08), C102_TV, feather=3.0)
+        img = fx.quad_paste(img, fx.crt(tv, t, tint='#FFF1C8', curve=0.08), v2.tracked(s, C102_TV, local), feather=3.0)
     return dream(img, s, t, local)
 
 
 def chorus1_02_over(img, s, t, local):
-    return led_over(img, C102_LED, '0:00' if (t * 2) % 2 < 1 else '0 00')
+    return led_over(img, v2.tracked_box(s, C102_LED, local), '0:00' if (t * 2) % 2 < 1 else '0 00')
 
 
 RAW['B-chorus1-02'] = chorus1_02
@@ -538,7 +548,7 @@ def chorus1_07_over(img, s, t, local):
     f = v2.footage(sid2)
     d = s['end'] - s['start']
     sp = min(1.0, max(0.55, (f.dur - 0.13) / d))
-    qz = v2.zoom_map(sid2, z, cx, cy, t_src=0.08 + local * sp)(np.asarray(C107_CARD, np.float32))
+    qz = v2.zoom_map(sid2, z, cx, cy, t_src=0.08 + local * sp)(v2.tracked(s, C107_CARD, local))
 
     def bump(t0, peak, up=0.30, down=0.42):
         if t < t0:
@@ -601,13 +611,13 @@ def chorus2_02_over(img, s, t, local):
     win = int((x1 - x0) * bh / (y1 - y0))
     off = int(local * 160) % max(1, bw - win)
     crop = board[:, off:off + win]
-    img = fx.quad_paste(img, crop, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=1.0)
+    img = fx.quad_paste(img, crop, v2.tracked_box(s, C202_TICKER, local), feather=1.0)
     x0, y0, x1, y1 = C202_ROUL
     stop = [79.95, 80.35, 80.75, 81.15]
     digs = ''
     for j, ts in enumerate(stop):
         digs += '0012'[j] if t >= ts else str(int(t * 31 + j * 3) % 10)
-    return led_over(img, C202_ROUL, digs, glow=0.5)
+    return led_over(img, v2.tracked_box(s, C202_ROUL, local), digs, glow=0.5)
 
 
 RAW['B-chorus2-02'] = chorus2_02

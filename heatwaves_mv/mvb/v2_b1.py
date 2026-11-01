@@ -102,7 +102,10 @@ B102_BOX = (1480, 860, 1910, 1004)
 
 def bridge1_02(s, t, local):
     img = v2.plate(s, local)
-    img = _inpaint_strokes(img, B102_BOX)
+    tq = v2.tracked(s, B102_QUAD, local, box=B102_BOX)
+    bx = v2.tracked_box(s, B102_BOX, local, box=B102_BOX)
+    img = _inpaint_strokes(img, (int(max(0, bx[:, 0].min())), int(max(0, bx[:, 1].min())), int(min(W, bx[:, 0].max())),
+                                 int(min(H_, bx[:, 1].max()))))
     d = s['end'] - s['start']
     cw, chh = 820, 300
     canvas = np.zeros((chh, cw), np.float32)
@@ -122,8 +125,8 @@ def bridge1_02(s, t, local):
         _stroke(canvas, p, 11, clamp((k - a0) / (a1 - a0)))
     chalk = _chalk(canvas, 2)
     rgb = np.ones((chh, cw, 3), np.float32) * H('#F2EDE2')
-    big = fx.quad_paste(np.zeros_like(img), rgb, B102_QUAD, feather=0.8)
-    mk = fx.quad_paste(np.zeros_like(img), np.repeat(chalk[..., None], 3, 2), B102_QUAD, feather=0.8)[..., 0]
+    big = fx.quad_paste(np.zeros_like(img), rgb, tq, feather=0.8)
+    mk = fx.quad_paste(np.zeros_like(img), np.repeat(chalk[..., None], 3, 2), tq, feather=0.8)[..., 0]
     lum = img @ np.float32([0.2126, 0.7152, 0.0722])
     shade = np.clip(lum / 0.62, 0.35, 1.0)[..., None]
     img = img + (big * shade - img) * (mk * 0.96)[..., None]
@@ -140,9 +143,11 @@ B104_SUN, B104_MOON = (430, 690), (565, 690)
 
 def bridge1_04(s, t, local):
     img = v2.plate(s, local)
-    img = _inpaint_strokes(img, B104_BOX, v_min=0.70, s_max=0.45, grow=9)
+    dx, dy = v2.tracked(s, [(497, 688)], local, box=B104_BOX)[0] - np.float32([497, 688])     # follow the drawing
+    bx = B104_BOX
+    img = _inpaint_strokes(img, (int(bx[0] + dx), int(bx[1] + dy), int(bx[2] + dx), int(bx[3] + dy)), v_min=0.70, s_max=0.45, grow=9)
     c = np.zeros((H_, W), np.float32)
-    sun, moon = sun_moon_strokes(497, 688, 84)
+    sun, moon = sun_moon_strokes(497 + dx, 688 + dy, 84)
     for p in sun:
         _stroke(c, p, 12)
     wash = clamp((local - 1.05) / 0.55)                       # the wave runs in from the sea (right)
@@ -163,7 +168,7 @@ def bridge1_04(s, t, local):
         g = glyph_mask('?', 280, 'garamond')
         gh, gw = g.shape
         per = 9.0
-        gx, gy = int(B104_MOON[0] + 40 - gw / 2), int(B104_MOON[1] - gh * 0.62 + 40 * (1 - q))
+        gx, gy = int(B104_MOON[0] + dx + 40 - gw / 2), int(B104_MOON[1] + dy - gh * 0.62 + 40 * (1 - q))
         yy, xx = np.mgrid[0:gh, 0:gw].astype(np.float32)
         u, v = (xx + yy) / (per * 1.4142), (xx - yy) / (per * 1.4142)
         dd = np.sqrt((u - np.round(u)) ** 2 + (v - np.round(v)) ** 2)
@@ -188,7 +193,7 @@ B103_QUAD = [(1010, 868), (1500, 868), (1760, 1050), (840, 1050)]
 
 def bridge1_03_over(img, s, t, local):
     from .v2_typo import long_shadow
-    return long_shadow(img, 32, t, B103_QUAD, size=150, alpha=0.75)
+    return long_shadow(img, 32, t, v2.tracked(s, B103_QUAD, local), size=150, alpha=0.75)
 
 
 def bridge1_06_over(img, s, t, local):

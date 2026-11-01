@@ -223,7 +223,7 @@ def _sign_board():
 
 def _film(s, t, local):
     img = v2.plate(s, local)
-    img = fx.quad_paste(img, _sign_board(), V03_SIGN, feather=1.5)
+    img = fx.quad_paste(img, _sign_board(), v2.tracked(s, V03_SIGN, local), feather=1.5)
     img = v2.glow(img, 0.18)
     return img
 
@@ -304,7 +304,7 @@ def verse07(s, t, local):
     else:
         content = _cached_card('circle', lambda: test_card(True))
     tv = fx.crt(content, t, tint='#DDF2FF', curve=0.06, bloom=0.4)
-    q = np.asarray(V07_SCREEN, np.float32)
+    q = v2.tracked(s, V07_SCREEN, local)
     m = np.zeros((H_, W), np.float32)
     cv2.fillPoly(m, [np.round(q * 4).astype(np.int32)], 1.0, cv2.LINE_AA, shift=2)
     glow = cv2.GaussianBlur(m, (0, 0), 60) * 1.6

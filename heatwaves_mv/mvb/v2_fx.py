@@ -316,3 +316,45 @@ def led_face(txt, w, h, on='#FF3B2A', off='#3A0E0C', bg='#140504', glow=0.6):
     if glow:
         img += H(on)[None, None] * cv2.GaussianBlur(m_on, (0, 0), cell * 0.9)[..., None] * glow
     return img
+
+
+# ------------------------------------------------------------------ planar tracking of a device region
+def _gray(rgb):
+    return cv2.cvtColor((np.clip(rgb, 0, 1) * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY)
+
+
+def track_region(frame_at, n, box, pad=70, min_feat=12):
+    """follow a (roughly planar, rigid) region through a clip: frame_at(i) -> float RGB plate; box = (x0, y0, x1, y1)
+    on frame 0. Frame-to-frame homographies from LK-tracked corners (re-detected every frame inside the region as it
+    moves), accumulated, applied to the box corners, smoothed in time. Returns [[4 corners] per frame] (plate px)."""
+    x0, y0, x1, y1 = box
+    B = np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+    Hacc = np.eye(3)
+    prev = _gray(frame_at(0))
+    corners = [B.copy()]
+    for i in range(1, n):
+        cur = _gray(frame_at(i))
+        reg = cv2.perspectiveTransform(B[None], Hacc)[0]
+        m = np.zeros(prev.shape, np.uint8)
+        rx0, ry0 = np.maximum(reg.min(0) - pad, 0).astype(int)
+        rx1, ry1 = np.minimum(reg.max(0) + pad, [W - 1, H_ - 1]).astype(int)
+        m[ry0:ry1, rx0:rx1] = 255
+        p0 = cv2.goodFeaturesToTrack(prev, 500, 0.01, 6, mask=m)
+        Hstep = np.eye(3)
+        if p0 is not None and len(p0) >= min_feat:
+            p1, st, _ = cv2.calcOpticalFlowPyrLK(prev, cur, p0, None, winSize=(21, 21), maxLevel=3,
+                                                 criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
+            ok = st.ravel() == 1
+            if ok.sum() >= min_feat:
+                Hm, inl = cv2.findHomography(p0[ok], p1[ok], cv2.RANSAC, 2.5)
+                if Hm is not None and inl is not None and inl.sum() >= min_feat:
+                    Hstep = Hm
+        Hacc = Hstep @ Hacc
+        corners.append(cv2.perspectiveTransform(B[None], Hacc)[0])
+        prev = cur
+    C = np.array(corners, np.float32).reshape(n, 8)
+    if np.abs(C - C[0]).max() < 1.5:                      # a locked-off shot: do not add tracking jitter
+        C[:] = C[0]
+    elif n > 3:
+        C = _gauss1d(C, 1.5)
+    return C.reshape(n, 4, 2).tolist()

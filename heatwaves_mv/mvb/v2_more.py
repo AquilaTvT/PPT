@@ -110,7 +110,7 @@ def intro02(s, t, local):
     a = strip[:, off:off + tw, 3:4]
     tex = tex * (1 - a) + strip[:, off:off + tw, :3] * a
     tex = fx.crt(tex, t, tint='#DDEEFF', curve=0.0, bloom=0.25)
-    img = fx.quad_paste(img, tex, sub_quad(I02_SCREEN, 0.04, 0.80, 0.96, 0.95), alpha=0.92, feather=1.0)
+    img = fx.quad_paste(img, tex, sub_quad(v2.tracked(s, I02_SCREEN, local), 0.04, 0.80, 0.96, 0.95), alpha=0.92, feather=1.0)
     return _dream(img, s, t, local)
 
 
@@ -183,7 +183,8 @@ def _lcd_timer(w=540, h=300, melt=0.0, t=0.0):
 def chorus1_05(s, t, local):
     img = base(s, t, local)
     melt = clamp((local - (s['end'] - s['start'] - 1.3)) / 1.2)
-    img = fx.quad_paste(img, _lcd_timer(melt=melt, t=t), C105_TIMER, feather=1.0, light=0.5)
+    img = fx.quad_paste(img, _lcd_timer(melt=melt, t=t), v2.tracked(s, C105_TIMER, local, box=(684, 294, 1115, 598)),
+                        feather=1.0, light=0.5)
     return _dream(img, s, t, local)
 
 
@@ -195,7 +196,7 @@ def chorus1_05_over(img, s, t, local):
     plate = v2.plate(s, local)
     lum = plate @ np.float32([0.2126, 0.7152, 0.0722])
     keep = img.copy()
-    pasted = fx.quad_paste(img.copy(), board, C105_PANEL, feather=1.2)
+    pasted = fx.quad_paste(img.copy(), board, v2.tracked(s, C105_PANEL, local, box=(684, 294, 1115, 598)), feather=1.2)
     dark = cv2.GaussianBlur(np.clip((0.42 - lum) / 0.12, 0, 1), (0, 0), 1.2)
     return keep + (pasted - keep) * dark[..., None]
 
@@ -936,7 +937,7 @@ def outro_04_over(img, s, t, local):
     plate = v2.plate(s, local)
     lum = plate @ np.float32([0.2126, 0.7152, 0.0722])
     keep = img.copy()
-    pasted = fx.quad_paste(img.copy(), board, q, feather=1.2)
+    pasted = fx.quad_paste(img.copy(), board, v2.tracked(s, q, local), feather=1.2)
     dark = cv2.GaussianBlur(np.clip((0.42 - lum) / 0.12, 0, 1), (0, 0), 1.2)
     return keep + (pasted - keep) * dark[..., None]
 
@@ -994,12 +995,13 @@ def chorus4_04_over(img, s, t, local):
     for j, ts in enumerate(stops):
         digs += '7776'[j] if t >= ts else str(int(t * 29 + j * 3) % 10)
     face = fx.led_face(digs, x1 - x0, ym - y0, on='#FF3B2A', glow=0.5)
-    img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, ym), (x0, ym)], feather=1.0)
+    img = fx.quad_paste(img, face, v2.tracked(s, [(x0, y0), (x1, y0), (x1, ym), (x0, ym)], local, box=C404_PANEL), feather=1.0)
     board = _c404_ticker()
     bh, bw = board.shape[:2]
     win = int((x1 - x0) * bh / (y1 - ym))
     off = int(local * 120) % max(1, bw - win)
-    img = fx.quad_paste(img, board[:, off:off + win], [(x0, ym), (x1, ym), (x1, y1), (x0, y1)], feather=1.0)
+    img = fx.quad_paste(img, board[:, off:off + win], v2.tracked(s, [(x0, ym), (x1, ym), (x1, y1), (x0, y1)], local, box=C404_PANEL),
+                        feather=1.0)
     return img
 
 

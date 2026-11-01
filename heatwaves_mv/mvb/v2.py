@@ -169,13 +169,62 @@ def footage(sid2):
     return _CLIPS[sid2]
 
 
-def plate(s, local, speed=None, in_t=0.08, zoom=1.0, cx=0.5, cy=0.5, sid2=None):
-    """this shot's footage at shot-local time; by default the clip is stretched to cover the shot"""
+def src_time(s, local, speed=None, in_t=0.08, sid2=None):
+    """the clip time that plate() shows at shot-local time `local`"""
     f = footage(sid2 or b2_id(s))
     d = s['end'] - s['start']
     if speed is None:
         speed = min(1.0, max(0.55, (f.dur - in_t - 0.05) / d))
-    return f.at(in_t + local * speed, zoom, cx, cy)
+    return in_t + local * speed
+
+
+def plate(s, local, speed=None, in_t=0.08, zoom=1.0, cx=0.5, cy=0.5, sid2=None):
+    """this shot's footage at shot-local time; by default the clip is stretched to cover the shot"""
+    f = footage(sid2 or b2_id(s))
+    return f.at(src_time(s, local, speed, in_t, sid2), zoom, cx, cy)
+
+
+_TRACKS = {}
+
+
+def tracked(s, pts, local, box=None, sid2=None, pad=70):
+    """points measured on the shot's first frame (the keyframe) -> where they are now, following the footage
+    (planar track of the region round them, cached per clip); identity on a keyframe stand-in"""
+    import json
+    from . import v2_fx
+    sid2 = sid2 or b2_id(s)
+    p = np.asarray(pts, np.float32).reshape(-1, 2)
+    f = footage(sid2)
+    if f is None or isinstance(f, Still):
+        return p
+    if box is None:
+        box = (float(p[:, 0].min()), float(p[:, 1].min()), float(p[:, 0].max()), float(p[:, 1].max()))
+    box = tuple(int(round(v)) for v in box)
+    key = (sid2, box)
+    if key not in _TRACKS:
+        src = clip_path(sid2)
+        fn = os.path.join(WORK2, sid2, f'track_q_{box[0]}_{box[1]}_{box[2]}_{box[3]}_{int(os.path.getmtime(src))}.json')
+        if os.path.exists(fn):
+            _TRACKS[key] = json.load(open(fn))
+        else:
+            n = max(1, int(f.c.n))
+            tr = v2_fx.track_region(lambda i: f.at(i / f.c.fps), n, box, pad=pad)
+            os.makedirs(os.path.dirname(fn), exist_ok=True)
+            json.dump(tr, open(fn, 'w'))
+            _TRACKS[key] = tr
+    tr = _TRACKS[key]
+    i = int(round(src_time(s, local, sid2=sid2) * f.c.fps))
+    C = np.float32(tr[min(len(tr) - 1, max(0, i))])
+    x0, y0, x1, y1 = box
+    B = np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+    Hm = cv2.getPerspectiveTransform(B, C)
+    return cv2.perspectiveTransform(p[None], Hm)[0]
+
+
+def tracked_box(s, box, local, **kw):
+    """a box (x0, y0, x1, y1) on the first frame -> its tracked quad (TL, TR, BR, BL)"""
+    x0, y0, x1, y1 = box
+    return tracked(s, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], local, **kw)
 
 
 # ------------------------------------------------------------------ dreamcore light (raw stage)
