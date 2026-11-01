@@ -37,6 +37,24 @@ def work(args):
     return path
 
 
+def drop_caches():
+    """free the warm-up's per-shot objects (plates, cut-out layers, decoders, the ONNX matte) before fork()"""
+    import gc
+    for name in ('mvb.recipes', 'mva.recipes'):
+        m = sys.modules.get(name)
+        if m is not None and hasattr(m, '_cache'):
+            m._cache.clear()
+    for name, attrs in (('mvb.plates', ('_FRAMES',)), ('mvb.chars', ('_CUTS',)), ('mva.timeline', ('_clip_cache', '_still_cache'))):
+        m = sys.modules.get(name)
+        for at in attrs:
+            if m is not None and hasattr(m, at):
+                getattr(m, at).clear()
+    m = sys.modules.get('mvb.chars')
+    if m is not None and getattr(m, '_matter', None) is not None:
+        m._matter = None
+    gc.collect()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--t0', type=float, default=0.0)
@@ -60,7 +78,8 @@ def main():
     for s in tl.SHOTS:
         if s['end'] > a.t0 and s['start'] < a.t1:
             tl.render(max(a.t0, s['start']) + 0.01, 0)
-    with mp.get_context('fork').Pool(a.workers) as pool:
+    drop_caches()            # the workers rebuild what they touch from disk; a fat parent is copied into every worker
+    with mp.get_context('fork').Pool(a.workers, maxtasksperchild=1) as pool:
         parts = pool.map(work, jobs)
     lst = os.path.join(tmpd, 'list.txt')
     open(lst, 'w').write(''.join(f"file '{p}'\n" for p in parts))

@@ -13,6 +13,7 @@ Processed frames are cached as RGBA PNG in work/B/cut/<sid>_<hash>/, so the slow
   python3 -m mvb.chars --all [--workers 3]      # pre-cut every clip that has arrived
 """
 import argparse
+import collections
 import hashlib
 import json
 import os
@@ -101,6 +102,8 @@ def despill(rgb, a):
 
 
 _matter = None
+_CUTS = collections.OrderedDict()     # (cut dir, index) -> (rgb, alpha); ONE bounded LRU for all character layers
+_CUTS_MAX = int(os.environ.get('HW_CUT_FRAMES', '8'))           # x ~32 MB at 1920x1056
 _LIVE = weakref.WeakSet()       # CharLayers, so a forked render worker can drop the parent's decoders / ONNX session
 _ORPHANS = []                   # inherited handles: kept referenced so their destructors never run in the child
 
@@ -234,8 +237,11 @@ class CharLayer:
 
     def rgba(self, i):
         """cut-out at source resolution: (rgb, alpha) float32"""
-        if i in self._mem:
-            return self._mem[i]
+        key = (self.dir, i)
+        hit = _CUTS.get(key)
+        if hit is not None:
+            _CUTS.move_to_end(key)
+            return hit
         p = os.path.join(self.dir, f'c_{i:05d}.png')
         if os.path.exists(p):
             im = cv2.imread(p, cv2.IMREAD_UNCHANGED)
@@ -248,9 +254,9 @@ class CharLayer:
                              (a * 255 + 0.5).clip(0, 255).astype(np.uint8)])
             cv2.imwrite(p + '.tmp.png', out, [cv2.IMWRITE_PNG_COMPRESSION, 3])
             os.replace(p + '.tmp.png', p)
-        if len(self._mem) > 4:
-            self._mem.clear()
-        self._mem[i] = (rgb, a)
+        _CUTS[key] = (rgb, a)
+        while len(_CUTS) > _CUTS_MAX:
+            _CUTS.popitem(last=False)
         return rgb, a
 
     def precompute(self):

@@ -5,6 +5,7 @@
   pts = pl.anchor(local_t, 'tv')   # projected anchor points [(x, y, z), ...]
 Plates are keyed by a hash of (scene, params, t0, t1, fps); re-rendered only when something changes.
 """
+import collections
 import hashlib
 import json
 import os
@@ -19,27 +20,35 @@ CACHE = os.environ.get('HW_PLATES', os.path.join(ROOT, 'work', 'B', 'plates'))
 FPS = 24
 
 
+_FRAMES = collections.OrderedDict()   # (plate dir, index) -> float32 RGB frame; ONE bounded LRU for all plates
+_FRAMES_MAX = int(os.environ.get('HW_PLATE_FRAMES', '10'))      # x 25 MB at 1080p
+
+
 class Plate:
     def __init__(self, d, n, t0):
         self.d, self.n, self.t0 = d, n, t0
         ap = os.path.join(d, 'anchors.json')
         self.anchors = json.load(open(ap)) if os.path.exists(ap) else None
-        self._cache = {}
 
     def index(self, local_t):
         return int(min(self.n - 1, max(0, round(local_t * FPS))))
 
     def frame(self, local_t):
         i = self.index(local_t)
-        if i not in self._cache:
-            if len(self._cache) > 6:
-                self._cache.clear()
+        key = (self.d, i)
+        fr = _FRAMES.get(key)
+        if fr is None:
             fp = os.path.join(self.d, f'f_{i:05d}.jpg')
             if not os.path.exists(fp):
                 fp = os.path.join(self.d, f'f_{i:05d}.png')
             im = cv2.imread(fp)
-            self._cache[i] = cv2.cvtColor(im, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-        return self._cache[i]
+            fr = cv2.cvtColor(im, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+            _FRAMES[key] = fr
+            while len(_FRAMES) > _FRAMES_MAX:
+                _FRAMES.popitem(last=False)
+        else:
+            _FRAMES.move_to_end(key)
+        return fr
 
     def anchor(self, local_t, name):
         if not self.anchors:
