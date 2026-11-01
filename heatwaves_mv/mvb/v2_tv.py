@@ -165,7 +165,7 @@ def verse01(s, t, local):
     content = static(t) if (ph < 2 / 24 and k > 0) else chans[max(0, min(3, k))]()
     tv = fx.crt(content, t, tint='#DDF2FF', curve=0.05, bloom=0.3)
     lum = plate @ np.float32([0.2126, 0.7152, 0.0722])
-    lit = cv2.GaussianBlur(np.clip((lum - 0.42) / 0.18, 0, 1), (0, 0), 1.5)       # the hand and knob stay in front
+    lit = cv2.GaussianBlur(np.clip((lum - 0.42) / 0.18, 0, 1), (0, 0), 1.5)       # the lit screen takes the channel; the dark hand in front keeps the plate
     q = v2.tracked(s, V01_SCREEN, local, box=(392, 0, 1602, 658))
     keep = img.copy()
     img = fx.quad_paste(img, tv, q, feather=3.0)
