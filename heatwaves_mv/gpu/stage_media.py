@@ -9,6 +9,7 @@ import shutil
 import sys
 
 VIDEO_ORDER = ('final_up.mp4', 'v_0_up.mp4', 'final.mp4', 'v_0.mp4')
+MAX_BYTES = 95 * 1000 * 1000
 
 
 def stage(dest_root, wdir):
@@ -20,8 +21,12 @@ def stage(dest_root, wdir):
         if not os.path.isdir(sd):
             continue
         keep = []
-        for name in VIDEO_ORDER:
-            if os.path.exists(os.path.join(sd, name)):
+        for name in VIDEO_ORDER:                       # best video that GitHub accepts (hard limit 100 MB per file)
+            vp = os.path.join(sd, name)
+            if os.path.exists(vp):
+                if os.path.getsize(vp) > MAX_BYTES:
+                    print(f'  {sid}/{name}: {os.path.getsize(vp) / 1e6:.0f} MB > limit, trying the next one')
+                    continue
                 keep.append(name)
                 break
         kf = ((man.get(sid) or {}).get('pick') or {}).get('kf')

@@ -25,6 +25,7 @@ def main():
     ap.add_argument('--branch', default='hw-media')
     ap.add_argument('--only', default='work')
     ap.add_argument('--dry', action='store_true')
+    ap.add_argument('--keep-objects', action='store_true', help='skip the gc of old fetches')
     a = ap.parse_args()
     url = git('remote', 'get-url', 'origin').strip()
     if not os.path.isdir(os.path.join(CACHE, '.git')):
@@ -53,7 +54,15 @@ def main():
             new.append(rel)
             if not a.dry:
                 os.makedirs(os.path.dirname(dp_), exist_ok=True)
-                shutil.copy2(sp, dp_)
+                if os.path.lexists(dp_):
+                    os.remove(dp_)
+                if f.endswith('.json'):
+                    shutil.copy2(sp, dp_)              # manifests are rewritten below: never share their inode
+                else:
+                    try:
+                        os.link(sp, dp_)               # media: hard link, no second copy on this small disk
+                    except OSError:
+                        shutil.copy2(sp, dp_)
     # manifests: rewrite Mac absolute paths to this checkout
     for m in ('work/A/manifest.json', 'work/B/manifest.json'):
         p = os.path.join(ROOT, m)
@@ -64,6 +73,9 @@ def main():
             import re
             s = re.sub(r'"[^"]*?heatwaves_mv/(work/[^"]*)"', lambda mm: json.dumps(os.path.join(ROOT, mm.group(1))), s)
             open(p, 'w').write(s)
+    if not a.dry and not a.keep_objects:                # drop superseded media objects from earlier fetches
+        subprocess.run(['git', 'reflog', 'expire', '--expire=now', '--all'], cwd=CACHE, capture_output=True)
+        subprocess.run(['git', '-c', 'pack.window=0', 'gc', '-q', '--prune=now'], cwd=CACHE, capture_output=True)
     kinds = {}
     for r in new:
         k = os.path.splitext(r)[1]
