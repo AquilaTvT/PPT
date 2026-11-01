@@ -29,7 +29,7 @@
    "id": "B-hook-02",
    "video_mode": "i2v",
    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> upper body, the girl looks back over her shoulder at the viewer and smiles brightly, hair swaying, neckerchief fluttering in the wind, looking back, from behind, smile, open mouth, bright summer light, simple background, green background",
-   "video_prompt": "The girl turns her head and shoulders to look back over her shoulder, then breaks into a bright smile, her chin-length bob swings out and settles, the red neckerchief flutters in a warm wind, she blinks once, the camera is static, the plain green background stays flat.",
+   "video_prompt": "The girl turns her head and shoulders to look back over her shoulder at the camera and gives a soft, gentle smile, her chin-length bob swings out and settles, the red neckerchief flutters in a warm wind, the camera is static, the plain green background stays flat.",
    "clip_seconds": 3.0,
    "beat": "镜中世界的近景：她在热浪里回头一笑，外翘的发梢和红领巾被风掀起。"
   },
@@ -84,7 +84,7 @@
    "id": "B-verse-03",
    "video_mode": "i2v",
    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> close-up of the boy's face at night watching a screen in the dark, light flickering across his face, wide unblinking eyes, slightly parted lips, face focus, portrait, front view, looking ahead, simple background, green background",
-   "video_prompt": "The boy watches something in the dark without moving, flickering light slides across his face, his eyes glisten, he blinks once slowly and presses his lips together, a faint breath moves his bangs, the camera is static, the plain green background stays flat.",
+   "video_prompt": "The boy watches a screen in the dark and stays almost completely still, soft flickering light moves across his face, he blinks once slowly, his expression stays calm and quiet, the camera is static, the plain green background stays flat.",
    "clip_seconds": 3.0,
    "beat": "一镜到底：电视放'今晚的好莱坞电影'，两人被印成网点海报上的电影明星；镜头从屏幕里退出来，电影的光像投影一样爬过他的脸。"
   },
@@ -114,8 +114,8 @@
   {
    "id": "B-chorus2-02",
    "video_mode": "i2v",
-   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands in front of a glowing vending machine at night, his face lit by warm light from the front, looking at it blankly, tired, three-quarter view, simple background, green background",
-   "video_prompt": "The boy stands still in warm light, he looks at something in front of him, his eyes move as if reading, then he looks down and exhales through his nose with a faint bitter smile, a breeze moves his hair, the camera is static, the plain green background stays flat.",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy alone, his face lit by warm light from the front, looking ahead blankly, tired, three-quarter view, simple background, plain green background, green screen",
+   "video_prompt": "The boy stands still in warm light, his eyes move slightly as if reading something in front of him, then he looks down and exhales with a faint bitter smile, a breeze moves his hair, the camera is static, the plain green background stays flat.",
    "clip_seconds": 3.0,
    "beat": "他停在自动贩卖机前，脸被灯光照亮；机器的点阵跑马灯滚着'刚过零点'，中奖轮盘停在0012。"
   },
@@ -153,7 +153,7 @@
    "id": "B-bridge1-06",
    "video_mode": "i2v",
    "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1girl, solo, <girl> <girl_uniform> close-up of the girl's face at dusk, gentle sad smile, eyes beginning to fill with tears, looking at the viewer, portrait, face focus, warm light, simple background, green background",
-   "video_prompt": "The girl looks at the camera and gives a small understanding nod with a sad smile, then her eyes fill with tears and a tear rolls down her cheek while she keeps smiling, her lips tremble, the evening breeze moves her bob, the camera is static, the plain green background stays flat.",
+   "video_prompt": "The girl looks at the camera with a small sad smile and gives a slight nod, her eyes glisten with tears, her lips tremble a little, the evening breeze moves her bob, the camera is static, the plain green background stays flat.",
    "clip_seconds": 4.0,
    "beat": "去年的黄昏，她看着他：先像是懂了一样轻轻点头、笑了一下，接着眼泪涌出来，笑着哭；她的印刷边缘开始一粒粒散开，像快碎了。"
   },
@@ -168,7 +168,7 @@
   {
    "id": "B-chorus3-03",
    "video_mode": "i2v",
-   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy stands in a crowd at a night festival looking around for someone, anxious, warm lantern light, looking to the side, simple background, green background",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, 1boy, solo, <boy> <boy_night> upper body, the boy alone, looking around anxiously for someone, warm orange light on one side of his face, looking to the side, simple background, plain green background, green screen",
    "video_prompt": "The boy looks around anxiously, turning his head to the left, then quickly to the right, searching for someone, his messy hair swings with the movement, he takes a short breath, the camera is static, the plain green background stays flat.",
    "clip_seconds": 3.0,
    "beat": "他在人潮里找她，左右张望；身边的点状人群像潮水一样分开又合上。"
