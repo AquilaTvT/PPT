@@ -98,7 +98,8 @@ def glyph_patch(ch, size=70, font='mincho', stroke=7.0):
     return _GP[key]
 
 
-def map_glyph(img, ch, x, y, size=70, angle=0.0, scale=1.0, fill='#F6F2E7', stroke='#1E2550', sw=7.0, font='mincho', alpha=1.0):
+def map_glyph(img, ch, x, y, size=70, angle=0.0, scale=1.0, fill='#F6F2E7', stroke='#1E2550', sw=7.0, font='mincho', alpha=1.0,
+              sx=1.0):
     """map-label glyph (cream fill, ink outline) centred at (x, y), rotated by angle degrees (ccw). Draws in place."""
     if scale <= 0.01 or alpha <= 0.003:
         return img
@@ -108,6 +109,9 @@ def map_glyph(img, ch, x, y, size=70, angle=0.0, scale=1.0, fill='#F6F2E7', stro
     xi, yi = int(round(x)), int(round(y))
     x0, y0 = xi - m // 2, yi - m // 2
     M = cv2.getRotationMatrix2D((n / 2, n / 2), angle, scale)
+    if sx != 1.0:                                   # horizontal flip / squeeze about the glyph centre
+        M[:, 0] *= sx
+        M[:, 2] += (1 - sx) * (M[:, 0] / sx * n / 2) if sx != 0 else 0
     M[0, 2] += m / 2 - n / 2 + (x - xi) - (m / 2 - m // 2)
     M[1, 2] += m / 2 - n / 2 + (y - yi) - (m / 2 - m // 2)
     ax0, ay0, ax1, ay1 = max(0, x0), max(0, y0), min(W, x0 + m), min(H, y0 + m)

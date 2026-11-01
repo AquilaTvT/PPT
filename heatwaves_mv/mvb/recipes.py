@@ -3539,3 +3539,66 @@ def verse_05(s, t, local, fi):
 
 R['B-verse-05'] = verse_05
 tl.OWN_TYPE.add('B-verse-05')
+
+
+# ---- B-verse-02: TV point of view -- from inside the CRT, looking out at him; the lyric reads mirror-reversed ------------
+def _v02_plate():
+    s = tl.BY_ID['B-verse-02']
+    d = s['end'] - s['start']
+    path = [{'t': 0.0, 'pos': [-0.62, 0.74, -0.80], 'look': [-0.25, 0.68, 1.3], 'fov': 52},
+            {'t': d, 'pos': [-0.62, 0.74, -0.80], 'look': [-0.25, 0.68, 1.3], 'fov': 50.5, 'ease': 'linear'}]
+    return plate('B-verse-02', 's1_room', {'path': path}, 0.0, d, fps=24)
+
+
+def crt_glass(img, t, k=0.18, osd=None, mirror_osd=False, sheen=0.10):
+    """the CRT glass over a frame: barrel warp, rounded mask, phosphor-dot sheen (halftone, no scanlines), OSD"""
+    import cv2
+    from mva import fx
+    from .print_fx import clock_grid, dot_matrix, hexc as H
+    out = fx.barrel(img, k)
+    if osd is not None:
+        o = once(('osd', osd), lambda: np.asarray(dot_matrix(clock_grid(str(osd)), pitch=14, on='#7FC8B8', bg='#000000'),
+                                                   np.float32))
+        if mirror_osd:
+            o = o[:, ::-1]
+        oh, ow = o.shape[:2]
+        x0 = 120 if mirror_osd else 1920 - ow - 120
+        out[90:90 + oh, x0:x0 + ow] = np.maximum(out[90:90 + oh, x0:x0 + ow], o)
+    out = out + (H('#C9D3DC')[None, None] - out) * (_dots_k(0.08, 6.0) * sheen)[..., None]
+    nx, ny = (kit._XS - 960) / 960, (kit._YS - 540) / 540
+    vig = np.clip(1.15 - 0.35 * (nx ** 4 + ny ** 4), 0, 1)
+    return out * vig[..., None]
+
+
+def verse_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('v02', _v02_plate)
+    img = cv2.GaussianBlur(pl.frame(local), (0, 0), 5.0)          # the room behind him, out of focus
+    lights = [(55.50, '#7FC8B8'), (56.24, '#F5C842'), (57.72, '#D9402B')]
+    col = [c for tt, c in lights if t >= tt][-1]
+    cl = once('v02_char', lambda: chars.CharLayer('B-verse-02'))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=960, y=1080, cx=0.5, cy=0.98, height=860)
+        lit = rgb * (0.75 + 0.35 * H(col)[None, None])
+        img = chars.over(img, lit, a)
+    img = img * (0.85 + 0.15 * H(col)[None, None])
+    img = crt_glass(img, t, 0.18, osd=3, mirror_osd=True)
+    # L19 mirror-reversed until sung, each glyph flipping on its mora (3 frames); 僕ら in vermilion
+    ly = once('v02_ly', lambda: VLyric(19, x=1720, accent='#D9402B', zh=False))
+    for i, g in enumerate(ly.glyphs):
+        tc = ly.times[min(i, len(ly.times) - 1)]
+        k = clamp((t - tc) / (3 / 24))
+        sx = -math.cos(math.pi * k) if k > 0 else -1.0
+        if abs(sx) < 0.06:
+            continue
+        fill = '#D9402B' if i < 2 else '#EDE3CF'
+        kit.map_glyph(img, g['ch'], g['cx'] + 7, g['cy'] + 7, int(ly.size), 0.0, 1.0, '#D9402B', '#D9402B', 0.5, sx=sx)
+        kit.map_glyph(img, g['ch'], g['cx'], g['cy'], int(ly.size), 0.0, 1.0, fill, '#1A1416', 6.0, sx=sx)
+    return _zh_fixed(img, t, 19, 55.68, ink='#EDE3CF', halo_col='#141A33')
+
+
+R['B-verse-02'] = verse_02
+tl.OWN_TYPE.add('B-verse-02')
