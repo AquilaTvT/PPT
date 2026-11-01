@@ -231,8 +231,13 @@ def skin_regions(flat, grow_de=24.0, cream_mix=0.58):
         comp = (lab_c[y0:y1, x0:x1] == i).astype(np.uint8)
         m = np.median(lab[y0:y1, x0:x1][comp > 0], axis=0)
         near = cv2.dilate(comp, ker) > 0
-        d = np.sqrt(((lab[y0:y1, x0:x1] - m) ** 2).sum(-1))
-        cand = ((d < grow_de) & near & (lab[y0:y1, x0:x1, 0] > 22)).astype(np.uint8) | comp
+        win = lab[y0:y1, x0:x1]
+        d = np.sqrt(((win - m) ** 2).sum(-1))
+        chroma = np.sqrt(win[..., 1] ** 2 + win[..., 2] ** 2)
+        hue = np.degrees(np.arctan2(win[..., 2], win[..., 1]))
+        # skin keeps its warm chroma in any light; grey asphalt or a motion-blurred edge next to a leg does not
+        warm = (chroma >= max(7.0, 0.45 * float(np.hypot(m[1], m[2])))) & (hue > -5) & (hue < 105)
+        cand = ((d < grow_de) & near & warm & (win[..., 0] > 22)).astype(np.uint8) | comp
         nn, lab_g = cv2.connectedComponents(cand, 8)
         keep = np.unique(lab_g[comp > 0])
         keep = keep[keep > 0]
