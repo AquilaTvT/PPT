@@ -4906,3 +4906,109 @@ def bridge2_04(s, t, local, fi):
 
 R['B-bridge2-04'] = bridge2_04
 tl.OWN_TYPE.add('B-bridge2-04')
+
+
+# ---- B-chorus4-03: blue hour -- he walks the seawall toward the lighthouse, its last sweeps -----------------------------
+def _c403_plate():
+    s = tl.BY_ID['B-chorus4-03']
+    d = s['end'] - s['start']
+    v = 1.3
+    path = [{'t': 0.0, 'pos': [3.0, 1.2, 30.0], 'look': [-3.5, 1.8, 46.0], 'fov': 46},
+            {'t': d, 'pos': [3.0, 1.2, 30.0 + v * d], 'look': [-3.5, 1.8, 46.0 + v * d], 'fov': 46, 'ease': 'linear'}]
+    return plate('B-chorus4-03', 's2_coast', {'world': 'dawn', 'path': path, 'wallH': 0.5, 'poleSpacing': 16.3, 'mirrors': [],
+                                             'vending': [], 'length': 260, 'fogNear': 40, 'fogFar': 520}, 0.0, d, fps=24)
+
+
+def chorus4_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .print_fx import hexc as H
+    pl = once('c403', _c403_plate)
+    img = pl.frame(local).copy()
+    # beam sweep across the frame on 154.02 (one pass per bar)
+    k = (t - 154.02) / 0.5
+    if -0.6 < k < 0.6:
+        ang = np.arctan2(kit._XS - (300 + 1300 * (k + 0.5)), -(kit._YS + 700))
+        fan = np.clip(1 - np.abs(ang) / 0.18, 0, 1)
+        img = img + (H('#F7E3C2')[None, None] - img) * (fan * _dots_k(0.55, 12.0) * 0.6)[..., None]
+    cl = once('c403_char', lambda: chars.CharLayer('B-chorus4-03'))
+    if cl.ok:
+        gust = 4.0 * math.exp(-max(0.0, t - 154.76) * 3) if t >= 154.76 else 0.0
+        rgb, a = cl.frame(local, x=1050, y=1060, cx=0.5, cy=0.98, height=650)
+        if gust:
+            sw = (gust * np.sin(kit._YS / 20.0 + t * 20) * (kit._YS < 700)).astype(np.float32)
+            rgb = cv2.remap(rgb, (kit._XS + sw).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+            a = cv2.remap(a, (kit._XS + sw).astype(np.float32), kit._YS, cv2.INTER_LINEAR)
+        img = chars.over(img, rgb, a, shadow='#1E2550')
+    # railing posts in the foreground at 2x parallax
+    off = (local * 1.3 * 2 * 180) % 360
+    m = np.zeros((1080, 1920), np.float32)
+    for x0 in np.arange(-360 + off, 2280, 360):
+        cv2.rectangle(m, (int(x0), 760), (int(x0) + 36, 1080), 1.0, -1)
+    cv2.rectangle(m, (0, 760), (1920, 790), 1.0, -1)
+    img = img + (H('#1E2550')[None, None] - img) * (m * 0.95)[..., None]
+    ly = once('c403_ly', lambda: VLyric(52, x=200, accent='#2C4C9A'))
+    out = ly.draw(img, t)
+    # the column wavers in the mist ripple
+    wav = (3.0 * np.sin(kit._YS / 17.0 + t * 4)).astype(np.float32)
+    region = (kit._XS < 360)[..., None]
+    out = np.where(region, cv2.remap(out, (kit._XS + wav).astype(np.float32), kit._YS, cv2.INTER_LINEAR), out)
+    return out
+
+
+R['B-chorus4-03'] = chorus4_03
+tl.OWN_TYPE.add('B-chorus4-03')
+
+
+# ---- B-chorus4-04: the vending machine at dawn -- 7, 7, 7 ... 6, はずれ; his reflection slides across the glass ------------
+def chorus4_04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    push = 1.0 + 0.02 * clamp(local / (s['end'] - s['start']))
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = (kit._YS / 1080)[..., None]
+    img[:] = H('#2C4C9A') * (1 - g) + H('#1E2550') * g
+    img = img + (H('#C9D3DC')[None, None] - img) * ((np.abs(kit._YS - 420) < 3) * 0.6)[..., None]
+    stops = [156.98, 157.72, 158.46, 158.83]
+    face = vending_face(t, '君に幸せあげられない', 156.10, '7776', stops, seed=8)
+    if t >= 158.83:                                          # はずれ blinking in red dots
+        if int((t - 158.83) * 8) % 2 == 0:
+            b, _ = print_fx.led_board('はずれ', cols=48, rows=16, dot=10, on='#D9402B', off='#2A1414', bg='#0B1414')
+            b = cv2.resize(b, (560, 150), interpolation=cv2.INTER_AREA)
+            face[900:1050, 80:640] = b
+    fh, fw_ = face.shape[:2]
+    sc = 0.78 * push
+    fr = cv2.resize(face, (int(fw_ * sc), int(fh * sc)), interpolation=cv2.INTER_AREA)
+    x0, y0 = 960 - fr.shape[1] // 2, 1080 - fr.shape[0] + 60
+    ya, yb = max(0, y0), min(1080, y0 + fr.shape[0])
+    img[ya:yb, x0:x0 + fr.shape[1]] = fr[ya - y0:yb - y0]
+    kit.halo(img, 960, 600, 700, '#7FC8B8', 0.25, period=10.0)
+    # his reflection sliding right -> left across the glass (30%)
+    cl = once('c404_char', lambda: chars.CharLayer('B-chorus4-03', rim=False))
+    if cl.ok:
+        u = clamp(local / (s['end'] - s['start']))
+        rgb, a = cl.frame(0.0, x=1300 - 700 * u, y=900, cx=0.5, cy=0.98, height=820)
+        glass = np.zeros((1080, 1920), np.float32)
+        glass[max(0, y0 + int(40 * sc)):y0 + int(700 * sc), x0 + int(40 * sc):x0 + int(680 * sc)] = 1
+        img = img + (rgb * 0.6 + H('#C9D3DC')[None, None] * 0.4 - img) * (a * glass * 0.3)[..., None]
+    # moths leaving in the dawn
+    rng = np.random.default_rng(53)
+    for j in range(5):
+        x = 960 + rng.uniform(-200, 200) + 220 * local * (1 if j % 2 else -1)
+        y = 300 - 120 * local + rng.uniform(-60, 60)
+        m = np.zeros((1080, 1920), np.float32)
+        flap = (int(t * 12) + j) % 2
+        cv2.ellipse(m, (int(x - 5), int(y)), (7, 3 if flap else 6), 30 if flap else 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        cv2.ellipse(m, (int(x + 5), int(y)), (7, 3 if flap else 6), -30 if flap else 0, 0, 360, 1.0, -1, cv2.LINE_AA)
+        img = img + (H('#EDE3CF')[None, None] - img) * (m * 0.8)[..., None]
+    if 158.83 <= t < 158.83 + 2 / 24:                       # 2-frame shake on the miss
+        img = np.roll(img, (8, -10), (0, 1))
+    ly = once('c404_ly', lambda: VLyric(53, x=1740, accent='#2C4C9A'))
+    return ly.draw(img, t)
+
+
+R['B-chorus4-04'] = chorus4_04
+tl.OWN_TYPE.add('B-chorus4-04')
