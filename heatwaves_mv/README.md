@@ -4,7 +4,7 @@ A non-commercial fan music video for **Glass Animals「Heat Waves」(Japanese co
 3:18, 1920×1080, 24 fps.
 
 The film: `HeatWaves_720p.mp4` in this folder is a copy small enough for the repository; the full-quality
-`HeatWaves_1080p.mp4` and the CRF-15 master are delivered alongside it. `poster.jpg` shows twenty of its moments. The
+`HeatWaves_1080p.mp4` is delivered alongside it (`tools/v2_final.sh` re-renders the CRF-15 master and both encodes). `poster.jpg` shows twenty of its moments. The
 repository holds everything that makes the film. The song, recording and lyrics belong to their rights holders (Glass
 Animals / Polydor, Lime); this is a fan work, not affiliated with them.
 
