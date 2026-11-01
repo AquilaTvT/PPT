@@ -72,6 +72,30 @@ def warm(args):
     return sid
 
 
+def run_all(cmds, workers, what):
+    """run each command as its own fresh process, `workers` at a time (no fork of a fat parent, memory returned at
+    every exit); a command that fails -- a crash, or the out-of-memory killer -- is retried twice, so one lost worker
+    can never leave the render waiting forever"""
+    queue, running, tries = [list(c) for c in cmds], {}, {}
+    while queue or running:
+        while queue and len(running) < workers:
+            c = queue.pop(0)
+            tries[tuple(c)] = tries.get(tuple(c), 0) + 1
+            running[subprocess.Popen(c)] = c
+        time.sleep(0.5)
+        for p in list(running):
+            if p.poll() is None:
+                continue
+            c = running.pop(p)
+            if p.returncode != 0:
+                if tries[tuple(c)] >= 3:
+                    for q in running:
+                        q.kill()
+                    raise SystemExit(f'{what} failed 3 times (exit {p.returncode}): {" ".join(c)}')
+                print(f'{what}: exit {p.returncode}, retrying: {" ".join(c[3:])}', flush=True)
+                queue.append(c)
+
+
 def drop_caches():
     """free the warm-up's per-shot objects (plates, cut-out layers, decoders, the ONNX matte) before fork()"""
     import gc
@@ -100,7 +124,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--t0', type=float, default=0.0)
     ap.add_argument('--t1', type=float, default=198.74)
-    ap.add_argument('--out', required=True)
+    ap.add_argument('--out')
+    ap.add_argument('--part', nargs=3, metavar=('F0', 'F1', 'PATH'), help=argparse.SUPPRESS)   # one part (subprocess)
+    ap.add_argument('--warm', nargs=3, metavar=('SHOT', 'T0', 'T1'), help=argparse.SUPPRESS)   # one shot's warm-up
     ap.add_argument('--workers', type=int, default=3)
     ap.add_argument('--audio', action='store_true')
     ap.add_argument('--mv', default=MV, choices=['a', 'b', 'b2'])
@@ -110,6 +136,14 @@ def main():
     globals()['RESUME'] = a.resume
     globals()['MV'] = a.mv
     os.environ['HW_MV'] = a.mv
+    if a.part:
+        work((int(a.part[0]), int(a.part[1]), a.part[2]))
+        return
+    if a.warm:
+        warm((a.warm[0], float(a.warm[1]), float(a.warm[2])))
+        return
+    if not a.out:
+        ap.error('--out is required')
     f0, f1 = int(round(a.t0 * FPS)), int(round(a.t1 * FPS))
     n = a.jobs or a.workers * 2
     step = max(1, (f1 - f0 + n - 1) // n)
@@ -126,18 +160,22 @@ def main():
     tl = modules()
     shots = [s for s in tl.SHOTS if any(s['end'] > u0 and s['start'] < u1 for u0, u1 in spans)]
     os.environ.setdefault('HW_SEG_THREADS', str(max(1, (os.cpu_count() or 4) // a.workers)))
-    if a.mv == 'b2' and shots:
-        drop_caches()
+    me = [sys.executable, os.path.abspath(__file__), '--mv', a.mv]
+    if a.mv == 'b2':
         t_w = time.time()
-        with mp.get_context('fork').Pool(a.workers, maxtasksperchild=4) as pool:
-            pool.map(warm, [(s['id'], a.t0, a.t1) for s in shots], chunksize=1)
+        run_all([me + ['--warm', s['id'], str(a.t0), str(a.t1)] for s in shots], a.workers, 'warm-up')
         print(f'warm-up {len(shots)} shots {time.time() - t_w:.0f}s', flush=True)
+        run_all([me + ['--part', str(j0), str(j1), p] for j0, j1, p in todo], a.workers, 'part')
+        bad = [p for j0, j1, p in jobs if frames_in(p) != j1 - j0]
+        if bad:
+            raise SystemExit(f'incomplete parts: {bad}')
+        parts = [p for _, _, p in jobs]
     else:
         for s in shots:
             tl.render(max(a.t0, s['start']) + 0.01, 0)
-    drop_caches()            # the workers rebuild what they touch from disk; a fat parent is copied into every worker
-    with mp.get_context('fork').Pool(a.workers, maxtasksperchild=1) as pool:
-        parts = pool.map(work, jobs)
+        drop_caches()        # the workers rebuild what they touch from disk; a fat parent is copied into every worker
+        with mp.get_context('fork').Pool(a.workers, maxtasksperchild=1) as pool:
+            parts = pool.map(work, jobs)
     lst = os.path.join(tmpd, 'list.txt')
     open(lst, 'w').write(''.join(f"file '{p}'\n" for p in parts))
     cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', lst]

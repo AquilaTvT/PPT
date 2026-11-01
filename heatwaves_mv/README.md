@@ -38,19 +38,21 @@ and at the end the print runs backwards to bare paper, leaving only the sun stam
 1. **Music** (`mv/timing.py`, `assets/glyph_times.json`): beat grid fitted on the drum stem (81 BPM), lyric lines
    and per-glyph sung times aligned to the vocal stem.
 2. **Generation** on an Apple M4 Mac with ComfyUI (`gpu/`, `GPU_RUNBOOK.md`): Anima keyframes (two candidates per
-   shot, picked by review), Wan 2.2 TI2V 5B video (832×480, 16 fps), RIFE ×3 to 48 fps, then upscaling; the shot list
-   with prompts is `design/mv_b/gpu_shots_v2.json`. Media travel to the cloud on the `hw-media` branch
+   shot, picked by review), Wan 2.2 TI2V 5B video (832×480, 16 fps; shots with a broken face, colour drift or stray
+   marks re-rolled after review), RIFE ×3 interpolation and a 2× AnimeSharp upscale to 1920×1108 at 24 fps; the shot
+   list with prompts is `design/mv_b/gpu_shots_v2.json`. Media travel to the cloud on the `hw-media` branch
    (`gpu/push_media.sh` → `tools/ingest_media.py`).
 3. **Compositing** on CPU (`mvb/v2.py` + `mvb/v2_*.py`): per shot, raw stage (footage + devices + heat shimmer and
    glow) → print → graphics over the print (LED, stamps, lyrics).
-4. **Render and checks:** `tools/render_mvb.py --mv b2` (parallel workers, then concat + audio),
-   `tools/qa_video.py` (duration, audio, W3C general-flash check), `tools/deliver.sh` (delivery encode).
+4. **Render and checks:** `tools/render_mvb.py --mv b2` (per-shot caches warmed in parallel, then the film in 16
+   parts, each in a fresh process that is retried if it dies; complete parts are kept, so a fix re-renders only the
+   parts it touches), `tools/qa_video.py` (duration, audio, W3C general-flash check), `tools/deliver.sh` (delivery
+   encodes).
 
 ```bash
+python3 -m mvb.people                                         # the print's people models (once)
 python3 tools/ingest_media.py --only work/B2                 # footage from the hw-media branch
-python3 tools/render_mvb.py --mv b2 --out out/hw.mp4 --workers 3 --audio
-python3 tools/qa_video.py out/hw.mp4
-TITLE="Heat Waves" bash tools/deliver.sh out/hw.mp4 HeatWaves
+bash tools/v2_final.sh                                        # render -> QA -> out/deliver/HeatWaves_*.mp4
 ```
 
 ## Credits and data
