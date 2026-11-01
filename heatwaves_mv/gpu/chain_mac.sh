@@ -7,6 +7,7 @@
 #   nohup bash gpu/chain_mac.sh > /dev/null 2>&1 &
 set -u
 cd "$(dirname "$0")/.."
+export PATH="$PWD/.hw/bin:$PATH"          # ffmpeg lives in .hw/bin (setup_mac.sh)
 PY=.hw/venv/bin/python
 mkdir -p work/A work/B
 log() { echo "$(date '+%m-%d %H:%M:%S') $*" >> work/chain.log; }

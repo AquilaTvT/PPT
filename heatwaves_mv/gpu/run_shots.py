@@ -257,9 +257,25 @@ def do_videos(c, cfg, shots, man, n):
             prev_last = last_frame(st['video_pick'], os.path.join(man.shot_dir(s['id']), 'last.png'))
 
 
+def ffmpeg_bin():
+    import shutil
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    for c in (shutil.which('ffmpeg'), os.path.join(root, '.hw', 'bin', 'ffmpeg')):
+        if c and os.path.exists(c):
+            return c
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return 'ffmpeg'
+
+
 def last_frame(video, dst):
     import subprocess
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-sseof', '-0.1', '-i', video, '-frames:v', '1', dst], check=False)
+    try:
+        subprocess.run([ffmpeg_bin(), '-v', 'error', '-y', '-sseof', '-0.1', '-i', video, '-frames:v', '1', dst], check=False)
+    except OSError as e:                    # never let a missing tool kill the whole batch
+        log(f'last_frame failed: {e}')
     return dst if os.path.exists(dst) else None
 
 
