@@ -76,6 +76,7 @@ class Printer:
         self.line, self.gold = hexc(line), hexc(gold)
         self.dot_dark = dot_dark
         self.skin_ok = skin            # False where coloured light (sunset, sunrise) makes 'skin' colour ambiguous
+        self.face_only = False         # skin on the faces only (people.verdict: the segmentation is unreliable here)
         self.pal = self.pal_g = None
         if name:
             p = os.path.join(CACHE, f'{name}.json')
@@ -148,7 +149,7 @@ class Printer:
         if skin and self.skin_ok:   # faces and hands print on a warm cream; the screen carries their shading (manga print)
             if people is None:      # only on people: the character mask of this frame (mvb/people.py)
                 from .people import mask as people_mask
-                people = people_mask(rgb, name=self.name)
+                people = people_mask(rgb, name=self.name, face_only=self.face_only)
             sk = skin_regions(flat_h, people=people)
             if sk is not None:
                 sm, skin_lab_map, ref_map = sk

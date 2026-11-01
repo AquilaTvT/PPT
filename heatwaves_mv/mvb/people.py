@@ -11,6 +11,12 @@ whole wide frame it sometimes takes a seawall or a lantern-lit street for "chara
 clean), kept inside the figure's box, plus the face boxes. The faces also anchor the skin colour (print2). A frame
 with no person and no face detected has no skin at all (and skips the segmentation).
 
+The segmentation fails now and then on generated close-ups and crowds: it floods the whole crop. A figure whose box
+it fills (> OVER) is a failure, and that matte is not used. Because a failure in one frame and not the next would make
+arms flicker between cream and ink, each shot gets one verdict from a few frames spread over it (verdict()): a shot
+where the segmentation ever floods a figure prints skin on the faces only (an ellipse round each face, down to the
+collar), in every frame.
+
 A gate is computed every STEP-th frame of a shot and holds for the frames up to the next one (people move a few pixels
 in 1/8 s; the gate is a coarse, slightly grown region), cached on disk per printer (its name carries the footage's
 identity) and frame, so re-renders and parallel workers reuse it. Without a frame index (a single still), the cache
@@ -36,7 +42,9 @@ FILES = {
              'https://huggingface.co/deepghs/anime_face_detection/resolve/main/face_detect_v1.4_s/model.onnx'),
 }
 CONF = {'person': 0.45, 'face': 0.40}     # above the models' F1 thresholds (0.31 / 0.32): the main figures, steadily
-VERSION = 'g2'
+VERSION = 'g3'
+OVER = 0.92                   # matte coverage of a figure's box above which the segmentation has failed
+MIN_FIG = 0.05                # figures smaller than this fraction of the frame do not take part in the verdict
 CACHE = os.path.join(ROOT, 'work', 'B2', 'people')
 S = 1024                      # the segmentation model's fixed input (square; the 16:9 frame is letterboxed into it)
 OUT = (480, 270)              # cached gate resolution: a gate, not a matte
@@ -130,16 +138,37 @@ def _boxes(shape, boxes, grow):
     return m
 
 
-def compute(rgb):
-    """(gate float32 0..1 at OUT, faces [(x0, y0, x1, y1, score)] in OUT pixels)"""
-    u8 = _u8(rgb)
+def _faces_gate(shape, faces):
+    """face-only gate: an ellipse round each face box, reaching down over the neck to the collar"""
+    h, w = shape
+    m = np.zeros((h, w), np.uint8)
+    for x0, y0, x1, y1, _ in faces:
+        fw, fh = x1 - x0, y1 - y0
+        cx, cy = (x0 + x1) / 2, y0 + 0.62 * fh
+        cv2.ellipse(m, (int(round(cx * 4)), int(round(cy * 4))), (int(round(fw * 0.66 * 4)), int(round(fh * 0.80 * 4))),
+                    0, 0, 360, 1, -1, cv2.LINE_AA, shift=2)
+    return m.astype(np.float32)
+
+
+def _figures(u8):
     h0, w0 = u8.shape[:2]
     persons = detect(u8, 'person')
+    big = [p for p in persons if (p[2] - p[0]) * (p[3] - p[1]) >= 0.012 * w0 * h0]
+    return sorted(big, key=lambda p: (p[2] - p[0]) * (p[3] - p[1]), reverse=True)[:3]
+
+
+def compute(rgb, face_only=False):
+    """(gate float32 0..1 at OUT, faces [(x0, y0, x1, y1, score)] in OUT pixels, flooded: a figure's matte failed)"""
+    u8 = _u8(rgb)
+    h0, w0 = u8.shape[:2]
     faces = detect(u8, 'face')
     sx, sy = OUT[0] / w0, OUT[1] / h0
+    fo = [(x0 * sx, y0 * sy, x1 * sx, y1 * sy, sc) for x0, y0, x1, y1, sc in faces]
+    if face_only:
+        return _faces_gate(OUT[::-1], fo), fo, False
     g = np.zeros(OUT[::-1], np.float32)
-    big = [p for p in persons if (p[2] - p[0]) * (p[3] - p[1]) >= 0.012 * w0 * h0]
-    for x0, y0, x1, y1, _ in sorted(big, key=lambda p: (p[2] - p[0]) * (p[3] - p[1]), reverse=True)[:3]:
+    flooded = False
+    for x0, y0, x1, y1, _ in _figures(u8):
         gx, gy = 0.12 * (x1 - x0), 0.12 * (y1 - y0)
         cx0, cy0 = max(0, int(x0 - gx)), max(0, int(y0 - gy))
         cx1, cy1 = min(w0, int(math.ceil(x1 + gx))), min(h0, int(math.ceil(y1 + gy)))
@@ -150,9 +179,24 @@ def compute(rgb):
         bx0, by0 = int((x0 - 0.04 * (x1 - x0)) * sx) - ox0, int((y0 - 0.04 * (y1 - y0)) * sy) - oy0
         bx1, by1 = int(math.ceil((x1 + 0.04 * (x1 - x0)) * sx)) - ox0, int(math.ceil((y1 + 0.04 * (y1 - y0)) * sy)) - oy0
         box[max(0, by0):max(0, by1), max(0, bx0):max(0, bx1)] = 1
+        cov = float(((m > 0.7) & (box > 0)).sum()) / max(1.0, float(box.sum()))
+        if cov > OVER:                                           # the model flooded the crop: not a matte
+            flooded = flooded or bool((x1 - x0) * (y1 - y0) >= MIN_FIG * w0 * h0)
+            continue
         g[oy0:oy1, ox0:ox1] = np.maximum(g[oy0:oy1, ox0:ox1], m * box)
-    fo = [(x0 * sx, y0 * sy, x1 * sx, y1 * sy, sc) for x0, y0, x1, y1, sc in faces]
-    return np.maximum(g, _boxes(OUT[::-1], fo, 0.12)), fo
+    return np.maximum(g, _boxes(OUT[::-1], fo, 0.12)), fo, flooded
+
+
+def verdict(name, frames_fn):
+    """True when the shot must print skin on faces only: the segmentation flooded a figure in any of the frames
+    frames_fn() returns (a few frames spread over the shot). Cached per printer name."""
+    path = os.path.join(CACHE, name, f'{VERSION}_verdict.json')
+    v = load_json(path)
+    if v is not None:
+        return bool(v['face_only'])
+    floods = [bool(compute(f)[2]) for f in frames_fn()]
+    save_json(path, {'face_only': any(floods), 'floods': floods})
+    return any(floods)
 
 
 def key(rgb):
@@ -160,7 +204,7 @@ def key(rgb):
     return hashlib.md5(np.ascontiguousarray(th).tobytes() + VERSION.encode()).hexdigest()
 
 
-def mask(rgb, name=None):
+def mask(rgb, name=None, face_only=False):
     """{'gate': float32 0..1 at OUT, 'faces': [(x0, y0, x1, y1, score)] in OUT pixels} for this frame (cached),
     or None when the models are not installed. name: the printer's name (footage + settings) -> the gate of this
     frame's STEP group; without it, or without a frame index, the cache is keyed by the frame's content."""
@@ -172,10 +216,10 @@ def mask(rgb, name=None):
         return None
     if name and FRAME is not None:
         fi = int(FRAME[1])
-        path = os.path.join(CACHE, name, f'{fi - fi % STEP:05d}.png')
+        path = os.path.join(CACHE, name, f'{VERSION}{"f" if face_only else ""}_{fi - fi % STEP:05d}.png')
     else:
         k = key(rgb)
-        path = os.path.join(CACHE, k[:2], f'{k}.png')
+        path = os.path.join(CACHE, k[:2], f'{k}{"f" if face_only else ""}.png')
     hit = _MEM.get(path)
     if hit is not None:
         return hit
@@ -184,7 +228,7 @@ def mask(rgb, name=None):
     if m is not None and meta is not None and m.shape[::-1] == OUT:
         out = {'gate': m.astype(np.float32) / 255.0, 'faces': [tuple(f) for f in meta['faces']]}
     else:
-        g, faces = compute(rgb)
+        g, faces, _ = compute(rgb, face_only)
         save_json(path[:-4] + '.json', {'faces': [[float(v) for v in f] for f in faces]})
         save_img(path, (g * 255 + 0.5).astype(np.uint8))
         out = {'gate': g, 'faces': faces}

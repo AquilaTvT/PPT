@@ -348,6 +348,12 @@ def printer_for(s, raw_fn):
         pr = Printer(world_inks(s['id']), name=f'{sid2}_{tag}', **kw)
         if 'skin' not in kw and sid2 in no_humans():
             pr.skin_ok = False             # nobody in the shot: no skin pass (and no character mask to compute)
+        if pr.skin_ok:                     # one verdict per shot: faces only where the segmentation floods a figure
+            from . import people
+            if people.available():
+                d = s['end'] - s['start']
+                pr.face_only = people.verdict(pr.name, lambda: [raw_fn(s, s['start'] + d * f, d * f)
+                                                                for f in (0.1, 0.3, 0.5, 0.7, 0.9)])
         if pr.pal is None:
             d = s['end'] - s['start']
             pr.fit([raw_fn(s, s['start'] + d * f, d * f) for f in (0.15, 0.5, 0.85)])
