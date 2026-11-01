@@ -332,4 +332,14 @@ def raw_matte(sid, src=None):
     for i in comps:
         m = cv2.dilate((lab == i).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(np.float32)
         parts.append((a * m, tuple(st[i, :4])))
+    if len(parts) == 1:
+        # the two figures touch: split the blob at its narrowest column between 30% and 70% of its width
+        x, y, w, h = parts[0][1]
+        cols = (a[y:y + h, x:x + w] > 0.5).sum(0).astype(np.float32)
+        lo, hi = int(w * 0.3), int(w * 0.7)
+        if hi > lo + 2:
+            cut = x + lo + int(np.argmin(cv2.GaussianBlur(cols[lo:hi][None], (1, 31), 0)[0]))
+            ramp = np.clip((np.arange(a.shape[1], dtype=np.float32) - cut) / 6.0 + 0.5, 0, 1)[None, :]
+            left, right = a * (1 - ramp), a * ramp
+            parts = [(left, (x, y, cut - x, h)), (right, (cut, y, x + w - cut, h))]
     return rgb, a, parts
