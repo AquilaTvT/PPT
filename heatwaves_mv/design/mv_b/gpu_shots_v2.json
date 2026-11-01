@@ -570,10 +570,11 @@
    "end": 162.17,
    "kind": "env",
    "video_mode": "i2v",
-   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, no humans, scenery, a coastal railway just before dawn, an old train approaching head-on with its headlight glowing brightly, the sea beside the tracks, blue hour sky with an orange band at the horizon, dramatic, 1980s japan, detailed background, cinematic composition",
+   "keyframe_prompt": "masterpiece, best quality, score_7, safe, anime screenshot, no humans, scenery, a coastal railway just before dawn, a single small old electric train car approaching head-on, front view, a pantograph on its roof, one round headlight glowing brightly, an orange dot-matrix destination sign above the front windows, the sea beside the tracks, blue hour sky with the first orange light at the horizon, overhead wires, 1980s japan, detailed background, cinematic composition",
    "video_prompt": "The train approaches head-on along the coastal railway, its headlight growing brighter and bigger, the dawn sky glows at the horizon.",
    "beat": "蓄力：电车的车头灯沿海岸铁路朝镜头开来，行先牌从'夢'翻成'日の出'；歌词越印越快，网点光晕一拍一拍胀大。",
-   "notes": "sign flips 夢 -> 日の出; halo swells into the sunrise"
+   "notes": "sign flips 夢 -> 日の出; halo swells into the sunrise",
+   "regen": "v2: a single electric car with a pantograph and a destination sign (both first candidates drew a steam locomotive)"
   },
   {
    "id": "B2-outro-01",

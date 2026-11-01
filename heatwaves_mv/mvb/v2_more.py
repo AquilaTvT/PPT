@@ -594,8 +594,25 @@ def put_board(img, box, txt, scroll=None):
     return fx.quad_paste(img, board, q, feather=1.2)
 
 
+def strip_box(img, box):
+    """inpaint a small region (fake captions / watermarks the model drew)"""
+    x0, y0, x1, y1 = box
+    pad = 12
+    X0, Y0, X1, Y1 = max(0, x0 - pad), max(0, y0 - pad), min(W, x1 + pad), min(H_, y1 + pad)
+    roi = (np.clip(img[Y0:Y1, X0:X1], 0, 1) * 255).astype(np.uint8)
+    m = np.zeros(roi.shape[:2], np.uint8)
+    m[y0 - Y0:y1 - Y0, x0 - X0:x1 - X0] = 255
+    fixed = cv2.inpaint(roi, m, 6, cv2.INPAINT_TELEA).astype(np.float32) / 255.0
+    out = img.copy()
+    out[Y0:Y1, X0:X1] = fixed
+    return out
+
+
+B201_CAPTION = (0, 1032, 475, 1072)
+
+
 def bridge2_01_raw(s, t, local):
-    img = base(s, t, local)
+    img = strip_box(base(s, t, local), B201_CAPTION)
     box = board_at(s, local)
     if local < 1.3:
         img = put_board(img, box, '夢　行')
@@ -740,7 +757,7 @@ def zoetrope_raw(s, t, local):
             continue
         tt = (0.3 + local * 0.55 + (j + fi) * 0.11) % max(0.5, src.dur - 0.2)
         frame = src.at(tt)
-        crop = frame[60:1020, 300:1620]
+        crop = frame[40:1000, 560:1740]                              # her face and the hand under her cheek
         win = cv2.resize(crop, (ZW, ZH), interpolation=cv2.INTER_AREA) * np.float32([1.10, 0.98, 0.82])
         sheen = np.clip(1 - np.abs((np.arange(ZW)[None, :] - np.arange(ZH)[:, None] * 0.8 - ZW * 0.28) / 36.0), 0, 1) * 0.14
         win = win + sheen[..., None]
@@ -775,12 +792,12 @@ def chorus4_02_over(img, s, t, local):
     mins = int(round(292 * e))
     txt = f'{mins // 60}:{mins % 60:02d}'
     colon = (local * 2) % 2 < 1 or k >= 1
-    face = fx.led_face(txt if colon else txt.replace(':', ' '), 760, 260, on='#FF3B2A', off='#2A0806', bg='#0B0404', glow=0.8)
+    face = fx.led_face(txt if colon else txt.replace(':', ' '), 500, 170, on='#FF3B2A', off='#2A0806', bg='#0B0404', glow=0.8)
     a = clamp(local / 0.25) * (1 - clamp((local - (d - 0.2)) / 0.2))
-    q = [(580, 700), (1340, 700), (1340, 960), (580, 960)]
+    q = [(1150, 190), (1650, 190), (1650, 360), (1150, 360)]
     img = fx.quad_paste(img, face, q, alpha=0.95 * a, feather=2.0)
     ys, xs = _grid()
-    g = np.exp(-(((xs - 960) / 520) ** 2 + ((ys - 830) / 200) ** 2)) * 0.18 * a
+    g = np.exp(-(((xs - 1400) / 360) ** 2 + ((ys - 275) / 150) ** 2)) * 0.18 * a
     return img + H('#FF3B2A')[None, None] * g[..., None]
 
 
@@ -925,3 +942,66 @@ def outro_04_over(img, s, t, local):
 
 
 OVER['B-outro-04'] = outro_04_over
+
+
+# ------------------------------------------------------------------ chorus4-04: the machine at dawn
+C404_PANEL = (1232, 662, 1376, 780)          # the light panel under the product window: roulette + ticker
+C404_GLASS = (1225, 352, 1522, 628)          # the product window
+
+
+@functools.lru_cache(maxsize=1)
+def _c404_ticker():
+    from . import print_fx as pf
+    rgb, _ = pf.led_board('　　君に幸せあげられない　　ざんねん　　', rows=12, dot=4, on='#FF8A3A', off='#2A1208', bg='#100804',
+                          font='dot', glow=0.5)
+    return rgb
+
+
+def chorus4_04_raw(s, t, local):
+    """his reflection walks across the machine's glass (from his walk on the seawall), faint and cool"""
+    img = base(s, t, local)
+    f = v2.footage('B2-chorus4-03')
+    if f is not None:
+        fr = f.at(0.5 + local * 0.6)
+        crop = fr[200:1080, 1150:1650][:, ::-1]                      # him, mirrored
+        x0, y0, x1, y1 = C404_GLASS
+        gw, gh = x1 - x0, y1 - y0
+        k = clamp(local / (s['end'] - s['start']))
+        h = int(gh * 1.25)
+        w = int(h * crop.shape[1] / crop.shape[0])
+        fig = cv2.resize(crop, (w, h), interpolation=cv2.INTER_AREA)
+        fig = cv2.GaussianBlur(fig, (0, 0), 1.6)
+        lum = fig @ np.float32([0.2126, 0.7152, 0.0722])
+        px = int(x0 - w * 0.6 + (gw + w * 0.2) * k)
+        py = y0 - int(h * 0.08)
+        layer = np.zeros((H_, W), np.float32)
+        xa, xb = max(x0, px), min(x1, px + w)
+        ya, yb = max(y0, py), min(y1, py + h)
+        if xb > xa and yb > ya:
+            dark = 1 - lum[ya - py:yb - py, xa - px:xb - px]
+            layer[ya:yb, xa:xb] = np.clip(dark - 0.35, 0, 1) * 0.55
+            layer = cv2.GaussianBlur(layer, (0, 0), 1.2)
+            img = img * (1 - layer[..., None] * 0.55) + H('#2A3A6A')[None, None] * (layer * 0.55)[..., None]
+    return _dream(img, s, t, local)
+
+
+def chorus4_04_over(img, s, t, local):
+    x0, y0, x1, y1 = C404_PANEL
+    ym = (y0 + y1) // 2
+    g = gt(53)
+    stops = [g[1], g[3], g[5], g[7]]
+    digs = ''
+    for j, ts in enumerate(stops):
+        digs += '7776'[j] if t >= ts else str(int(t * 29 + j * 3) % 10)
+    face = fx.led_face(digs, x1 - x0, ym - y0, on='#FF3B2A', glow=0.5)
+    img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, ym), (x0, ym)], feather=1.0)
+    board = _c404_ticker()
+    bh, bw = board.shape[:2]
+    win = int((x1 - x0) * bh / (y1 - ym))
+    off = int(local * 120) % max(1, bw - win)
+    img = fx.quad_paste(img, board[:, off:off + win], [(x0, ym), (x1, ym), (x1, y1), (x0, y1)], feather=1.0)
+    return img
+
+
+RAW['B-chorus4-04'] = chorus4_04_raw
+OVER['B-chorus4-04'] = chorus4_04_over
