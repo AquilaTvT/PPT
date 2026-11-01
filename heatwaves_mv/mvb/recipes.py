@@ -4725,3 +4725,184 @@ def chorus3_06(s, t, local, fi):
 
 R['B-chorus3-06'] = chorus3_06
 tl.OWN_TYPE.add('B-chorus3-06')
+
+
+# ---- B-bridge2-02: 走馬灯 -- the dream train moves one window per frame so it looks frozen; she moves window by window --
+def bridge2_02(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    pitch = 180
+    lock_break = 140.68
+    f_idx = int(round(local * 24))
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = (kit._YS / 1080)[..., None]
+    img[:] = H('#EDE3CF') * (1 - g * 0.3) + H('#2C4C9A') * (g * 0.3)
+    img = img + (H('#2C4C9A')[None, None] - img) * (_dots_k(0.18, 10.0) * (kit._YS < 300))[..., None]
+    # train offset: whole window pitches per frame (frozen look), then slows and smears after the break
+    if t < lock_break:
+        off, blur = 0.0, 0.0
+    else:
+        k = t - lock_break
+        v = pitch * 24 * math.exp(-k * 2.2)               # px/s, decaying
+        off = (pitch * 24 * (1 - math.exp(-k * 2.2)) / 2.2) % pitch
+        blur = v / 24 * 0.5
+    car_top, car_bot = 300, 820
+    body = np.zeros((1080, 1920), np.float32)
+    body[car_top:car_bot] = 1
+    img = img + (H('#EDE3CF')[None, None] * 0.96 - img) * body[..., None]
+    band = np.zeros((1080, 1920), np.float32)
+    band[car_bot - 90:car_bot - 50] = 1
+    img = img + (H('#F08A3C')[None, None] - img) * band[..., None]
+    # windows: window n shows clip frame n (the walking-lantern effect)
+    cl = once('b202_char', lambda: chars.CharLayer('B-bridge2-02'))
+    gt = _map_gt(47)
+    word = '満たされた笑み浮かべて'
+    for j in range(-1, 12):
+        x0 = int(j * pitch - off + 30)
+        if x0 > 1920 or x0 + 140 < 0:
+            continue
+        win = np.empty((300, 140, 3), np.float32)
+        win[:] = H('#2C4C9A')
+        if cl.ok:
+            n = (j + f_idx) if t >= lock_break else j
+            rgb, a = cl.frame((n % 24) / 24.0 * 3.0, x=960, y=540, cx=0.5, cy=0.42, height=1300)
+            rgb = cv2.resize(rgb[90:990, 750:1170], (140, 300))
+            a = cv2.resize(a[90:990, 750:1170], (140, 300))
+            win = win + (rgb - win) * a[..., None]
+        win = win * 0.8 + H('#F08A3C')[None, None] * 0.2
+        xa, xb = max(0, x0), min(1920, x0 + 140)
+        img[380:680, xa:xb] = win[:, xa - x0:xb - x0]
+        # window plate with a glyph (like a car number), lighting orange on its mora
+        gi = j - 0
+        if 0 <= gi < len(word):
+            on = t >= gt[min(gi, len(gt) - 1)]
+            kit.map_glyph(img, word[gi], x0 + 70, 345, 48, 0.0, 1.0, '#F08A3C' if on else '#C9D3DC', '#292924', 3.0)
+    if blur > 0.5:
+        img = kit.dir_blur(img, blur)
+    # wheels: frozen spokes (wagon-wheel)
+    for j in range(-1, 12):
+        x0 = j * pitch * 2 - off * 2 % (pitch * 2) + 90
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.circle(m, (int(x0), car_bot + 40), 56, 1.0, 6, cv2.LINE_AA)
+        for k in range(6):
+            a_ = k * math.pi / 3
+            cv2.line(m, (int(x0), car_bot + 40), (int(x0 + math.cos(a_) * 52), int(car_bot + 40 + math.sin(a_) * 52)), 1.0, 4, cv2.LINE_AA)
+        img = img + (H('#292924')[None, None] - img) * m[..., None]
+    # platform edge and lamps in the foreground
+    plat = (kit._YS > 930).astype(np.float32)
+    img = img + (H('#2C4C9A')[None, None] - img) * (plat * 0.85)[..., None]
+    if 139.20 <= t < 139.45:                              # window light pulse
+        kk = 1 - (t - 139.20) / 0.25
+        img[380:680] = img[380:680] + (H('#F5C842')[None, None] - img[380:680]) * (0.35 * kk)
+    img = print_fx.two_ink(img, mis=(2.0, -1.0))
+    return _zh_fixed(img, t, 47, 138.55, ink='#292924', halo_col='#EDE3CF')
+
+
+R['B-bridge2-02'] = bridge2_02
+tl.OWN_TYPE.add('B-bridge2-02')
+
+
+# ---- B-bridge2-03: he stands on the platform; the train's window light strobes across him; he is printed under-inked ---
+def bridge2_03(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars, print_fx
+    from .print_fx import hexc as H
+    img = np.empty((1080, 1920, 3), np.float32)
+    g = (kit._YS / 1080)[..., None]
+    img[:] = H('#EDE3CF') * (1 - g * 0.25) + H('#2C4C9A') * (g * 0.25)
+    # passing windows behind him (blurred orange rectangles moving right -> left)
+    off = (local * 1400) % 260
+    win = np.zeros((1080, 1920), np.float32)
+    for j in range(-1, 9):
+        x0 = int(1920 - (j * 260 + off))
+        cv2.rectangle(win, (x0, 300), (x0 + 170, 600), 1.0, -1)
+    win = cv2.blur(win, (61, 1))
+    img = img + (H('#F08A3C')[None, None] - img) * (win * 0.85)[..., None]
+    body = np.zeros((1080, 1920), np.float32)
+    body[250:680] = 1
+    img = img + (H('#2C4C9A')[None, None] - img) * (body * (1 - win) * 0.25)[..., None]
+    # platform + lamp posts
+    plat = (kit._YS > 900).astype(np.float32)
+    img = img + (H('#2C4C9A')[None, None] - img) * (plat * 0.75)[..., None]
+    for x in (260, 1700):
+        m = np.zeros((1080, 1920), np.float32)
+        cv2.line(m, (x, 900), (x, 160), 1.0, 10, cv2.LINE_AA)
+        img = img + (H('#292924')[None, None] - img) * m[..., None]
+    # strobe on 16ths
+    strobe = (int((t - 0.682) / (BEAT / 4)) % 2 == 0)
+    # him, under-inked (his plate starved of ink): pale tint, 60% coverage
+    push = 1.0 + 0.03 * clamp(local / (s['end'] - s['start']))
+    cl = once('b203_char', lambda: chars.CharLayer('B-bridge2-03', max_cov=0.6))
+    if cl.ok:
+        rgb, a = cl.frame(local, x=920, y=1080, cx=0.5, cy=0.82, height=1200 * push)
+        if strobe:
+            band = np.clip(1 - np.abs(kit._XS - (1920 - off * 6) % 1920) / 160.0, 0, 1) * a
+            rgb = rgb + (H('#F08A3C')[None, None] - rgb) * (band * _dots_k(0.6, 8.0) * 0.7)[..., None]
+        img = chars.over(img, rgb, a)
+    img = print_fx.two_ink(img, mis=(2.0, -1.0))
+    # L48 under-inked; 無力 so faint it reads only when a window light passes behind it
+    gt = _map_gt(48)
+    word = '思い知る自分の無力'
+    for i, ch in enumerate(word):
+        if t < gt[min(i, len(gt) - 1)]:
+            continue
+        x, y = 1740, 150 + i * 96
+        faint = 0.5
+        if ch in '無力':
+            behind = float(win[int(min(1079, y)), int(min(1919, x))])
+            faint = 0.12 + 0.6 * behind
+        kit.map_glyph(img, ch, x, y, 84, 0.0, 1.0, '#EDE3CF', '#2C4C9A', 3.0, alpha=faint)
+    return _zh_fixed(img, t, 48, 141.43, ink='#292924', halo_col='#EDE3CF')
+
+
+R['B-bridge2-03'] = bridge2_03
+tl.OWN_TYPE.add('B-bridge2-03')
+
+
+# ---- B-bridge2-04: she opens her eyes; the halftone shade on her face peels off like a sheet; no shadow left ------------
+def bridge2_04(s, t, local, fi):
+    import cv2, math
+    from mv.core import clamp
+    from . import chars
+    from .halftone import PrintStyle
+    from .print_fx import hexc as H
+    img = np.empty((1080, 1920, 3), np.float32)
+    img[:] = H('#EDE3CF')
+    ang = np.arctan2(kit._YS + 300, kit._XS - 960)
+    rays = (np.sin(ang * 22) > 0.2).astype(np.float32) * np.clip(1 - kit._YS / 1080, 0, 1)
+    img = img + (H('#2C4C9A')[None, None] - img) * (rays * _dots_k(0.25, 10.0) * 0.6)[..., None]
+    bloom = clamp((t - 146.61) / 0.6)
+    if bloom > 0:
+        kit.halo(img, 960, 380, 620 * bloom, '#F5C842', 0.55 * bloom, period=12.0)
+    push = 1.0 + 0.04 * clamp(local / (s['end'] - s['start']))
+    cl = once('b204_flat', lambda: chars.CharLayer('B-bridge2-04', shade=0.0, dot_gain=0.0))
+    cs = once('b204_shade', lambda: chars.CharLayer('B-bridge2-04'))
+    peel = clamp((t - 145.13) / (146.61 - 145.13))
+    if cl.ok:
+        flat, a = cl.frame(local, x=960, y=1080, cx=0.5, cy=0.62, height=1500 * push)
+        shaded, _ = cs.frame(local, x=960, y=1080, cx=0.5, cy=0.62, height=1500 * push)
+        shade = np.clip(flat - shaded, 0, 1).max(-1)                     # where the halftone shade sits
+        img = chars.over(img, flat, a)
+        if peel < 1:
+            e = peel * peel * (3 - 2 * peel)
+            src = np.float32([[0, 0], [1920, 0], [1920, 1080], [0, 1080]])
+            dst = np.float32([[0 + 1500 * e, -900 * e], [1920 + 900 * e, -1200 * e], [1920 + 600 * e, 1080 - 1500 * e],
+                              [0 + 1300 * e, 1080 - 700 * e]])
+            Hm = cv2.getPerspectiveTransform(src, dst)
+            sh_w = cv2.warpPerspective(shade, Hm, (1920, 1080))
+            sheet = cv2.warpPerspective(np.ones((1080, 1920), np.float32), Hm, (1920, 1080))
+            shadow = cv2.GaussianBlur(np.roll(np.roll(sheet, 30, 0), 20, 1), (0, 0), 20) * 0.18 * (1 - e)
+            img = img * (1 - shadow[..., None])
+            img = img + (H('#2C4C9A')[None, None] * 0.6 + H('#292924')[None, None] * 0.4 - img) * (sh_w * 0.85)[..., None]
+    # L49: glyphs carry a halftone shadow that peels off with her shade sheet
+    ly = once('b204_ly', lambda: VLyric(49, x=1740, accent='#2C4C9A', color='#EDE3CF'))
+    if peel >= 1:
+        ly.accent = '#EDE3CF'
+    return ly.draw(img, t)
+
+
+R['B-bridge2-04'] = bridge2_04
+tl.OWN_TYPE.add('B-bridge2-04')
