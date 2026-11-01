@@ -137,10 +137,26 @@ def mirrors_at(sid2, hints, s, local, speed=None):
     return out
 
 
-def insert_in(img, plate, ell, src, alpha=1.0, k=0.35):
-    """her moment inside one mirror; the hood and ring in the plate stay in front"""
+def ripple(src, amp, t, wl=0.09, speed=7.0):
+    """water rings from the centre of a picture: 'the swimming mirror'; amp in px"""
+    if src is None or amp < 0.2:
+        return src
+    h, w = src.shape[:2]
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    cx, cy = w / 2, h / 2
+    dx, dy = xs - cx, ys - cy
+    r = np.sqrt(dx * dx + dy * dy) + 1e-3
+    disp = amp * np.sin(r / (wl * max(w, h)) * 2 * math.pi - t * speed)
+    return cv2.remap(src, (xs + disp * dx / r).astype(np.float32), (ys + disp * dy / r).astype(np.float32), cv2.INTER_LINEAR,
+                     borderMode=cv2.BORDER_REFLECT)
+
+
+def insert_in(img, plate, ell, src, alpha=1.0, k=0.35, rip=0.0, t=0.0):
+    """her moment inside one mirror; the hood and ring in the plate stay in front; rip > 0 sets her swimming in"""
     if src is None or alpha <= 0:
         return img
+    if rip > 0:
+        src = ripple(src, rip * src.shape[0] / 300.0, t)
     (cx, cy), (ew, eh), ang = ell
     pad = int(max(ew, eh) * 0.6) + 4
     x0, y0, x1, y1 = int(max(0, cx - pad)), int(max(0, cy - pad)), int(min(W, cx + pad)), int(min(H_, cy + pad))
@@ -225,15 +241,25 @@ def card_tex(stamps=5, sun=0.0, w=960):
     return cv2.resize(c, (w, int(w * card2.CH / card2.CW)), interpolation=cv2.INTER_AREA)
 
 
-def intro03(s, t, local):
-    img = base(s, t, local)
-    plate = img.copy()
-    x0, y0, x1, y1 = INTRO03_LED
-    colon = (t * 2) % 2 < 1
-    face = fx.led_face('23:59' if colon else '23 59', x1 - x0, y1 - y0)
+def led_over(img, box, txt, on='#FF3B2A', glow=0.6):
+    """a red LED face drawn over the print (the print's palette has no room for its red): box (x0, y0, x1, y1)"""
+    x0, y0, x1, y1 = box
+    face = fx.led_face(txt, x1 - x0, y1 - y0, on=on, glow=glow)
     img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=2.0)
-    img = fx.quad_paste(img, card_tex(), INTRO03_CARD, light=0.8, feather=1.0, blur=0.6)
-    return dream(img, s, t, local)
+    ys, xs = fx_grid()
+    cx, cy, rx, ry = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) * 0.9, (y1 - y0) * 1.6
+    g = np.exp(-(((xs - cx) / rx) ** 2 + ((ys - cy) / ry) ** 2)) * 0.12
+    return img + H(on)[None, None] * g[..., None]
+
+
+def intro03(s, t, local):
+    return dream(base(s, t, local), s, t, local)
+
+
+def intro03_over(img, s, t, local):
+    """the card (its own riso inks, kept out of the scene's palette) lit by the room, then the clock"""
+    img = fx.quad_paste(img, card_tex(), INTRO03_CARD, light=0.8, feather=1.0, blur=0.5)
+    return led_over(img, INTRO03_LED, '23:59' if (t * 2) % 2 < 1 else '23 59')
 
 
 RAW['B-intro-03'] = intro03
@@ -303,9 +329,23 @@ def fx_grid():
     return np.mgrid[0:H_, 0:W].astype(np.float32)
 
 
+def swim_env(idx, a=5, b=None, tail=0.5):
+    """0..1 envelope over the sung '泳いでくミラー' of lyric line idx (glyph a .. b)"""
+    from .v2_typo import glyph_times
+    g = glyph_times()[str(idx)]
+    b = len(g) - 1 if b is None else b
+
+    def env(t):
+        return clamp((t - g[a] + 0.1) / 0.25) * (1 - clamp((t - g[b] - tail) / 0.6))
+    return env
+
+
 def hook02(s, t, local):
     img = base(s, t, local)
     img = dream(img, s, t, local)
+    e = swim_env(6)(t)                                     # 泳いでくミラー: the mirror swims
+    if e > 0:
+        img = ripple(img, 7.0 * e, t, wl=0.07, speed=6.0)
     return through_mirror(img)
 
 
@@ -428,10 +468,11 @@ def chorus1_02(s, t, local):
         tv = cv2.resize(face[int(face.shape[0] * 0.05):int(face.shape[0] * 0.80), int(face.shape[1] * 0.12):int(face.shape[1] * 0.88)],
                         (w * 2, h * 2), interpolation=cv2.INTER_AREA)
         img = fx.quad_paste(img, fx.crt(tv, t, tint='#FFF1C8', curve=0.08), C102_TV, feather=3.0)
-    x0, y0, x1, y1 = C102_LED
-    face = fx.led_face('0:00' if (t * 2) % 2 < 1 else '0 00', x1 - x0, y1 - y0)
-    img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=2.0)
     return dream(img, s, t, local)
+
+
+def chorus1_02_over(img, s, t, local):
+    return led_over(img, C102_LED, '0:00' if (t * 2) % 2 < 1 else '0 00')
 
 
 RAW['B-chorus1-02'] = chorus1_02
@@ -458,7 +499,9 @@ def chorus1_06(s, t, local):
         on = BEAT0 + (math.floor(nb0) + 1 + j * 0.5) * BEAT
         a = clamp((conf - 0.35) / 0.3) * clamp((t - on) / 0.1)
         if a > 0:
-            img = insert_in(img, plate, ell, her(C106_SRC[j % len(C106_SRC)], 0.2 + local * 0.7 + j * 0.37), alpha=a)
+            rip = 6.0 * math.exp(-max(0.0, t - on) * 3.0)
+            img = insert_in(img, plate, ell, her(C106_SRC[j % len(C106_SRC)], 0.2 + local * 0.7 + j * 0.37), alpha=a,
+                            rip=rip, t=t)
     return dream(img, s, t, local)
 
 
@@ -469,8 +512,33 @@ RAW['B-chorus1-06'] = chorus1_06
 C107_CARD = [(687, 807), (1057, 729), (1320, 940), (804, 1067)]
 
 
+def _c107_cam(s, local):
+    d = s['end'] - s['start']
+    k = clamp(local / d)
+    e = k * k * (3 - 2 * k)
+    z = 1.0 + 1.25 * e
+    q = np.asarray(C107_CARD, np.float32)
+    from . import card2
+    u, v = card2.CELL_C[5][0] / card2.CW, card2.CELL_C[5][1] / card2.CH
+    top = q[0] + (q[1] - q[0]) * u
+    bot = q[3] + (q[2] - q[3]) * u
+    c6 = top + (bot - top) * v                              # the sixth cell on the plate
+    return z, 0.5 + (c6[0] / W - 0.5) * e, 0.5 + (c6[1] / H_ - 0.5) * e
+
+
 def chorus1_07(s, t, local):
-    img = base(s, t, local)
+    """a slow push from the room to the card: the sixth cell, where a paper sun tries twice to rise and fails"""
+    z, cx, cy = _c107_cam(s, local)
+    return dream(v2.plate(s, local, zoom=z, cx=cx, cy=cy), s, t, local)
+
+
+def chorus1_07_over(img, s, t, local):
+    z, cx, cy = _c107_cam(s, local)
+    sid2 = v2.b2_id(s)
+    f = v2.footage(sid2)
+    d = s['end'] - s['start']
+    sp = min(1.0, max(0.55, (f.dur - 0.13) / d))
+    qz = v2.zoom_map(sid2, z, cx, cy, t_src=0.08 + local * sp)(np.asarray(C107_CARD, np.float32))
 
     def bump(t0, peak, up=0.30, down=0.42):
         if t < t0:
@@ -481,8 +549,7 @@ def chorus1_07(s, t, local):
     sun = max(bump(50.31, 0.42), bump(51.05, 0.47))
     if 51.79 <= t < 52.05:
         sun = 0.38 if int((t - 51.79) * 24) % 2 == 0 else 0.0
-    img = fx.quad_paste(img, card_tex(5, round(sun, 2)), C107_CARD, light=0.85, feather=1.0, blur=0.4)
-    return dream(img, s, t, local)
+    return fx.quad_paste(img, card_tex(5, round(sun, 2), w=960 if z < 1.4 else 1920), qz, light=0.85, feather=1.0, blur=0.4)
 
 
 RAW['B-chorus1-07'] = chorus1_07
@@ -524,7 +591,10 @@ def _ticker_board():
 
 
 def chorus2_02(s, t, local):
-    img = base(s, t, local)
+    return dream(base(s, t, local), s, t, local)
+
+
+def chorus2_02_over(img, s, t, local):
     x0, y0, x1, y1 = C202_TICKER
     board = _ticker_board()
     bh, bw = board.shape[:2]
@@ -537,9 +607,7 @@ def chorus2_02(s, t, local):
     digs = ''
     for j, ts in enumerate(stop):
         digs += '0012'[j] if t >= ts else str(int(t * 31 + j * 3) % 10)
-    face = fx.led_face(digs, x1 - x0, y1 - y0, on='#FF3B2A')
-    img = fx.quad_paste(img, face, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], feather=1.5)
-    return dream(img, s, t, local)
+    return led_over(img, C202_ROUL, digs, glow=0.5)
 
 
 RAW['B-chorus2-02'] = chorus2_02
@@ -587,12 +655,14 @@ def verse06_over(img, s, t, local):
         ym = np.where(ym > H_ - 1, 2 * (H_ - 1) - ym, ym)
         xm = (xs + 7.0 * np.sin(ys * 0.09 + t * 6.0)).astype(np.float32)
         refl = cv2.remap(src, xm, np.clip(ym, 0, H_ - 1).astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-        water = refl * 0.55 + H('#DDE6EE')[None, None] * 0.45
-        water *= (0.95 + 0.05 * np.sin(ys * 0.12 + 2.0 * np.sin(xs * 0.011 + t * 1.3) + t * 4.0))[..., None]
+        refl = cv2.GaussianBlur(refl, (0, 0), 7)                     # a calm silver mirror, not more dots
+        depth = np.clip((ys - yw) / 500.0, 0, 1)[..., None]
+        water = refl * (0.40 - 0.15 * depth) + H('#E3EAF0')[None, None] * (0.60 + 0.15 * depth)
+        water *= (0.97 + 0.03 * np.sin(ys * 0.10 + 2.0 * np.sin(xs * 0.008 + t * 1.1) + t * 3.0))[..., None]
         rng = np.random.default_rng(int(t * 24))
-        sp = (rng.random((H_ // 8, W // 8)) > 0.994).astype(np.float32)
-        sp = cv2.GaussianBlur(cv2.resize(sp, (W, H_), interpolation=cv2.INTER_NEAREST), (0, 0), 2.2) * 2.4
-        water += sp[..., None] * H('#FFFFFF')[None, None] * 0.7
+        sp = (rng.random((H_ // 8, W // 8)) > 0.9975).astype(np.float32)
+        sp = cv2.GaussianBlur(cv2.resize(sp, (W, H_), interpolation=cv2.INTER_NEAREST), (0, 0), 2.0) * 2.0
+        water += sp[..., None] * H('#FFFFFF')[None, None] * 0.6
         line = np.exp(-((ys - yw) / 3.0) ** 2) * 0.9
         a = np.clip((ys - yw) / 4.0, 0, 1)
         img = img * (1 - a[..., None]) + water * a[..., None]
@@ -604,6 +674,7 @@ def verse06_over(img, s, t, local):
 LYRIC.update({
     'B-hook-02': dict(x=330, y=230),
     'B-hook-04': dict(x=1760, y=150),
+    'B-chorus1-01': dict(x=1080, y=140),
     'B-chorus1-02': dict(x=1820, y=470, size=86),
     'B-chorus1-04': dict(x=1820, y=140),
     'B-chorus2-02': dict(x=160, y=150),
@@ -613,7 +684,8 @@ LYRIC.update({
 
 
 OVER = {'B-hook-02': mirror_frame_over, 'B-hook-04': hook04_over, 'B-chorus2-01': chorus2_01_over,
-        'B-chorus2-04': chorus2_04_over, 'B-verse-06': verse06_over}
+        'B-chorus2-04': chorus2_04_over, 'B-verse-06': verse06_over, 'B-intro-03': intro03_over,
+        'B-chorus1-02': chorus1_02_over, 'B-chorus2-02': chorus2_02_over, 'B-chorus1-07': chorus1_07_over}
 OWN = {'B-chorus2-01', 'B-chorus2-04'}
 
 

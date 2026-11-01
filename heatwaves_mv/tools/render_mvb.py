@@ -55,6 +55,9 @@ def drop_caches():
     m = sys.modules.get('mvb.chars')
     if m is not None and getattr(m, '_matter', None) is not None:
         m._matter = None
+    m = sys.modules.get('mvb.v2')                 # MV-B v2: footage decoders are reopened per worker
+    if m is not None:
+        m._CLIPS.clear()
     gc.collect()
 
 

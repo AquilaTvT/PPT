@@ -182,19 +182,25 @@ def _lcd_timer(w=540, h=300, melt=0.0, t=0.0):
 
 def chorus1_05(s, t, local):
     img = base(s, t, local)
-    nb0 = math.floor((s['start'] - BEAT0) / BEAT + 0.02)
-    n_lit = int(clamp(math.floor((t - BEAT0) / BEAT) - nb0, 0, 8))
-    board = _scoreboard(n_lit)
-    lum = img @ np.float32([0.2126, 0.7152, 0.0722])
-    keep = img.copy()
-    pasted = fx.quad_paste(img.copy(), board, C105_PANEL, feather=1.2, light=0.35)
-    dark = cv2.GaussianBlur(np.clip((0.42 - lum) / 0.12, 0, 1), (0, 0), 1.2)     # the starting block stays in front
-    img = keep + (pasted - keep) * dark[..., None]
     melt = clamp((local - (s['end'] - s['start'] - 1.3)) / 1.2)
     img = fx.quad_paste(img, _lcd_timer(melt=melt, t=t), C105_TIMER, feather=1.0, light=0.5)
     return _dream(img, s, t, local)
 
 
+def chorus1_05_over(img, s, t, local):
+    """the LED lanes over the print; the starting block in front stays in front (keyed on the plate)"""
+    nb0 = math.floor((s['start'] - BEAT0) / BEAT + 0.02)
+    n_lit = int(clamp(math.floor((t - BEAT0) / BEAT) - nb0, 0, 8))
+    board = _scoreboard(n_lit)
+    plate = v2.plate(s, local)
+    lum = plate @ np.float32([0.2126, 0.7152, 0.0722])
+    keep = img.copy()
+    pasted = fx.quad_paste(img.copy(), board, C105_PANEL, feather=1.2)
+    dark = cv2.GaussianBlur(np.clip((0.42 - lum) / 0.12, 0, 1), (0, 0), 1.2)
+    return keep + (pasted - keep) * dark[..., None]
+
+
+OVER['B-chorus1-05'] = chorus1_05_over
 RAW['B-chorus1-05'] = chorus1_05
 
 
@@ -804,7 +810,8 @@ def outro_05(s, t, local):
         if k < 0 or k > BEAT * 1.2:
             continue
         a = clamp((conf - 0.35) / 0.3) * clamp(k / 0.06) * (1 - clamp((k - BEAT * 0.5) / (BEAT * 0.7)))
-        img = insert_in(img, plate, ell, her(OUT05_SRC[rank % len(OUT05_SRC)], 0.5 + rank * 0.4), alpha=a)
+        img = insert_in(img, plate, ell, her(OUT05_SRC[rank % len(OUT05_SRC)], 0.5 + rank * 0.4), alpha=a,
+                        rip=6.0 * math.exp(-k * 3.0), t=t)
     return _dream(img, s, t, local)
 
 

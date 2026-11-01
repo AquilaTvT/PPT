@@ -133,6 +133,30 @@ def kf_path(sid2):
 STANDIN = os.environ.get('HW_V2_STANDIN', '') == '1'
 
 
+def zoom_map(sid2, zoom=1.0, cx=0.5, cy=0.5, t_src=0.0):
+    """map points measured on the zoom-1 plate (1920x1080) to the frame of plate(..., zoom, cx, cy)"""
+    f = footage(sid2)
+    if isinstance(f, Still):
+        w, h = W, H
+        zoom = zoom * (1.0 + 0.012 * t_src)
+        dy0 = 0.0
+    else:
+        w, h = f.c.w, f.c.h
+        dy0 = (h * max(W / w, H / h) - H) / 2 / max(W / w, H / h)      # rows cropped off the top at zoom 1
+    s0 = max(W / w, H / h)
+    s = s0 * zoom
+    px, py = cx * w, cy * h
+    half_w, half_h = W / (2 * s), H / (2 * s)
+    px = min(max(px, half_w), w - half_w) if w > 2 * half_w else w / 2
+    py = min(max(py, half_h), h - half_h) if h > 2 * half_h else h / 2
+
+    def m(pts):
+        p = np.asarray(pts, np.float32).reshape(-1, 2)
+        src = np.stack([p[:, 0] / s0, p[:, 1] / s0 + dy0], 1)       # plate px -> source px
+        return np.stack([(src[:, 0] - px) * s + W / 2, (src[:, 1] - py) * s + H / 2], 1)
+    return m
+
+
 def footage(sid2):
     if sid2 not in _CLIPS:
         p = clip_path(sid2)
@@ -183,7 +207,11 @@ def printer_for(s, raw_fn):
         world = SECTION_WORLD.get(s['section'], '夜刷り Night Print')
         kw = dict(WORLD_PRINT.get(world, {}))
         kw.update(SHOT_PRINT.get(s['id'], {}))
-        pr = Printer(world_inks(s['id']), name=sid2, **kw)
+        # the palette cache is keyed on the source (stand-in keyframe vs final footage) and the print settings
+        import hashlib
+        src = clip_path(sid2) or kf_path(sid2) or ''
+        tag = hashlib.md5((src + str(int(os.path.getmtime(src)) if src else '') + repr(sorted(kw.items()))).encode()).hexdigest()[:8]
+        pr = Printer(world_inks(s['id']), name=f'{sid2}_{tag}', **kw)
         if pr.pal is None:
             d = s['end'] - s['start']
             pr.fit([raw_fn(s, s['start'] + d * f, d * f) for f in (0.15, 0.5, 0.85)])
