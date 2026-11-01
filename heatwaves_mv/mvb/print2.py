@@ -264,13 +264,21 @@ def skin_regions(flat, grow_de=24.0, cream_mix=0.58, people=None):
                 continue
             anchors.append(a)
             # the face itself is skin wherever it has its own colour -- also a tanned face in lantern light that
-            # the generic detector misses
+            # the generic detector misses -- grown from the cheeks through touching pixels of that colour only
+            # (4-connected): the face's key line stops it, so a sky of the same colour in front of a profile does not
+            # become skin
             bx0, by0 = max(0, int(X0 - 0.05 * (X1 - X0))), max(0, int(Y0 - 0.05 * (Y1 - Y0)))
             bx1, by1 = min(w, int(math.ceil(X1 + 0.05 * (X1 - X0)))), min(h, int(math.ceil(Y1 + 0.05 * (Y1 - Y0))))
             win = lab[by0:by1, bx0:bx1]
             own = ((np.hypot(win[..., 1] - a[1], win[..., 2] - a[2]) < SKIN_AB * 1.3) &
-                   (np.abs(win[..., 0] - a[0]) < SKIN_L * 1.5) & gate[by0:by1, bx0:bx1])
-            core[by0:by1, bx0:bx1] |= own
+                   (np.abs(win[..., 0] - a[0]) < SKIN_L * 1.5) & gate[by0:by1, bx0:bx1]).astype(np.uint8)
+            seed = np.zeros_like(own)
+            sx0, sy0 = int(X0 + 0.2 * (X1 - X0)) - bx0, int(Y0 + 0.35 * (Y1 - Y0)) - by0
+            sx1, sy1 = int(X1 - 0.2 * (X1 - X0)) - bx0, int(Y1 - 0.1 * (Y1 - Y0)) - by0
+            seed[max(0, sy0):max(0, sy1), max(0, sx0):max(0, sx1)] = 1
+            nl, lab_o = cv2.connectedComponents(own, connectivity=4)
+            ids = np.unique(lab_o[(seed > 0) & (own > 0)])
+            core[by0:by1, bx0:bx1] |= np.isin(lab_o, ids[ids > 0])
     if not core.any():
         return None
     n, lab_c, st, _ = cv2.connectedComponentsWithStats(core.astype(np.uint8), 8)
@@ -300,7 +308,9 @@ def skin_regions(flat, grow_de=24.0, cream_mix=0.58, people=None):
         cand = ((d < grow_de) & near & warm & (win[..., 0] > 22)).astype(np.uint8) | comp
         if gate is not None:
             cand &= gate[y0:y1, x0:x1].astype(np.uint8)
-        nn, lab_g = cv2.connectedComponents(cand, 8)
+        if isinstance(people, dict) and people.get('face_only'):
+            cand = comp            # no matte to hold the growth: the face's own pixels only (cores + own colour)
+        nn, lab_g = cv2.connectedComponents(cand, 4)   # 4-connected: a broken key line does not let it leak
         keep = np.unique(lab_g[comp > 0])
         keep = keep[keep > 0]
         grown = np.isin(lab_g, keep).astype(np.uint8)

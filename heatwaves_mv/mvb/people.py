@@ -42,7 +42,7 @@ FILES = {
              'https://huggingface.co/deepghs/anime_face_detection/resolve/main/face_detect_v1.4_s/model.onnx'),
 }
 CONF = {'person': 0.45, 'face': 0.40}     # above the models' F1 thresholds (0.31 / 0.32): the main figures, steadily
-VERSION = 'g3'
+VERSION = 'g5'
 OVER = 0.92                   # matte coverage of a figure's box above which the segmentation has failed
 MIN_FIG = 0.05                # figures smaller than this fraction of the frame do not take part in the verdict
 CACHE = os.path.join(ROOT, 'work', 'B2', 'people')
@@ -71,6 +71,8 @@ def _session(k):
         so = ort.SessionOptions()
         so.intra_op_num_threads = int(os.environ.get('HW_SEG_THREADS', '0') or 0) or (os.cpu_count() or 4)
         so.inter_op_num_threads = 1
+        so.enable_cpu_mem_arena = False      # give the activations back after each run (ISNet at 1024^2 is large):
+        so.enable_mem_pattern = False        # parallel render workers stay small
         s = _SESS[k] = ort.InferenceSession(_path(k), so, providers=['CPUExecutionProvider'])
     return s
 
@@ -184,7 +186,10 @@ def compute(rgb, face_only=False):
             flooded = flooded or bool((x1 - x0) * (y1 - y0) >= MIN_FIG * w0 * h0)
             continue
         g[oy0:oy1, ox0:ox1] = np.maximum(g[oy0:oy1, ox0:ox1], m * box)
-    return np.maximum(g, _boxes(OUT[::-1], fo, 0.12)), fo, flooded
+    # the faces join the gate only next to the matte (a face the matte clips at its edge still prints whole), never
+    # the sky or wall that a face box holds round a profile
+    near = cv2.dilate((g > 0.5).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+    return np.maximum(g, _faces_gate(OUT[::-1], fo) * near), fo, flooded
 
 
 def verdict(name, frames_fn):
@@ -226,24 +231,26 @@ def mask(rgb, name=None, face_only=False):
     m = cv2.imread(path, cv2.IMREAD_GRAYSCALE) if os.path.exists(path) else None
     meta = load_json(path[:-4] + '.json') if m is not None else None
     if m is not None and meta is not None and m.shape[::-1] == OUT:
-        out = {'gate': m.astype(np.float32) / 255.0, 'faces': [tuple(f) for f in meta['faces']]}
+        out = {'gate': m.astype(np.float32) / 255.0, 'faces': [tuple(f) for f in meta['faces']], 'face_only': face_only}
     else:
         g, faces, _ = compute(rgb, face_only)
         save_json(path[:-4] + '.json', {'faces': [[float(v) for v in f] for f in faces]})
         save_img(path, (g * 255 + 0.5).astype(np.uint8))
-        out = {'gate': g, 'faces': faces}
+        out = {'gate': g, 'faces': faces, 'face_only': face_only}
     if len(_MEM) > 64:
         _MEM.clear()
     _MEM[path] = out
     return out
 
 
-def gate(m, shape, grow=0.02, thr=0.7):
-    """boolean gate at `shape` (h, w): the mask, thresholded and grown a little (a hair's width of slack at the
-    character's edge, so the skin there is not clipped by a soft matte)"""
+def gate(m, shape, grow=0.0, thr=0.5):
+    """boolean gate at `shape` (h, w): the mask, thresholded at its edge (the matte follows the key line closely;
+    any slack lets the skin spread into a same-coloured sky or wall beside a face), optionally grown"""
     h, w = shape
     g = (cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR) > thr).astype(np.uint8)
-    r = max(1, int(round(h * grow)))
+    r = int(round(h * grow))
+    if r <= 0:
+        return g > 0
     return cv2.dilate(g, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))) > 0
 
 
